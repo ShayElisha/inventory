@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id              String    @id @default(cuid())
+  name            String
+  hasVariants     Boolean   @default(false) @map("has_variants")
+  attributeSchema String    @default("[]") @map("attribute_schema")
+  products        Product[]
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("categories")
+}
+
+model Supplier {
+  id        String    @id @default(cuid())
+  name      String
+  products  Product[]
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("suppliers")
+}
+
+model Product {
+  id           String           @id @default(cuid())
+  categoryId   String           @map("category_id")
+  title        String
+  baseSku      String           @unique @map("base_sku")
+  description  String?
+  supplierId   String?          @map("supplier_id")
+  costPrice    Float            @default(0) @map("cost_price")
+  sellingPrice Float            @default(0) @map("selling_price")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  category Category         @relation(fields: [categoryId], references: [id])
+  supplier Supplier?        @relation(fields: [supplierId], references: [id])
+  variants ProductVariant[]
+
+  @@index([categoryId])
+  @@index([supplierId])
+  @@map("products")
+}
+
+model WarehouseLocation {
+  id       String           @id @default(cuid())
+  zone     String
+  aisle    String
+  shelf    String
+  bin      String
+  code     String           @unique
+  variants ProductVariant[]
+
+  @@map("warehouse_locations")
+}
+
+model ProductVariant {
+  id               String   @id @default(cuid())
+  productId        String   @map("product_id")
+  sku              String   @unique
+  barcode          String   @unique
+  attributes       String   @default("{}")
+  quantityOnHand   Int      @default(0) @map("quantity_on_hand")
+  quantityReserved Int      @default(0) @map("quantity_reserved")
+  minAlertLevel    Int      @default(5) @map("min_alert_level")
+  locationId       String?  @map("location_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  product      Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  location     WarehouseLocation? @relation(fields: [locationId], references: [id])
+  transactions StockTransaction[]
+
+  @@index([productId])
+  @@index([barcode])
+  @@index([sku])
+  @@index([locationId])
+  @@map("product_variants")
+}
+
+model StockTransaction {
+  id               String   @id @default(cuid())
+  variantId        String   @map("variant_id")
+  type             String
+  quantityChanged  Int      @map("quantity_changed")
+  previousQuantity Int      @map("previous_quantity")
+  newQuantity      Int      @map("new_quantity")
+  reason           String
+  fromLocationId   String?  @map("from_location_id")
+  toLocationId     String?  @map("to_location_id")
+  timestamp        DateTime @default(now())
+
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([variantId])
+  @@index([timestamp])
+  @@index([type])
+  @@map("stock_transactions")
+}

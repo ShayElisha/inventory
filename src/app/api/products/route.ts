@@ -1,0 +1,174 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { buildVariantSku, generateMatrixCombinations } from "@/lib/sku";
+import { parseJsonArray, stringifyJson } from "@/lib/json";
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = req.nextUrl;
+  const categoryId = searchParams.get("categoryId");
+  const supplierId = searchParams.get("supplierId");
+  const lowStock = searchParams.get("lowStock") === "1";
+
+  const products = await prisma.product.findMany({
+    where: {
+      ...(categoryId ? { categoryId } : {}),
+      ...(supplierId ? { supplierId } : {}),
+    },
+    include: {
+      category: true,
+      supplier: true,
+      variants: {
+        include: { location: true },
+        orderBy: { sku: "asc" },
+      },
+    },
+    orderBy: { title: "asc" },
+  });
+
+  const filtered = lowStock
+    ? products.filter((p) =>
+        p.variants.some((v) => v.quantityOnHand <= v.minAlertLevel)
+      )
+    : products;
+
+  return NextResponse.json(filtered);
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const {
+      title,
+      baseSku,
+      description,
+      categoryId,
+      supplierId,
+      costPrice,
+      sellingPrice,
+      variants,
+      simpleBarcode,
+      simpleQty,
+      simpleLocationId,
+      matrixOptions,
+    } = body;
+
+    if (!title || !baseSku || !categoryId) {
+      return NextResponse.json({ error: "חסרים שדות חובה" }, { status: 400 });
+    }
+
+    const category = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!category) {
+      return NextResponse.json({ error: "קטגוריה לא נמצאה" }, { status: 400 });
+    }
+
+    const schema = parseJsonArray(category.attributeSchema);
+
+    const product = await prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          title,
+          baseSku: String(baseSku).toUpperCase(),
+          description: description || null,
+          categoryId,
+          supplierId: supplierId || null,
+          costPrice: Number(costPrice) || 0,
+          sellingPrice: Number(sellingPrice) || 0,
+        },
+      });
+
+      let rows: {
+        sku: string;
+        barcode: string;
+        attributes: Record<string, string>;
+        quantityOnHand: number;
+        locationId?: string | null;
+        minAlertLevel?: number;
+      }[] = [];
+
+      if (category.hasVariants && (variants?.length || matrixOptions)) {
+        if (variants?.length) {
+          rows = variants.map(
+            (v: {
+              attributes: Record<string, string>;
+              barcode: string;
+              quantityOnHand?: number;
+              locationId?: string;
+              minAlertLevel?: number;
+              sku?: string;
+            }) => ({
+              sku: v.sku || buildVariantSku(created.baseSku, v.attributes, schema),
+              barcode: v.barcode,
+              attributes: v.attributes,
+              quantityOnHand: Number(v.quantityOnHand) || 0,
+              locationId: v.locationId || null,
+              minAlertLevel: v.minAlertLevel ?? 5,
+            })
+          );
+        } else {
+          const combos = generateMatrixCombinations(schema, matrixOptions || {});
+          rows = combos.map((attrs, i) => ({
+            sku: buildVariantSku(created.baseSku, attrs, schema),
+            barcode: `${created.baseSku}-${i + 1}`.replace(/[^a-zA-Z0-9-]/g, ""),
+            attributes: attrs,
+            quantityOnHand: 0,
+            locationId: null,
+            minAlertLevel: 5,
+          }));
+        }
+      } else {
+        rows = [
+          {
+            sku: created.baseSku,
+            barcode: simpleBarcode || `${created.baseSku}-1`,
+            attributes: {},
+            quantityOnHand: Number(simpleQty) || 0,
+            locationId: simpleLocationId || null,
+            minAlertLevel: 5,
+          },
+        ];
+      }
+
+      for (const row of rows) {
+        const variant = await tx.productVariant.create({
+          data: {
+            productId: created.id,
+            sku: row.sku,
+            barcode: row.barcode,
+            attributes: stringifyJson(row.attributes),
+            quantityOnHand: row.quantityOnHand,
+            locationId: row.locationId,
+            minAlertLevel: row.minAlertLevel ?? 5,
+          },
+        });
+
+        if (row.quantityOnHand > 0) {
+          await tx.stockTransaction.create({
+            data: {
+              variantId: variant.id,
+              type: "INBOUND",
+              quantityChanged: row.quantityOnHand,
+              previousQuantity: 0,
+              newQuantity: row.quantityOnHand,
+              reason: "מלאי התחלתי בהקמה",
+              toLocationId: row.locationId || null,
+            },
+          });
+        }
+      }
+
+      return tx.product.findUnique({
+        where: { id: created.id },
+        include: { variants: true, category: true },
+      });
+    });
+
+    return NextResponse.json(product, { status: 201 });
+  } catch (e) {
+    console.error(e);
+    const message =
+      e instanceof Error && e.message.includes("Unique")
+        ? "מק״ט או ברקוד כבר קיימים"
+        : "שגיאה ביצירת מוצר";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
