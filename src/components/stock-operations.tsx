@@ -113,7 +113,7 @@ export function StockOperations({
     return (
       <Card>
         <p className="text-sm text-[var(--muted)]">
-          אין וריאציות במלאי. הוסיפו מוצרים ב{" "}
+          אין אפשרויות מוצר במלאי. הוסיפו מוצרים ב{" "}
           <a href="/products/new" className="font-medium text-[var(--accent)] underline">
             קטלוג
           </a>
@@ -148,7 +148,7 @@ export function StockOperations({
 
       <Card className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <Label>וריאציה / SKU</Label>
+          <Label>אפשרות מוצר / SKU</Label>
           <Select value={variantId} onChange={(e) => setVariantId(e.target.value)}>
             {variants.map((v) => (
               <option key={v.id} value={v.id}>

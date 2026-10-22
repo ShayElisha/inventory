@@ -168,7 +168,7 @@ export function QuickPick() {
                   <span className="font-semibold text-[var(--foreground)]">{v.product.title}</span>
                   <span className="text-xs text-[var(--muted)]">
                     {v.sku}
-                    {attributesLabel(v.attributes) !== "ללא וריאציות"
+                    {attributesLabel(v.attributes) !== "ללא אפשרויות"
                       ? ` · ${attributesLabel(v.attributes)}`
                       : ""}
                     {" · "}

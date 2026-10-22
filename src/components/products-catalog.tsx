@@ -78,7 +78,7 @@ export function ProductsCatalog({
   async function deleteProduct(p: Product) {
     if (
       !confirm(
-        `למחוק את המוצר "${p.title}" ואת כל הוריאציות שלו? פעולה זו בלתי הפיכה.`
+        `למחוק את המוצר "${p.title}" ואת כל אפשרויות המוצר שלו? פעולה זו בלתי הפיכה.`
       )
     ) {
       return;
@@ -172,7 +172,7 @@ export function ProductsCatalog({
                       {hasLow && <Badge tone="danger">מלאי נמוך</Badge>}
                     </div>
                     <div className="mt-1 text-xs text-[var(--muted)]">
-                      מק״ט בסיס: {p.baseSku} · {p.variants.length} וריאציות · סה״כ{" "}
+                      מק״ט בסיס: {p.baseSku} · {p.variants.length} אפשרויות מוצר · סה״כ{" "}
                       {totalQty} {unitLabel(p.unitOfMeasure || "UNIT")}
                       {p.supplier ? ` · ${p.supplier.name}` : ""}
                     </div>

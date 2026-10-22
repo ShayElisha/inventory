@@ -32,6 +32,6 @@ export function attributesLabel(attributes: unknown): string {
     obj = attributes as Record<string, string>;
   }
   const entries = Object.entries(obj);
-  if (entries.length === 0) return "ללא וריאציות";
+  if (entries.length === 0) return "ללא אפשרויות";
   return entries.map(([k, v]) => `${k}: ${v}`).join(" · ");
 }

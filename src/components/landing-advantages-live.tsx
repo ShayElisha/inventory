@@ -21,10 +21,10 @@ const advantages = [
   },
   {
     id: "matrix",
-    title: "מטריצת וריאציות",
-    desc: "יצירת SKU אוטומטית למידות, צבעים וגזרות.",
+    title: "מידות, צבעים וגזרות",
+    desc: "יצירת מק״ט אוטומטית לכל שילוב — בלי טבלאות ידניות.",
     icon: Package,
-    metric: { label: "וריאציות בדקה", from: 4, to: 48 },
+    metric: { label: "אפשרויות בדקה", from: 4, to: 48 },
   },
   {
     id: "pick",

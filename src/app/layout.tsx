@@ -20,9 +20,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sfira | ניהול מלאי, לוגיסטיקה ווריאציות",
+  title: "Sfira | ניהול מלאי, לוגיסטיקה ואפשרויות מוצר",
   description:
-    "Sfira — פלטפורמה לחברות לניהול מלאי בזמן אמת, וריאציות, ליקוט, ספירות ודוחות",
+    "Sfira — פלטפורמה לחברות לניהול מלאי בזמן אמת, אפשרויות מוצר, ליקוט, ספירות ודוחות",
   icons: {
     icon: "/sfira-mark.svg",
     apple: "/sfira-logo.jpg",

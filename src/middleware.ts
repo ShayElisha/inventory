@@ -2,7 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 const COOKIE = "inventory_session";
-const PUBLIC_EXACT = ["/", "/login", "/register"];
+const PUBLIC_EXACT = [
+  "/",
+  "/login",
+  "/register",
+  "/about",
+  "/privacy",
+  "/terms",
+  "/accessibility",
+  "/contact",
+];
 const PUBLIC_PREFIX = ["/api/auth/login", "/api/auth/register"];
 
 export async function middleware(req: NextRequest) {

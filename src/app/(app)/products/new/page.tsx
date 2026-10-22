@@ -26,7 +26,7 @@ export default async function NewProductPage() {
     <div>
       <PageHeader
         title="הקמת מוצר"
-        description="מוצר פשוט או מטריצת וריאציות לפי קטגוריה"
+        description="מוצר פשוט או טבלת אפשרויות מוצר לפי קטגוריה"
       />
       <ProductForm
         categories={categories}

@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const { variantId, mode, quantity, countedQuantity, reason, delta } = body;
 
     if (!variantId) {
-      return NextResponse.json({ error: "חסר מזהה וריאציה" }, { status: 400 });
+      return NextResponse.json({ error: "חסר מזהה אפשרות מוצר" }, { status: 400 });
     }
 
     if (mode === "quick") {

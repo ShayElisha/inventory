@@ -200,7 +200,7 @@ export function SetupPanel({
                 checked={hasVariants}
                 onChange={(e) => setHasVariants(e.target.checked)}
               />
-              מוצרים בקטגוריה זו מתפצלים לוריאציות
+              מוצרים בקטגוריה זו מתפצלים לאפשרויות מוצר
             </label>
             {hasVariants && (
               <div>
@@ -235,7 +235,7 @@ export function SetupPanel({
                         checked={editCatHasVariants}
                         onChange={(e) => setEditCatHasVariants(e.target.checked)}
                       />
-                      וריאציות
+                      אפשרויות מוצר
                     </label>
                     {editCatHasVariants && (
                       <Input
@@ -274,7 +274,7 @@ export function SetupPanel({
                           {" "}
                           ·{" "}
                           {parseJsonArray(c.attributeSchema).join(", ") ||
-                            "וריאציות"}
+                            "אפשרויות מוצר"}
                         </span>
                       )}
                     </div>

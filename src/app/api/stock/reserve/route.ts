@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const qty = Number(quantity);
     const result = await prisma.$transaction(async (tx) => {
       const variant = await tx.productVariant.findUnique({ where: { id: variantId } });
-      if (!variant) throw new StockError("וריאציה לא נמצאה");
+      if (!variant) throw new StockError("אפשרות מוצר לא נמצאה");
       const available = variant.quantityOnHand - variant.quantityReserved;
       if (qty > available) throw new StockError("אין מספיק מלאי פנוי לשמירה");
 

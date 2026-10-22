@@ -20,7 +20,7 @@ async function getVariantLocked(tx: Tx, variantId: string) {
   const variant = await tx.productVariant.findUnique({
     where: { id: variantId },
   });
-  if (!variant) throw new StockError("וריאציה לא נמצאה");
+  if (!variant) throw new StockError("אפשרות מוצר לא נמצאה");
   return variant;
 }
 

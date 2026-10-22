@@ -109,7 +109,7 @@ export async function PATCH(
         },
       });
 
-      // עדכון וריאציה בודדת (מוצר פשוט) — ברקוד / מיקום / מינימום התראה
+      // עדכון אפשרות מוצר בודדת (מוצר פשוט) — ברקוד / מיקום / מינימום התראה
       if (Array.isArray(body.variants)) {
         for (const row of body.variants as {
           id: string;

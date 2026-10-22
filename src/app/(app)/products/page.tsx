@@ -48,7 +48,7 @@ export default async function ProductsPage({
     <div>
       <PageHeader
         title="קטלוג מוצרים"
-        description="מוצרים אב, וריאציות ומחולל מטריצה"
+        description="מוצרים אב, אפשרויות מוצר ומחולל שילובי מידה/צבע"
         actions={
           <Link
             href="/products/new"

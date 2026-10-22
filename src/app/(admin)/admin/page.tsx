@@ -56,7 +56,7 @@ export default async function AdminHomePage() {
     {
       label: "מוצרים",
       value: products,
-      hint: `${variants} וריאציות`,
+      hint: `${variants} אפשרויות מוצר`,
       icon: Package,
       href: "/admin/companies",
     },

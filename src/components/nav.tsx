@@ -91,7 +91,7 @@ export function AppNav() {
                 Sfira
               </div>
               <div className="text-xs text-[var(--muted)]">
-                {user?.companyName || "לוגיסטיקה ווריאציות"}
+                {user?.companyName || "ניהול מלאי ולוגיסטיקה"}
               </div>
             </div>
           </Link>

@@ -207,7 +207,7 @@ export function ProductForm({
 
       if (category?.hasVariants) {
         if (matrixRows.length === 0) {
-          setError("יש ליצור מטריצת וריאציות לפני השמירה");
+          setError("יש ליצור טבלת אפשרויות מוצר לפני השמירה");
           setLoading(false);
           return;
         }
@@ -262,7 +262,7 @@ export function ProductForm({
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
-                {c.hasVariants ? " (וריאציות)" : ""}
+                {c.hasVariants ? " (אפשרויות מוצר)" : ""}
               </option>
             ))}
           </Select>
@@ -334,7 +334,7 @@ export function ProductForm({
       {isEdit ? (
         <Card className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold">וריאציות קיימות</h2>
+            <h2 className="text-lg font-semibold">אפשרויות מוצר קיימות</h2>
             <p className="text-sm text-[var(--muted)]">
               ניתן לעדכן ברקוד, מיקום וסף התראה. כמות משתנה דרך קליטה/ניפוק.
             </p>
@@ -444,7 +444,7 @@ export function ProductForm({
       ) : category?.hasVariants ? (
         <Card className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold">מחולל מטריצת וריאציות</h2>
+            <h2 className="text-lg font-semibold">מחולל אפשרויות מוצר</h2>
             <p className="text-sm text-[var(--muted)]">
               הזינו ערכים מופרדים בפסיק לכל מאפיין, ואז צרו את כל השילובים
             </p>
@@ -470,7 +470,7 @@ export function ProductForm({
             ))}
           </div>
           <Button type="button" variant="secondary" onClick={generateMatrix}>
-            צור וריאציות ({schema.join(" × ")})
+            צור אפשרויות מוצר ({schema.join(" × ")})
           </Button>
 
           {matrixRows.length > 0 && (
