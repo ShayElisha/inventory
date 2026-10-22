@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSession, hashPassword, canAdmin } from "@/lib/auth";
 import { COMPANY_ROLES, ROLES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
-import { validatePassword } from "@/lib/password";
+import { generateTempPassword } from "@/lib/password";
 import {
   formatPhoneDisplay,
   isEmail,
@@ -54,7 +54,6 @@ export async function POST(req: NextRequest) {
     const name = String(body.name || "").trim();
     const emailRaw = String(body.email || "").trim();
     const phoneRaw = String(body.phone || "").trim();
-    const password = String(body.password || "");
     const role = String(body.role || ROLES.WAREHOUSE);
 
     if (!name) {
@@ -80,11 +79,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "טלפון לא תקין" }, { status: 400 });
     }
 
-    const pwdError = validatePassword(password);
-    if (pwdError) {
-      return NextResponse.json({ error: pwdError }, { status: 400 });
-    }
-
     if (email) {
       const taken = await prisma.user.findUnique({ where: { email } });
       if (taken) {
@@ -98,13 +92,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const tempPassword = generateTempPassword();
+
     const user = await prisma.user.create({
       data: {
         companyId: session.companyId,
         name,
         email,
         phone,
-        passwordHash: await hashPassword(password),
+        passwordHash: await hashPassword(tempPassword),
         role,
         active: true,
       },
@@ -123,11 +119,15 @@ export async function POST(req: NextRequest) {
       action: "CREATE_EMPLOYEE",
       entityType: "User",
       entityId: user.id,
-      details: { name, email, phone, role },
+      details: { name, email, phone, role, tempPassword: true },
     });
 
     return NextResponse.json(
-      { ...user, phoneDisplay: formatPhoneDisplay(user.phone) },
+      {
+        ...user,
+        phoneDisplay: formatPhoneDisplay(user.phone),
+        tempPassword,
+      },
       { status: 201 }
     );
   } catch (e) {

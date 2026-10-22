@@ -28,3 +28,26 @@ export function validatePassword(password: string): string | null {
 export function passwordStrength(password: string) {
   return PASSWORD_RULES.filter((r) => r.test(password)).length;
 }
+
+/** Temporary password that always satisfies PASSWORD_RULES. */
+export function generateTempPassword(length = 12): string {
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const digits = "23456789";
+  const special = "!@#$%&*";
+  const all = lower + upper + digits + special;
+
+  const pick = (chars: string) =>
+    chars[Math.floor(Math.random() * chars.length)]!;
+
+  const required = [pick(lower), pick(upper), pick(digits), pick(special)];
+  const rest = Array.from({ length: Math.max(0, length - required.length) }, () =>
+    pick(all)
+  );
+  const chars = [...required, ...rest];
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [chars[i], chars[j]] = [chars[j]!, chars[i]!];
+  }
+  return chars.join("");
+}

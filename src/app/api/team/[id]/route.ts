@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSession, hashPassword, canAdmin } from "@/lib/auth";
 import { COMPANY_ROLES, ROLES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
-import { validatePassword } from "@/lib/password";
+import { generateTempPassword, validatePassword } from "@/lib/password";
 import {
   formatPhoneDisplay,
   isEmail,
@@ -127,7 +127,11 @@ export async function PATCH(
       data.active = Boolean(body.active);
     }
 
-    if (body.password) {
+    let tempPassword: string | undefined;
+    if (body.resetPassword) {
+      tempPassword = generateTempPassword();
+      data.passwordHash = await hashPassword(tempPassword);
+    } else if (body.password) {
       const pwdError = validatePassword(String(body.password));
       if (pwdError) {
         return NextResponse.json({ error: pwdError }, { status: 400 });
@@ -165,13 +169,15 @@ export async function PATCH(
       entityId: id,
       details: {
         ...body,
-        password: body.password ? "[changed]" : undefined,
+        password: body.password || body.resetPassword ? "[changed]" : undefined,
+        resetPassword: undefined,
       },
     });
 
     return NextResponse.json({
       ...user,
       phoneDisplay: formatPhoneDisplay(user.phone),
+      ...(tempPassword ? { tempPassword } : {}),
     });
   } catch (e) {
     console.error(e);
