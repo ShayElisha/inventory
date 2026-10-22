@@ -72,7 +72,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/pick", label: "ניפוק", icon: PackageMinus },
       { href: "/orders", label: "הזמנות לקוח", icon: ShoppingCart },
-      { href: "/inbound", label: "קליטה", icon: PackagePlus },
+      { href: "/inbound", label: "קליטה מלאה", icon: PackagePlus },
       { href: "/purchases", label: "רכש / PO", icon: FileSpreadsheet },
       { href: "/scan", label: "סריקה", icon: ScanBarcode },
       { href: "/stock", label: "תנועות", icon: ArrowLeftRight },
