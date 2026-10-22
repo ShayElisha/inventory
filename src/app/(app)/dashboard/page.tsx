@@ -18,6 +18,7 @@ import {
   TrendingDown,
   TrendingUp,
   Bell,
+  CircleHelp,
 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { Badge, Card } from "@/components/ui";
@@ -819,6 +820,12 @@ export default async function DashboardPage({
               icon={Users}
             />
           )}
+          <ActionTile
+            href="/help"
+            label="מרכז עזרה"
+            desc="מדריכים קצרים בתוך המערכת"
+            icon={CircleHelp}
+          />
         </div>
       </section>
 

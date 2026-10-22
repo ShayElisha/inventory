@@ -23,6 +23,7 @@ import {
   LogOut,
   Users,
   KeyRound,
+  CircleHelp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -52,6 +53,7 @@ const links: {
   { href: "/team", label: "עובדים", icon: Users, adminOnly: true },
   { href: "/setup", label: "הגדרות", icon: Settings2 },
   { href: "/export", label: "ייצוא", icon: Download },
+  { href: "/help", label: "עזרה", icon: CircleHelp },
 ];
 
 export function AppNav() {
