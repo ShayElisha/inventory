@@ -22,15 +22,21 @@ import {
   Shield,
   LogOut,
   Users,
+  KeyRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
 import { GlobalSearch } from "@/components/global-search";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo } from "@/components/brand-logo";
-import { ROLE_LABELS, Role } from "@/lib/constants";
+import { ROLE_LABELS, ROLES, Role } from "@/lib/constants";
 
-const links = [
+const links: {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  adminOnly?: boolean;
+}[] = [
   { href: "/dashboard", label: "דשבורד", icon: LayoutDashboard },
   { href: "/pick", label: "ניפוק", icon: PackageMinus },
   { href: "/inbound", label: "קליטה", icon: PackagePlus },
@@ -42,8 +48,8 @@ const links = [
   { href: "/stock", label: "תנועות", icon: ArrowLeftRight },
   { href: "/locations", label: "מיקומים", icon: MapPin },
   { href: "/scan", label: "סריקה", icon: ScanBarcode },
-  { href: "/audit", label: "Audit", icon: Shield },
-  { href: "/team", label: "עובדים", icon: Users },
+  { href: "/audit", label: "Audit", icon: Shield, adminOnly: true },
+  { href: "/team", label: "עובדים", icon: Users, adminOnly: true },
   { href: "/setup", label: "הגדרות", icon: Settings2 },
   { href: "/export", label: "ייצוא", icon: Download },
 ];
@@ -70,6 +76,9 @@ export function AppNav() {
     router.push("/");
     router.refresh();
   }
+
+  const isAdmin = user?.role === ROLES.ADMIN;
+  const visibleLinks = links.filter((l) => !l.adminOnly || isAdmin);
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--nav)] backdrop-blur">
@@ -101,6 +110,13 @@ export function AppNav() {
               </div>
             </div>
           )}
+          <Link
+            href="/account/password"
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 hover:bg-[var(--surface-2)]"
+            title="שינוי סיסמה"
+          >
+            <KeyRound className="h-4 w-4" />
+          </Link>
           <button
             type="button"
             onClick={logout}
@@ -120,7 +136,7 @@ export function AppNav() {
       </div>
 
       <nav className="mx-auto hidden max-w-7xl flex-wrap gap-1 px-4 pb-3 lg:flex">
-        {links.map(({ href, label, icon: Icon }) => {
+        {visibleLinks.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/dashboard"
               ? pathname === "/dashboard"
@@ -145,7 +161,7 @@ export function AppNav() {
 
       {open && (
         <nav className="border-t border-[var(--border)] bg-[var(--surface)] px-4 py-2 lg:hidden">
-          {links.map(({ href, label, icon: Icon }) => {
+          {visibleLinks.map(({ href, label, icon: Icon }) => {
             const active =
               href === "/dashboard"
                 ? pathname === "/dashboard"

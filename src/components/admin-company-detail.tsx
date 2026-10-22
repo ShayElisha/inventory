@@ -29,6 +29,7 @@ type Company = {
   name: string;
   slug: string;
   phone: string | null;
+  approved: boolean;
   active: boolean;
   createdAt: string;
   users: UserRow[];
@@ -47,6 +48,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
   const [name, setName] = useState(company.name);
   const [slug, setSlug] = useState(company.slug);
   const [phone, setPhone] = useState(company.phone || "");
+  const [approved, setApproved] = useState(company.approved);
   const [active, setActive] = useState(company.active);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -65,10 +67,33 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
       const res = await fetch(`/api/admin/companies/${company.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug, phone, active }),
+        body: JSON.stringify({ name, slug, phone, approved, active }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
+      if (data.approved != null) setApproved(data.approved);
+      if (data.active != null) setActive(data.active);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שגיאה");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function approveCompany() {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/companies/${company.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approved: true, active: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה");
+      setApproved(true);
+      setActive(true);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
@@ -211,26 +236,52 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
             <Label>טלפון</Label>
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
-          <div className="flex items-end gap-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={approved}
+                onChange={(e) => {
+                  setApproved(e.target.checked);
+                  if (e.target.checked) setActive(true);
+                }}
+              />
+              מאושרת
+            </label>
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={active}
                 onChange={(e) => setActive(e.target.checked)}
+                disabled={!approved}
               />
-              חברה פעילה
+              פעילה
             </label>
-            <Badge tone={active ? "ok" : "danger"}>
-              {active ? "פעילה" : "מושעית"}
+            <Badge
+              tone={!approved ? "warn" : active ? "ok" : "danger"}
+            >
+              {!approved ? "ממתינה לאישור" : active ? "פעילה" : "מושעית"}
             </Badge>
           </div>
           <div className="sm:col-span-2">
             <p className="mb-3 text-xs text-[var(--muted)]">
               נוצרה: {formatDateTime(company.createdAt)}
             </p>
-            <Button type="submit" disabled={loading}>
-              שמור שינויים
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {!approved && (
+                <Button
+                  type="button"
+                  variant="lime"
+                  disabled={loading}
+                  onClick={approveCompany}
+                >
+                  אשר חברה עכשיו
+                </Button>
+              )}
+              <Button type="submit" disabled={loading}>
+                שמור שינויים
+              </Button>
+            </div>
           </div>
         </form>
       </Card>

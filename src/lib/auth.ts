@@ -23,6 +23,7 @@ export type SessionUser = {
   role: Role;
   companyId: string;
   companyName: string;
+  mustChangePassword: boolean;
 };
 
 export async function hashPassword(password: string) {
@@ -42,6 +43,7 @@ export async function createSession(user: SessionUser) {
     role: user.role,
     companyId: user.companyId,
     companyName: user.companyName,
+    mustChangePassword: Boolean(user.mustChangePassword),
   })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("14d")
@@ -76,6 +78,7 @@ export async function getSession(): Promise<SessionUser | null> {
       role: payload.role as Role,
       companyId: String(payload.companyId || ""),
       companyName: String(payload.companyName || ""),
+      mustChangePassword: Boolean(payload.mustChangePassword),
     };
   } catch {
     return null;
@@ -143,6 +146,7 @@ export function sessionFromUser(user: {
   role: string;
   companyId: string;
   company: { name: string };
+  mustChangePassword?: boolean;
 }): SessionUser {
   return {
     id: user.id,
@@ -152,6 +156,7 @@ export function sessionFromUser(user: {
     role: user.role as Role,
     companyId: user.companyId,
     companyName: user.company.name,
+    mustChangePassword: Boolean(user.mustChangePassword),
   };
 }
 
@@ -163,8 +168,14 @@ export async function ensureSuperAdmin() {
         id: "cm_platform_company_001",
         name: "פלטפורמת Sfira",
         slug: "platform",
+        approved: true,
         active: true,
       },
+    });
+  } else if (!platform.approved) {
+    platform = await prisma.company.update({
+      where: { id: platform.id },
+      data: { approved: true, active: true },
     });
   }
 
@@ -200,8 +211,14 @@ export async function ensureDefaultUsers() {
         id: "cm_default_company_001",
         name: "חברת דוגמה",
         slug: "demo",
+        approved: true,
         active: true,
       },
+    });
+  } else if (!company.approved) {
+    company = await prisma.company.update({
+      where: { id: company.id },
+      data: { approved: true },
     });
   }
 

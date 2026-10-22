@@ -14,6 +14,7 @@ type Company = {
   name: string;
   slug: string;
   phone: string | null;
+  approved: boolean;
   active: boolean;
   createdAt: string;
   _count: {
@@ -23,6 +24,16 @@ type Company = {
     categories: number;
   };
 };
+
+function statusBadge(c: Company) {
+  if (!c.approved) {
+    return <Badge tone="warn">ממתינה לאישור</Badge>;
+  }
+  if (!c.active) {
+    return <Badge tone="danger">מושעית</Badge>;
+  }
+  return <Badge tone="ok">פעילה</Badge>;
+}
 
 export function AdminCompanies({ companies }: { companies: Company[] }) {
   const router = useRouter();
@@ -83,10 +94,13 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
     setLoading(true);
     setError("");
     try {
+      const body = !c.approved
+        ? { approved: true, active: true }
+        : { active: !c.active };
       const res = await fetch(`/api/admin/companies/${c.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ active: !c.active }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
@@ -210,7 +224,9 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
             </tr>
           </thead>
           <tbody>
-            {companies.map((c) => (
+            {[...companies]
+              .sort((a, b) => Number(a.approved) - Number(b.approved))
+              .map((c) => (
               <tr key={c.id} className="border-b border-[var(--border)]">
                 <td className="p-3">
                   <Link
@@ -224,11 +240,7 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
                     <div className="text-xs text-[var(--muted)]">{c.phone}</div>
                   )}
                 </td>
-                <td className="p-3">
-                  <Badge tone={c.active ? "ok" : "danger"}>
-                    {c.active ? "פעילה" : "מושעית"}
-                  </Badge>
-                </td>
+                <td className="p-3">{statusBadge(c)}</td>
                 <td className="p-3">{c._count.users}</td>
                 <td className="p-3">{c._count.products}</td>
                 <td className="p-3">{c._count.locations}</td>
@@ -246,15 +258,21 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
                     </Link>
                     <button
                       type="button"
-                      className="rounded-lg p-1.5 text-amber-700 hover:bg-amber-50"
-                      title={c.active ? "השעיה" : "הפעלה"}
+                      className="rounded-lg p-1.5 text-amber-700 hover:bg-amber-50 dark:hover:bg-[var(--warn-soft)]"
+                      title={
+                        !c.approved
+                          ? "אשר חברה"
+                          : c.active
+                            ? "השעיה"
+                            : "הפעלה"
+                      }
                       disabled={loading}
                       onClick={() => toggleActive(c)}
                     >
-                      {c.active ? (
-                        <Ban className="h-4 w-4" />
-                      ) : (
+                      {!c.approved || !c.active ? (
                         <CheckCircle2 className="h-4 w-4" />
+                      ) : (
+                        <Ban className="h-4 w-4" />
                       )}
                     </button>
                     <button

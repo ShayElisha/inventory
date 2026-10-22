@@ -12,6 +12,8 @@ model Company {
   name      String
   slug      String   @unique
   phone     String?
+  // false = ממתינה לאישור סופר־אדמין אחרי הרשמה עצמית
+  approved  Boolean  @default(false)
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -33,10 +35,11 @@ model User {
   name         String
   email        String?  @unique
   phone        String?  @unique
-  passwordHash String   @map("password_hash")
-  role         String   @default("WAREHOUSE") // SUPER_ADMIN | ADMIN | WAREHOUSE | VIEWER
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now()) @map("created_at")
+  passwordHash       String   @map("password_hash")
+  mustChangePassword Boolean  @default(false) @map("must_change_password")
+  role               String   @default("WAREHOUSE") // SUPER_ADMIN | ADMIN | WAREHOUSE | VIEWER
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now()) @map("created_at")
 
   company         Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   auditLogs       AuditLog[]

@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  createSession,
-  hashPassword,
-  sessionFromUser,
-  slugifyCompany,
-} from "@/lib/auth";
+import { hashPassword, slugifyCompany } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
 import { validatePassword } from "@/lib/password";
@@ -84,6 +79,8 @@ export async function POST(req: NextRequest) {
           name: companyName,
           slug,
           phone: companyPhone,
+          approved: false,
+          active: true,
         },
       });
       const user = await tx.user.create({
@@ -95,13 +92,9 @@ export async function POST(req: NextRequest) {
           passwordHash,
           role: ROLES.ADMIN,
         },
-        include: { company: true },
       });
       return { company, user };
     });
-
-    const sessionUser = sessionFromUser(result.user);
-    await createSession(sessionUser);
 
     const ip =
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -114,13 +107,24 @@ export async function POST(req: NextRequest) {
       entityId: result.company.id,
       userId: result.user.id,
       ip,
-      details: { companyName, email, phone: adminPhone },
+      details: {
+        companyName,
+        email,
+        phone: adminPhone,
+        pendingApproval: true,
+      },
     });
 
     return NextResponse.json(
       {
-        company: { id: result.company.id, name: result.company.name },
-        user: sessionUser,
+        company: {
+          id: result.company.id,
+          name: result.company.name,
+          approved: false,
+        },
+        pendingApproval: true,
+        message:
+          "החברה נרשמה בהצלחה וממתינה לאישור מנהל הפלטפורמה. לאחר האישור תוכלו להתחבר.",
       },
       { status: 201 }
     );

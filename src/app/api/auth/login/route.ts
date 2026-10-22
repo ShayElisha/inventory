@@ -32,15 +32,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "פרטי התחברות שגויים" }, { status: 401 });
   }
 
-  if (
-    user.role !== ROLES.SUPER_ADMIN &&
-    user.company &&
-    !user.company.active
-  ) {
-    return NextResponse.json(
-      { error: "החברה מושעית. פנו למנהל הפלטפורמה." },
-      { status: 403 }
-    );
+  if (user.role !== ROLES.SUPER_ADMIN && user.company) {
+    if (!user.company.approved) {
+      return NextResponse.json(
+        {
+          error:
+            "החברה ממתינה לאישור מנהל הפלטפורמה. לא ניתן להתחבר עד לאישור.",
+        },
+        { status: 403 }
+      );
+    }
+    if (!user.company.active) {
+      return NextResponse.json(
+        { error: "החברה מושעית. פנו למנהל הפלטפורמה." },
+        { status: 403 }
+      );
+    }
   }
 
   const sessionUser = sessionFromUser(user);

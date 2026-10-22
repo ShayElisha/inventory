@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   X,
+  KeyRound,
 } from "lucide-react";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -75,6 +76,13 @@ export function AdminNav({ userName }: { userName?: string }) {
             <span className="hidden text-xs text-white/60 sm:inline">{userName}</span>
           )}
           <ThemeToggle className="border-white/20 bg-white/10 text-white hover:bg-white/20" />
+          <Link
+            href="/account/password"
+            className="rounded-lg border border-white/20 bg-white/10 p-2 text-white hover:bg-white/20"
+            title="שינוי סיסמה"
+          >
+            <KeyRound className="h-4 w-4" />
+          </Link>
           <button
             type="button"
             onClick={logout}

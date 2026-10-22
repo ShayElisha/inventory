@@ -27,7 +27,7 @@ export default async function AdminCompaniesPage() {
     <div>
       <PageHeader
         title="ניהול חברות"
-        description="יצירה, השעיה ומחיקה של ארגונים בפלטפורמה"
+        description="אישור הרשמות, השעיה ומחיקה של ארגונים בפלטפורמה"
       />
       <AdminCompanies
         companies={JSON.parse(JSON.stringify(companies))}

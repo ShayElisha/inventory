@@ -30,6 +30,7 @@ export async function PATCH(
       active?: boolean;
       companyId?: string;
       passwordHash?: string;
+      mustChangePassword?: boolean;
     } = {};
 
     if (body.name != null) {
@@ -73,6 +74,7 @@ export async function PATCH(
         return NextResponse.json({ error: pwdError }, { status: 400 });
       }
       data.passwordHash = await hashPassword(String(body.password));
+      data.mustChangePassword = true;
     }
 
     const user = await prisma.user.update({

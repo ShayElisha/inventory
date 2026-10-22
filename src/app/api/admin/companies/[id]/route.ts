@@ -66,6 +66,7 @@ export async function PATCH(
       name?: string;
       phone?: string | null;
       active?: boolean;
+      approved?: boolean;
       slug?: string;
     } = {};
 
@@ -79,8 +80,14 @@ export async function PATCH(
     if (body.phone !== undefined) {
       data.phone = body.phone ? String(body.phone).trim() : null;
     }
+    if (body.approved !== undefined) {
+      data.approved = Boolean(body.approved);
+      if (data.approved) data.active = true;
+    }
     if (body.active !== undefined) {
       data.active = Boolean(body.active);
+      // הפעלה מחדש / אישור ממתינה — מאשרים גם את החברה
+      if (data.active) data.approved = true;
     }
     if (body.slug != null) {
       let slug = slugifyCompany(String(body.slug));

@@ -1,11 +1,22 @@
 import { redirect } from "next/navigation";
-import { getSession, isSuperAdmin, SessionUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { destroySession, getSession, isSuperAdmin, SessionUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
 
 export async function requireTenant(): Promise<SessionUser> {
   const session = await getSession();
   if (!session?.companyId) redirect("/login");
   if (isSuperAdmin(session.role)) redirect("/admin");
+
+  const company = await prisma.company.findUnique({
+    where: { id: session.companyId },
+    select: { approved: true, active: true },
+  });
+  if (!company?.approved || !company.active) {
+    await destroySession();
+    redirect("/login?pending=1");
+  }
+
   return session;
 }
 

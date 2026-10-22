@@ -45,6 +45,7 @@ export async function PATCH(
       role?: string;
       active?: boolean;
       passwordHash?: string;
+      mustChangePassword?: boolean;
     } = {};
 
     if (body.name != null) {
@@ -131,12 +132,14 @@ export async function PATCH(
     if (body.resetPassword) {
       tempPassword = generateTempPassword();
       data.passwordHash = await hashPassword(tempPassword);
+      data.mustChangePassword = true;
     } else if (body.password) {
       const pwdError = validatePassword(String(body.password));
       if (pwdError) {
         return NextResponse.json({ error: pwdError }, { status: 400 });
       }
       data.passwordHash = await hashPassword(String(body.password));
+      data.mustChangePassword = true;
     }
 
     // ודא שנשאר לפחות אימייל או טלפון

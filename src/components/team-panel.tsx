@@ -58,7 +58,7 @@ function buildInviteMessage(creds: CredsShare) {
     `סיסמה זמנית: ${creds.tempPassword}`,
     ``,
     `כניסה: ${login}`,
-    `מומלץ להחליף סיסמה אחרי הכניסה הראשונה.`,
+    `בכניסה הראשונה תידרשו להחליף את הסיסמה הזמנית.`,
   ].join("\n");
 }
 

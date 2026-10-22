@@ -10,7 +10,11 @@ export function LoginForm() {
   const params = useSearchParams();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    params.get("pending")
+      ? "החברה ממתינה לאישור או אינה פעילה. לא ניתן להתחבר כרגע."
+      : ""
+  );
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
@@ -25,6 +29,11 @@ export function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
+      if (data.user?.mustChangePassword) {
+        router.push("/account/password");
+        router.refresh();
+        return;
+      }
       const next = params.get("next");
       if (data.user?.isSuperAdmin || data.user?.role === "SUPER_ADMIN") {
         router.push(next?.startsWith("/admin") ? next : "/admin");

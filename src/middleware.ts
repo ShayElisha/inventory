@@ -34,6 +34,27 @@ export async function middleware(req: NextRequest) {
     );
     const { payload } = await jwtVerify(token, secret);
     const role = String(payload.role || "VIEWER");
+    const mustChangePassword = Boolean(payload.mustChangePassword);
+
+    // חובה להחליף סיסמה זמנית לפני שימוש במערכת
+    if (mustChangePassword) {
+      const allowed =
+        pathname === "/account/password" ||
+        pathname.startsWith("/api/auth/change-password") ||
+        pathname.startsWith("/api/auth/logout") ||
+        pathname.startsWith("/api/auth/me");
+      if (!allowed) {
+        if (pathname.startsWith("/api/")) {
+          return NextResponse.json(
+            { error: "יש להחליף סיסמה לפני המשך השימוש", code: "MUST_CHANGE_PASSWORD" },
+            { status: 403 }
+          );
+        }
+        const url = req.nextUrl.clone();
+        url.pathname = "/account/password";
+        return NextResponse.redirect(url);
+      }
+    }
 
     const isAdminArea =
       pathname === "/admin" ||
@@ -49,11 +70,12 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // סופר אדמין נשאר בפלטפורמת הניהול
+    // סופר אדמין נשאר בפלטפורמת הניהול (חוץ ממסך החלפת סיסמה)
     if (
       role === "SUPER_ADMIN" &&
       !isAdminArea &&
-      !pathname.startsWith("/api/auth")
+      !pathname.startsWith("/api/auth") &&
+      pathname !== "/account/password"
     ) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json(
@@ -97,6 +119,16 @@ export async function middleware(req: NextRequest) {
         { status: 403 }
       );
     }
+
+    // Audit — מנהל חברה בלבד
+    if (pathname === "/audit" || pathname.startsWith("/audit/")) {
+      if (role !== "ADMIN" && role !== "SUPER_ADMIN") {
+        const url = req.nextUrl.clone();
+        url.pathname = "/dashboard";
+        return NextResponse.redirect(url);
+      }
+    }
+
     return NextResponse.next();
   } catch {
     if (pathname.startsWith("/api/")) {

@@ -114,6 +114,7 @@ export async function POST(req: NextRequest) {
         email,
         phone,
         passwordHash: await hashPassword(password),
+        mustChangePassword: true,
         role,
         active: true,
       },

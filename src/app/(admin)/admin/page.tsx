@@ -14,6 +14,7 @@ export default async function AdminHomePage() {
   const [
     companies,
     activeCompanies,
+    pendingCompanies,
     users,
     products,
     variants,
@@ -21,20 +22,21 @@ export default async function AdminHomePage() {
   ] = await Promise.all([
     prisma.company.count({ where: { slug: { not: "platform" } } }),
     prisma.company.count({
-      where: { slug: { not: "platform" }, active: true },
+      where: { slug: { not: "platform" }, approved: true, active: true },
+    }),
+    prisma.company.count({
+      where: { slug: { not: "platform" }, approved: false },
     }),
     prisma.user.count({ where: { role: { not: ROLES.SUPER_ADMIN } } }),
     prisma.product.count(),
     prisma.productVariant.count(),
     prisma.company.findMany({
       where: { slug: { not: "platform" } },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ approved: "asc" }, { createdAt: "desc" }],
       take: 8,
       include: { _count: { select: { users: true, products: true } } },
     }),
   ]);
-
-  const suspended = companies - activeCompanies;
 
   const stats = [
     {
@@ -59,9 +61,9 @@ export default async function AdminHomePage() {
       href: "/admin/companies",
     },
     {
-      label: "מושעות",
-      value: suspended,
-      hint: "חברות לא פעילות",
+      label: "ממתינות לאישור",
+      value: pendingCompanies,
+      hint: "דורשות אישור סופר־אדמין",
       icon: AlertTriangle,
       href: "/admin/companies",
     },
@@ -137,8 +139,16 @@ export default async function AdminHomePage() {
                     <div className="text-xs text-[var(--muted)]">{c.slug}</div>
                   </td>
                   <td className="py-2.5">
-                    <Badge tone={c.active ? "ok" : "danger"}>
-                      {c.active ? "פעילה" : "מושעית"}
+                    <Badge
+                      tone={
+                        !c.approved ? "warn" : c.active ? "ok" : "danger"
+                      }
+                    >
+                      {!c.approved
+                        ? "ממתינה לאישור"
+                        : c.active
+                          ? "פעילה"
+                          : "מושעית"}
                     </Badge>
                   </td>
                   <td className="py-2.5">{c._count.users}</td>

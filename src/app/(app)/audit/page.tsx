@@ -2,11 +2,11 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/utils";
-import { requireTenant } from "@/lib/tenant";
+import { requireCompanyAdmin } from "@/lib/tenant";
 
 export default async function AuditPage() {
   noStore();
-  const session = await requireTenant();
+  const session = await requireCompanyAdmin();
   const logs = await prisma.auditLog.findMany({
     where: { user: { companyId: session.companyId } },
     include: { user: true },
