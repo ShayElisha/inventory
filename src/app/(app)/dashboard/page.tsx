@@ -362,79 +362,6 @@ export default async function DashboardPage({
         </div>
       </section>
 
-      {/* Quick actions — vital for floor workers */}
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold">פעולות מהירות</h2>
-          <span className="text-xs text-[var(--muted)]">התחילו מכאן</span>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {operate && (
-            <>
-              <ActionTile
-                href="/pick"
-                label="ניפוק"
-                desc="הוצאה מהירה מהמלאי"
-                icon={PackageMinus}
-                tone="danger"
-              />
-              <ActionTile
-                href="/inbound"
-                label="קליטה"
-                desc="הכנסת סחורה למדף"
-                icon={PackagePlus}
-                tone="accent"
-              />
-              <ActionTile
-                href="/picks"
-                label="ליקוט"
-                desc={`${openPicks.length} רשימות פתוחות`}
-                icon={ClipboardList}
-                tone="lime"
-              />
-              <ActionTile
-                href="/counts"
-                label="ספירה"
-                desc={`${openCounts.length} ספירות פתוחות`}
-                icon={Calculator}
-              />
-              <ActionTile
-                href="/scan"
-                label="סריקה"
-                desc="מסופון +1 / −1"
-                icon={ScanBarcode}
-              />
-            </>
-          )}
-          <ActionTile
-            href="/products"
-            label="קטלוג"
-            desc={`${productsCount} מוצרים`}
-            icon={Package}
-          />
-          <ActionTile
-            href="/stock"
-            label="תנועות"
-            desc={`פעילות ${periodLabel}`}
-            icon={ArrowLeftRight}
-          />
-          <ActionTile
-            href="/reports"
-            label="דוחות"
-            desc="מלאי, פחת ודיוק"
-            icon={BarChart3}
-          />
-          {admin && (
-            <ActionTile
-              href="/team"
-              label="עובדים"
-              desc="ניהול צוות והרשאות"
-              icon={Users}
-            />
-          )}
-        </div>
-      </section>
-
       {/* KPIs */}
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -821,6 +748,79 @@ export default async function DashboardPage({
           </table>
         </div>
       </Card>
+
+      {/* Quick actions — bottom of page for easy reach */}
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-display text-lg font-semibold">פעולות מהירות</h2>
+          <span className="text-xs text-[var(--muted)]">גישה מהירה לכלים</span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {operate && (
+            <>
+              <ActionTile
+                href="/pick"
+                label="ניפוק"
+                desc="הוצאה מהירה מהמלאי"
+                icon={PackageMinus}
+                tone="danger"
+              />
+              <ActionTile
+                href="/inbound"
+                label="קליטה"
+                desc="הכנסת סחורה למדף"
+                icon={PackagePlus}
+                tone="accent"
+              />
+              <ActionTile
+                href="/picks"
+                label="ליקוט"
+                desc={`${openPicks.length} רשימות פתוחות`}
+                icon={ClipboardList}
+                tone="lime"
+              />
+              <ActionTile
+                href="/counts"
+                label="ספירה"
+                desc={`${openCounts.length} ספירות פתוחות`}
+                icon={Calculator}
+              />
+              <ActionTile
+                href="/scan"
+                label="סריקה"
+                desc="מסופון +1 / −1"
+                icon={ScanBarcode}
+              />
+            </>
+          )}
+          <ActionTile
+            href="/products"
+            label="קטלוג"
+            desc={`${productsCount} מוצרים`}
+            icon={Package}
+          />
+          <ActionTile
+            href="/stock"
+            label="תנועות"
+            desc={`פעילות ${periodLabel}`}
+            icon={ArrowLeftRight}
+          />
+          <ActionTile
+            href="/reports"
+            label="דוחות"
+            desc="מלאי, פחת ודיוק"
+            icon={BarChart3}
+          />
+          {admin && (
+            <ActionTile
+              href="/team"
+              label="עובדים"
+              desc="ניהול צוות והרשאות"
+              icon={Users}
+            />
+          )}
+        </div>
+      </section>
 
       {role === ROLES.VIEWER && (
         <p className="text-center text-xs text-[var(--muted)]">
