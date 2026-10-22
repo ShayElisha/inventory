@@ -104,6 +104,7 @@ export async function middleware(req: NextRequest) {
       "/api/categories",
       "/api/suppliers",
       "/api/picks",
+      "/api/pick-templates",
       "/api/counts",
       "/api/import",
       "/api/bulk",

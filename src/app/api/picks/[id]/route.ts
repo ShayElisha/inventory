@@ -37,11 +37,21 @@ export async function PATCH(
     return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
   }
 
-  const owned = await prisma.pickList.findFirst({
+  const listMeta = await prisma.pickList.findFirst({
     where: { id, companyId: session.companyId },
-    select: { id: true },
+    select: { id: true, status: true },
   });
-  if (!owned) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
+  if (!listMeta) {
+    return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
+  }
+  if (listMeta.status === "CANCELLED" || listMeta.status === "DONE") {
+    if (body.action === "add_item" || body.action === "remove_item") {
+      return NextResponse.json(
+        { error: "לא ניתן לערוך רשימה שנסגרה או בוטלה" },
+        { status: 400 }
+      );
+    }
+  }
 
   if (body.action === "pick_item") {
     const item = await prisma.pickListItem.findUnique({
@@ -91,6 +101,107 @@ export async function PATCH(
       entityType: "PickList",
       entityId: id,
       details: { itemId: item.id, qty },
+    });
+
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "add_item") {
+    const variantId = String(body.variantId || "");
+    const quantity = Math.max(1, Number(body.quantity) || 1);
+    if (!variantId) {
+      return NextResponse.json({ error: "חסר פריט" }, { status: 400 });
+    }
+
+    const variant = await prisma.productVariant.findFirst({
+      where: { id: variantId, product: { companyId: session.companyId } },
+    });
+    if (!variant) {
+      return NextResponse.json({ error: "פריט לא נמצא" }, { status: 404 });
+    }
+
+    const existingItem = await prisma.pickListItem.findFirst({
+      where: { pickListId: id, variantId },
+    });
+
+    if (existingItem) {
+      if (existingItem.status === "DONE") {
+        return NextResponse.json(
+          { error: "הפריט כבר נלקט במלואו — לא ניתן להוסיף שוב" },
+          { status: 400 }
+        );
+      }
+      await prisma.pickListItem.update({
+        where: { id: existingItem.id },
+        data: { quantity: existingItem.quantity + quantity },
+      });
+    } else {
+      await prisma.pickListItem.create({
+        data: { pickListId: id, variantId, quantity },
+      });
+    }
+
+    await prisma.pickList.update({
+      where: { id },
+      data: {
+        status: listMeta.status === "DONE" ? "IN_PROGRESS" : listMeta.status === "OPEN" ? "IN_PROGRESS" : listMeta.status,
+        updatedAt: new Date(),
+      },
+    });
+
+    await writeAudit({
+      action: "PICK_ADD_ITEM",
+      entityType: "PickList",
+      entityId: id,
+      details: { variantId, quantity },
+    });
+
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "remove_item") {
+    const itemId = String(body.itemId || "");
+    const item = await prisma.pickListItem.findUnique({ where: { id: itemId } });
+    if (!item || item.pickListId !== id) {
+      return NextResponse.json({ error: "פריט לא נמצא" }, { status: 404 });
+    }
+    if (item.pickedQty > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "לא ניתן להסיר פריט שכבר נלקט חלקית. אפשר ללקט את היתרה או לבטל את הרשימה.",
+        },
+        { status: 400 }
+      );
+    }
+
+    await prisma.pickListItem.delete({ where: { id: itemId } });
+
+    const remaining = await prisma.pickListItem.count({
+      where: { pickListId: id },
+    });
+    if (remaining === 0) {
+      await prisma.pickList.update({
+        where: { id },
+        data: { status: "CANCELLED", updatedAt: new Date() },
+      });
+    } else {
+      const pending = await prisma.pickListItem.count({
+        where: { pickListId: id, status: "PENDING" },
+      });
+      if (pending === 0) {
+        await prisma.pickList.update({
+          where: { id },
+          data: { status: "DONE", updatedAt: new Date() },
+        });
+      }
+    }
+
+    await writeAudit({
+      action: "PICK_REMOVE_ITEM",
+      entityType: "PickList",
+      entityId: id,
+      details: { itemId, variantId: item.variantId },
     });
 
     return NextResponse.json({ ok: true });

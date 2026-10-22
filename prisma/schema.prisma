@@ -23,6 +23,7 @@ model Company {
   products      Product[]
   locations     WarehouseLocation[]
   pickLists     PickList[]
+  pickTemplates PickTemplate[]
   stockCounts   StockCountSession[]
   notifications Notification[]
 
@@ -144,9 +145,10 @@ model ProductVariant {
 
   product      Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
   location     WarehouseLocation? @relation(fields: [locationId], references: [id])
-  transactions StockTransaction[]
-  pickItems    PickListItem[]
-  countLines   StockCountLine[]
+  transactions  StockTransaction[]
+  pickItems     PickListItem[]
+  templateItems PickTemplateItem[]
+  countLines    StockCountLine[]
 
   @@unique([sku])
   @@unique([barcode])
@@ -215,9 +217,42 @@ model ProductChangeLog {
   @@map("product_change_logs")
 }
 
+model PickTemplate {
+  id          String   @id @default(cuid())
+  companyId   String   @map("company_id")
+  name        String
+  notes       String?
+  active      Boolean  @default(true)
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company   Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items     PickTemplateItem[]
+  pickLists PickList[]
+
+  @@index([companyId])
+  @@map("pick_templates")
+}
+
+model PickTemplateItem {
+  id         String @id @default(cuid())
+  templateId String @map("template_id")
+  variantId  String @map("variant_id")
+  quantity   Int
+
+  template PickTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  variant  ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([templateId, variantId])
+  @@index([templateId])
+  @@map("pick_template_items")
+}
+
 model PickList {
   id          String   @id @default(cuid())
   companyId   String   @map("company_id")
+  templateId  String?  @map("template_id")
   reference   String
   status      String   @default("OPEN") // OPEN | IN_PROGRESS | DONE | CANCELLED
   notes       String?
@@ -226,11 +261,13 @@ model PickList {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  template  PickTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
   createdBy User?          @relation(fields: [createdById], references: [id])
   items     PickListItem[]
 
   @@index([status])
   @@index([companyId])
+  @@index([templateId])
   @@map("pick_lists")
 }
 

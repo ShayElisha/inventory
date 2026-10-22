@@ -13,21 +13,45 @@ export default async function PickDetailPage({
   noStore();
   const session = await requireTenant();
   const { id } = await params;
-  const list = await prisma.pickList.findFirst({
-    where: { id, companyId: session.companyId },
-    include: {
-      items: {
-        include: { variant: { include: { product: true, location: true } } },
+  const [list, variants] = await Promise.all([
+    prisma.pickList.findFirst({
+      where: { id, companyId: session.companyId },
+      include: {
+        items: {
+          include: { variant: { include: { product: true, location: true } } },
+        },
+        createdBy: true,
+        template: { select: { name: true } },
       },
-      createdBy: true,
-    },
-  });
+    }),
+    prisma.productVariant.findMany({
+      where: { product: { companyId: session.companyId } },
+      include: { product: true },
+      orderBy: { sku: "asc" },
+      take: 500,
+    }),
+  ]);
   if (!list) notFound();
+
+  const statusLabel: Record<string, string> = {
+    OPEN: "פתוח",
+    IN_PROGRESS: "בתהליך",
+    DONE: "הושלם",
+    CANCELLED: "בוטל",
+  };
 
   return (
     <div>
-      <PageHeader title={`ליקוט: ${list.reference}`} description={`סטטוס: ${list.status}`} />
-      <PickListDetail list={JSON.parse(JSON.stringify(list))} />
+      <PageHeader
+        title={`ליקוט: ${list.reference}`}
+        description={`${statusLabel[list.status] || list.status}${
+          list.template ? ` · מתבנית «${list.template.name}»` : ""
+        } · אפשר להוסיף או להסיר פריטים תוך כדי`}
+      />
+      <PickListDetail
+        list={JSON.parse(JSON.stringify(list))}
+        variants={JSON.parse(JSON.stringify(variants))}
+      />
     </div>
   );
 }
