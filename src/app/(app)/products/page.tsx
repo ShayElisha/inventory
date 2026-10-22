@@ -52,7 +52,7 @@ export default async function ProductsPage({
         actions={
           <Link
             href="/products/new"
-            className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800"
+            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)]"
           >
             מוצר חדש
           </Link>

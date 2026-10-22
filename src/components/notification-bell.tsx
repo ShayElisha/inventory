@@ -73,40 +73,40 @@ export function NotificationBell() {
           setOpen((v) => !v);
           if (!open) load();
         }}
-        className="relative rounded-lg border border-slate-300 bg-white p-2 hover:bg-slate-50"
+        className="relative rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 hover:bg-[var(--surface-2)]"
         aria-label="התראות"
       >
-        <Bell className="h-5 w-5 text-slate-700" />
+        <Bell className="h-5 w-5 text-[var(--foreground)]" />
         {unread > 0 && (
-          <span className="absolute -left-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">
+          <span className="absolute -left-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-bold text-white">
             {unread > 9 ? "9+" : unread}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute left-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl sm:w-96">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <span className="font-semibold text-slate-900">התראות</span>
+        <div className="absolute left-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xl sm:w-96">
+          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+            <span className="font-semibold text-[var(--foreground)]">התראות</span>
             <button
               type="button"
               onClick={markAll}
-              className="text-xs text-teal-700 hover:underline"
+              className="text-xs text-[var(--accent)] hover:underline"
             >
               סמן הכל כנקרא
             </button>
           </div>
           <ul className="max-h-96 overflow-y-auto">
             {items.length === 0 && (
-              <li className="px-4 py-8 text-center text-sm text-slate-500">
+              <li className="px-4 py-8 text-center text-sm text-[var(--muted)]">
                 אין התראות כרגע
               </li>
             )}
             {items.map((n) => (
               <li
                 key={n.id}
-                className={`border-b border-slate-50 px-4 py-3 ${
-                  n.read ? "bg-white" : "bg-teal-50/40"
+                className={`border-b border-[var(--border)] px-4 py-3 ${
+                  n.read ? "bg-[var(--surface)]" : "bg-[var(--accent-soft)]/40"
                 }`}
               >
                 {n.href ? (
@@ -118,9 +118,9 @@ export function NotificationBell() {
                     }}
                     className="block"
                   >
-                    <div className="text-sm font-medium text-slate-900">{n.title}</div>
-                    <div className="mt-0.5 text-xs text-slate-600">{n.body}</div>
-                    <div className="mt-1 text-[10px] text-slate-400">
+                    <div className="text-sm font-medium text-[var(--foreground)]">{n.title}</div>
+                    <div className="mt-0.5 text-xs text-[var(--muted)]">{n.body}</div>
+                    <div className="mt-1 text-[10px] text-[var(--muted)]">
                       {formatDateTime(n.createdAt)}
                     </div>
                   </Link>
@@ -130,8 +130,8 @@ export function NotificationBell() {
                     className="w-full text-right"
                     onClick={() => markOne(n.id)}
                   >
-                    <div className="text-sm font-medium text-slate-900">{n.title}</div>
-                    <div className="mt-0.5 text-xs text-slate-600">{n.body}</div>
+                    <div className="text-sm font-medium text-[var(--foreground)]">{n.title}</div>
+                    <div className="mt-0.5 text-xs text-[var(--muted)]">{n.body}</div>
                   </button>
                 )}
               </li>

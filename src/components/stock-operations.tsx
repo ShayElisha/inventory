@@ -112,9 +112,9 @@ export function StockOperations({
   if (variants.length === 0) {
     return (
       <Card>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-[var(--muted)]">
           אין וריאציות במלאי. הוסיפו מוצרים ב{" "}
-          <a href="/products/new" className="font-medium text-teal-700 underline">
+          <a href="/products/new" className="font-medium text-[var(--accent)] underline">
             קטלוג
           </a>
           .
@@ -137,8 +137,8 @@ export function StockOperations({
             }}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
               tab === t.id
-                ? "bg-teal-700 text-white"
-                : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                ? "bg-[var(--accent)] text-white"
+                : "border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-2)]"
             }`}
           >
             {t.label}
@@ -158,7 +158,7 @@ export function StockOperations({
             ))}
           </Select>
           {selected && (
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-[var(--muted)]">
               ברקוד: {selected.barcode} · מיקום: {selected.location?.code ?? "—"} ·
               שמור: {selected.quantityReserved}
             </p>
@@ -246,7 +246,7 @@ export function StockOperations({
         </div>
       )}
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}

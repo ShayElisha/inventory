@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const links = [
   { href: "/admin", label: "סקירה", icon: LayoutDashboard },
@@ -31,15 +32,15 @@ export function AdminNav({ userName }: { userName?: string }) {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-800 bg-[#0b1613] text-white">
+    <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--ink)] text-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-3">
           <Link href="/admin" className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#b8e06a] text-sm font-bold text-[#0b1613]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--lime)] font-display text-sm font-bold text-[var(--ink)]">
               SA
             </span>
             <div className="leading-tight">
-              <div className="text-sm font-bold">מלאים · סופר אדמין</div>
+              <div className="font-display text-sm font-bold">מלאים · סופר אדמין</div>
               <div className="text-xs text-white/50">ניהול פלטפורמה</div>
             </div>
           </Link>
@@ -59,7 +60,7 @@ export function AdminNav({ userName }: { userName?: string }) {
                 className={cn(
                   "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm",
                   active
-                    ? "bg-white/10 text-[#b8e06a]"
+                    ? "bg-white/10 text-[var(--lime)]"
                     : "text-white/70 hover:bg-white/5 hover:text-white"
                 )}
               >
@@ -74,6 +75,7 @@ export function AdminNav({ userName }: { userName?: string }) {
           {userName && (
             <span className="hidden text-xs text-white/60 sm:inline">{userName}</span>
           )}
+          <ThemeToggle className="border-white/20 bg-white/10 text-white hover:bg-white/20" />
           <button
             type="button"
             onClick={logout}

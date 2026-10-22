@@ -176,7 +176,7 @@ export function SetupPanel({
   return (
     <div className="space-y-6">
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}
@@ -217,12 +217,12 @@ export function SetupPanel({
             </Button>
           </form>
 
-          <ul className="mt-6 space-y-3 border-t border-slate-100 pt-4">
+          <ul className="mt-6 space-y-3 border-t border-[var(--border)] pt-4">
             {categories.length === 0 && (
-              <li className="text-sm text-slate-500">אין קטגוריות עדיין</li>
+              <li className="text-sm text-[var(--muted)]">אין קטגוריות עדיין</li>
             )}
             {categories.map((c) => (
-              <li key={c.id} className="rounded-lg border border-slate-100 p-3">
+              <li key={c.id} className="rounded-lg border border-[var(--border)] p-3">
                 {editCatId === c.id ? (
                   <div className="space-y-2">
                     <Input
@@ -270,7 +270,7 @@ export function SetupPanel({
                     <div className="text-sm">
                       <span className="font-medium">{c.name}</span>
                       {c.hasVariants && (
-                        <span className="text-slate-500">
+                        <span className="text-[var(--muted)]">
                           {" "}
                           ·{" "}
                           {parseJsonArray(c.attributeSchema).join(", ") ||
@@ -281,7 +281,7 @@ export function SetupPanel({
                     <div className="flex shrink-0 gap-1">
                       <button
                         type="button"
-                        className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+                        className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--surface-2)]"
                         title="עריכה"
                         onClick={() => startEditCategory(c)}
                       >
@@ -289,7 +289,7 @@ export function SetupPanel({
                       </button>
                       <button
                         type="button"
-                        className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
+                        className="rounded-lg p-1.5 text-[var(--danger)] hover:bg-[var(--danger-soft)]"
                         title="מחיקה"
                         disabled={loading}
                         onClick={() => deleteCategory(c)}
@@ -320,12 +320,12 @@ export function SetupPanel({
             </Button>
           </form>
 
-          <ul className="mt-6 space-y-3 border-t border-slate-100 pt-4">
+          <ul className="mt-6 space-y-3 border-t border-[var(--border)] pt-4">
             {suppliers.length === 0 && (
-              <li className="text-sm text-slate-500">אין ספקים עדיין</li>
+              <li className="text-sm text-[var(--muted)]">אין ספקים עדיין</li>
             )}
             {suppliers.map((s) => (
-              <li key={s.id} className="rounded-lg border border-slate-100 p-3">
+              <li key={s.id} className="rounded-lg border border-[var(--border)] p-3">
                 {editSupId === s.id ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <Input
@@ -357,7 +357,7 @@ export function SetupPanel({
                     <div className="flex shrink-0 gap-1">
                       <button
                         type="button"
-                        className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+                        className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--surface-2)]"
                         title="עריכה"
                         onClick={() => {
                           setEditSupId(s.id);
@@ -368,7 +368,7 @@ export function SetupPanel({
                       </button>
                       <button
                         type="button"
-                        className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
+                        className="rounded-lg p-1.5 text-[var(--danger)] hover:bg-[var(--danger-soft)]"
                         title="מחיקה"
                         disabled={loading}
                         onClick={() => deleteSupplier(s)}

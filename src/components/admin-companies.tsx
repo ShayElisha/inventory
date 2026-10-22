@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, Input, Label } from "@/components/ui";
+import { PasswordInput } from "@/components/password-input";
+import { validatePassword } from "@/lib/password";
 import { formatDateTime } from "@/lib/utils";
 import { Pencil, Trash2, Ban, CheckCircle2 } from "lucide-react";
 
@@ -35,6 +37,11 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
 
   async function createCompany(e: React.FormEvent) {
     e.preventDefault();
+    const pwdError = validatePassword(password);
+    if (pwdError) {
+      setError(pwdError);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -105,7 +112,7 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}
@@ -152,16 +159,13 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
                 required
               />
             </div>
-            <div>
-              <Label>סיסמת מנהל</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
+            <PasswordInput
+              label="סיסמת מנהל"
+              value={password}
+              onChange={setPassword}
+              required
+              showStrength
+            />
             <div className="flex items-end">
               <Button type="submit" disabled={loading}>
                 {loading ? "יוצרים..." : "צור חברה"}
@@ -174,7 +178,7 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
       <Card className="overflow-x-auto p-0">
         <table className="w-full min-w-[800px] text-sm">
           <thead>
-            <tr className="border-b bg-slate-50 text-right text-slate-500">
+            <tr className="border-b bg-[var(--surface-2)] text-right text-[var(--muted)]">
               <th className="p-3 font-medium">חברה</th>
               <th className="p-3 font-medium">סטטוס</th>
               <th className="p-3 font-medium">משתמשים</th>
@@ -186,17 +190,17 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
           </thead>
           <tbody>
             {companies.map((c) => (
-              <tr key={c.id} className="border-b border-slate-50">
+              <tr key={c.id} className="border-b border-[var(--border)]">
                 <td className="p-3">
                   <Link
                     href={`/admin/companies/${c.id}`}
-                    className="font-medium text-teal-800 hover:underline"
+                    className="font-medium text-[var(--accent)] hover:underline"
                   >
                     {c.name}
                   </Link>
-                  <div className="text-xs text-slate-400">{c.slug}</div>
+                  <div className="text-xs text-[var(--muted)]">{c.slug}</div>
                   {c.phone && (
-                    <div className="text-xs text-slate-500">{c.phone}</div>
+                    <div className="text-xs text-[var(--muted)]">{c.phone}</div>
                   )}
                 </td>
                 <td className="p-3">
@@ -207,14 +211,14 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
                 <td className="p-3">{c._count.users}</td>
                 <td className="p-3">{c._count.products}</td>
                 <td className="p-3">{c._count.locations}</td>
-                <td className="p-3 text-slate-500">
+                <td className="p-3 text-[var(--muted)]">
                   {formatDateTime(c.createdAt)}
                 </td>
                 <td className="p-3">
                   <div className="flex gap-1">
                     <Link
                       href={`/admin/companies/${c.id}`}
-                      className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+                      className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--surface-2)]"
                       title="עריכה"
                     >
                       <Pencil className="h-4 w-4" />
@@ -234,7 +238,7 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
                     </button>
                     <button
                       type="button"
-                      className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
+                      className="rounded-lg p-1.5 text-[var(--danger)] hover:bg-[var(--danger-soft)]"
                       title="מחיקה"
                       disabled={loading}
                       onClick={() => deleteCompany(c)}
@@ -247,7 +251,7 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
             ))}
             {companies.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-slate-500">
+                <td colSpan={7} className="p-8 text-center text-[var(--muted)]">
                   אין חברות רשומות
                 </td>
               </tr>

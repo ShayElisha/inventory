@@ -23,7 +23,7 @@ export default async function AuditPage() {
       <Card className="overflow-x-auto p-0">
         <table className="w-full min-w-[800px] text-sm">
           <thead>
-            <tr className="border-b bg-slate-50 text-right text-slate-500">
+            <tr className="border-b bg-[var(--surface-2)] text-right text-[var(--muted)]">
               <th className="p-3">זמן</th>
               <th className="p-3">משתמש</th>
               <th className="p-3">פעולה</th>
@@ -34,7 +34,7 @@ export default async function AuditPage() {
           </thead>
           <tbody>
             {logs.map((l) => (
-              <tr key={l.id} className="border-b border-slate-50">
+              <tr key={l.id} className="border-b border-[var(--border)]">
                 <td className="p-3 whitespace-nowrap">{formatDateTime(l.createdAt)}</td>
                 <td className="p-3">{l.user?.name ?? "—"}</td>
                 <td className="p-3 font-medium">{l.action}</td>
@@ -43,14 +43,14 @@ export default async function AuditPage() {
                   {l.entityId ? ` · ${l.entityId.slice(0, 8)}…` : ""}
                 </td>
                 <td className="p-3 font-mono text-xs">{l.ip ?? "—"}</td>
-                <td className="p-3 max-w-xs truncate text-xs text-slate-500">
+                <td className="p-3 max-w-xs truncate text-xs text-[var(--muted)]">
                   {l.details}
                 </td>
               </tr>
             ))}
             {logs.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-slate-500">
+                <td colSpan={6} className="p-6 text-center text-[var(--muted)]">
                   אין רשומות עדיין
                 </td>
               </tr>

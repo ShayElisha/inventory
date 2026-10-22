@@ -85,7 +85,7 @@ export function CountDetail({ session }: { session: Session }) {
           דיוק ספירה:{" "}
           <strong>{accuracy == null ? "—" : `${accuracy}%`}</strong>
           {counted.length > 0 && (
-            <span className="text-sm text-slate-500">
+            <span className="text-sm text-[var(--muted)]">
               {" "}
               ({exact}/{counted.length} מדויקים)
             </span>
@@ -96,13 +96,13 @@ export function CountDetail({ session }: { session: Session }) {
             סגור ספירה ועדכן מלאי
           </Button>
         )}
-        {msg && <p className="text-sm text-slate-600">{msg}</p>}
+        {msg && <p className="text-sm text-[var(--muted)]">{msg}</p>}
       </Card>
 
       <Card className="overflow-x-auto p-0">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
-            <tr className="border-b bg-slate-50 text-right text-slate-500">
+            <tr className="border-b bg-[var(--surface-2)] text-right text-[var(--muted)]">
               <th className="p-3">SKU</th>
               <th className="p-3">מוצר</th>
               <th className="p-3">מיקום</th>
@@ -119,7 +119,7 @@ export function CountDetail({ session }: { session: Session }) {
                   ? null
                   : Number(countedVal) - l.systemQty;
               return (
-                <tr key={l.id} className="border-b border-slate-50">
+                <tr key={l.id} className="border-b border-[var(--border)]">
                   <td className="p-3 font-mono text-xs">{l.variant.sku}</td>
                   <td className="p-3">{l.variant.product.title}</td>
                   <td className="p-3">{l.variant.location?.code ?? "—"}</td>

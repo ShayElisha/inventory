@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input, Label } from "@/components/ui";
+import { PasswordInput } from "@/components/password-input";
+import { validatePassword } from "@/lib/password";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -16,6 +18,11 @@ export function RegisterForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const pwdError = validatePassword(password);
+    if (pwdError) {
+      setError(pwdError);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -36,11 +43,13 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur">
+    <form
+      onSubmit={onSubmit}
+      className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow)]"
+    >
       <div>
         <Label>שם החברה</Label>
         <Input
-          className="border-white/20 bg-white/10 text-white placeholder:text-white/40"
           value={companyName}
           onChange={(e) => setCompanyName(e.target.value)}
           required
@@ -50,19 +59,17 @@ export function RegisterForm() {
       <div>
         <Label>טלפון (אופציונלי)</Label>
         <Input
-          className="border-white/20 bg-white/10 text-white"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder="050-0000000"
         />
       </div>
-      <div className="border-t border-white/10 pt-4">
-        <p className="mb-3 text-xs text-white/50">פרטי מנהל ראשי</p>
+      <div className="border-t border-[var(--border)] pt-4">
+        <p className="mb-3 text-xs text-[var(--muted)]">פרטי מנהל ראשי</p>
         <div className="space-y-3">
           <div>
             <Label>שם מלא</Label>
             <Input
-              className="border-white/20 bg-white/10 text-white"
               value={adminName}
               onChange={(e) => setAdminName(e.target.value)}
               required
@@ -71,32 +78,23 @@ export function RegisterForm() {
           <div>
             <Label>אימייל להתחברות</Label>
             <Input
-              className="border-white/20 bg-white/10 text-white"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
-          <div>
-            <Label>סיסמה</Label>
-            <Input
-              className="border-white/20 bg-white/10 text-white"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-          </div>
+          <PasswordInput
+            value={password}
+            onChange={setPassword}
+            required
+            showStrength
+            autoComplete="new-password"
+          />
         </div>
       </div>
-      {error && <p className="text-sm text-rose-300">{error}</p>}
-      <Button
-        type="submit"
-        className="w-full bg-[#b8e06a] text-[#0b1613] hover:bg-[#c8eb84]"
-        disabled={loading}
-      >
+      {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+      <Button type="submit" variant="lime" className="w-full" disabled={loading}>
         {loading ? "יוצרים חברה..." : "צור חברה והתחל"}
       </Button>
     </form>

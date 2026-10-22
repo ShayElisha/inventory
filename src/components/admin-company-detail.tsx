@@ -10,6 +10,8 @@ import {
   Label,
   Select,
 } from "@/components/ui";
+import { PasswordInput } from "@/components/password-input";
+import { validatePassword } from "@/lib/password";
 import { ROLE_LABELS, COMPANY_ROLES } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
 
@@ -76,6 +78,11 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
 
   async function addUser(e: React.FormEvent) {
     e.preventDefault();
+    const pwdError = validatePassword(uPassword);
+    if (pwdError) {
+      setError(pwdError);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -161,7 +168,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}
@@ -176,7 +183,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
           ["ספירות", company._count.stockCounts],
         ].map(([label, value]) => (
           <Card key={String(label)} className="py-3">
-            <p className="text-xs text-slate-500">{label}</p>
+            <p className="text-xs text-[var(--muted)]">{label}</p>
             <p className="text-xl font-bold">{value}</p>
           </Card>
         ))}
@@ -211,7 +218,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
             </Badge>
           </div>
           <div className="sm:col-span-2">
-            <p className="mb-3 text-xs text-slate-500">
+            <p className="mb-3 text-xs text-[var(--muted)]">
               נוצרה: {formatDateTime(company.createdAt)}
             </p>
             <Button type="submit" disabled={loading}>
@@ -225,7 +232,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
         <h2 className="mb-4 text-lg font-semibold">משתמשי החברה</h2>
         <form
           onSubmit={addUser}
-          className="mb-6 grid gap-3 rounded-lg border border-slate-100 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-5"
+          className="mb-6 grid gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4 sm:grid-cols-2 lg:grid-cols-5"
         >
           <div>
             <Label>שם</Label>
@@ -240,16 +247,12 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
               required
             />
           </div>
-          <div>
-            <Label>סיסמה</Label>
-            <Input
-              type="password"
-              value={uPassword}
-              onChange={(e) => setUPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-          </div>
+          <PasswordInput
+            value={uPassword}
+            onChange={setUPassword}
+            required
+            showStrength
+          />
           <div>
             <Label>תפקיד</Label>
             <Select value={uRole} onChange={(e) => setURole(e.target.value)}>
@@ -270,7 +273,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="border-b text-right text-slate-500">
+              <tr className="border-b text-right text-[var(--muted)]">
                 <th className="pb-2 font-medium">שם</th>
                 <th className="pb-2 font-medium">אימייל</th>
                 <th className="pb-2 font-medium">תפקיד</th>
@@ -280,7 +283,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
             </thead>
             <tbody>
               {company.users.map((u) => (
-                <tr key={u.id} className="border-b border-slate-50">
+                <tr key={u.id} className="border-b border-[var(--border)]">
                   <td className="py-2.5 font-medium">{u.name}</td>
                   <td className="py-2.5">{u.email}</td>
                   <td className="py-2.5">
@@ -328,7 +331,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
               ))}
               {company.users.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-slate-500">
+                  <td colSpan={5} className="py-6 text-center text-[var(--muted)]">
                     אין משתמשים
                   </td>
                 </tr>

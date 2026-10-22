@@ -77,7 +77,7 @@ export function CountCreate({
           <Button type="submit" disabled={loading}>
             התחל ספירה
           </Button>
-          {error && <p className="mt-2 text-sm text-rose-600">{error}</p>}
+          {error && <p className="mt-2 text-sm text-[var(--danger)]">{error}</p>}
         </div>
       </form>
     </Card>

@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
+import { validatePassword } from "@/lib/password";
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,11 +18,15 @@ export async function POST(req: NextRequest) {
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
 
-    if (!companyName || !adminName || !email || password.length < 6) {
+    if (!companyName || !adminName || !email) {
       return NextResponse.json(
-        { error: "נא למלא שם חברה, שם מנהל, אימייל וסיסמה (לפחות 6 תווים)" },
+        { error: "נא למלא שם חברה, שם מנהל ואימייל" },
         { status: 400 }
       );
+    }
+    const pwdError = validatePassword(password);
+    if (pwdError) {
+      return NextResponse.json({ error: pwdError }, { status: 400 });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });

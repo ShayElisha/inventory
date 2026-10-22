@@ -117,7 +117,7 @@ export function QuickInbound({
       </Card>
 
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}
@@ -134,10 +134,10 @@ export function QuickInbound({
               key={v.id}
               type="button"
               onClick={() => selectVariant(v)}
-              className="w-full rounded-lg px-3 py-3 text-right hover:bg-teal-50"
+              className="w-full rounded-lg px-3 py-3 text-right hover:bg-[var(--accent-soft)]"
             >
               <div className="font-semibold">{v.product.title}</div>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-[var(--muted)]">
                 {v.sku} · {attributesLabel(v.attributes)} · מלאי {v.quantityOnHand}
               </div>
             </button>
@@ -148,9 +148,9 @@ export function QuickInbound({
       {variant && (
         <Card className="space-y-4">
           <div>
-            <div className="text-xs font-mono text-slate-500">{variant.sku}</div>
+            <div className="text-xs font-mono text-[var(--muted)]">{variant.sku}</div>
             <h2 className="text-xl font-bold">{variant.product.title}</h2>
-            <p className="text-sm text-slate-600">{attributesLabel(variant.attributes)}</p>
+            <p className="text-sm text-[var(--muted)]">{attributesLabel(variant.attributes)}</p>
           </div>
           <form onSubmit={submit} className="space-y-3">
             <div>

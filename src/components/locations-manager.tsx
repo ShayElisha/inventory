@@ -119,10 +119,10 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
             <Label>תא (Bin)</Label>
             <Input value={bin} onChange={(e) => setBin(e.target.value)} required />
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[var(--muted)]">
             קוד מלא: {(zone || "?").toUpperCase()}-{aisle}-{shelf}-{bin}
           </p>
-          {error && <p className="text-sm text-rose-600">{error}</p>}
+          {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
           <Button type="submit" disabled={loading}>
             {loading ? "שומר..." : "הוסף מיקום"}
           </Button>
@@ -132,7 +132,7 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
       <Card className="lg:col-span-2 overflow-x-auto">
         <table className="w-full min-w-[560px] text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-right text-slate-500">
+            <tr className="border-b border-[var(--border)] text-right text-[var(--muted)]">
               <th className="pb-2 font-medium">קוד</th>
               <th className="pb-2 font-medium">אזור</th>
               <th className="pb-2 font-medium">מעבר</th>
@@ -144,10 +144,10 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
           </thead>
           <tbody>
             {locations.map((l) => (
-              <tr key={l.id} className="border-b border-slate-50">
+              <tr key={l.id} className="border-b border-[var(--border)]">
                 {editId === l.id ? (
                   <>
-                    <td className="py-2 font-mono text-xs text-slate-500">
+                    <td className="py-2 font-mono text-xs text-[var(--muted)]">
                       {editZone.toUpperCase()}-{editAisle}-{editShelf}-{editBin}
                     </td>
                     <td className="py-2">
@@ -183,7 +183,7 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
                       <div className="flex gap-1">
                         <button
                           type="button"
-                          className="rounded-lg p-1.5 text-teal-700 hover:bg-teal-50"
+                          className="rounded-lg p-1.5 text-[var(--accent)] hover:bg-[var(--accent-soft)]"
                           title="שמור"
                           disabled={loading}
                           onClick={() => saveEdit(l.id)}
@@ -192,7 +192,7 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
                         </button>
                         <button
                           type="button"
-                          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+                          className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--surface-2)]"
                           title="ביטול"
                           onClick={() => setEditId(null)}
                         >
@@ -213,7 +213,7 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
                       <div className="flex gap-1">
                         <button
                           type="button"
-                          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+                          className="rounded-lg p-1.5 text-[var(--muted)] hover:bg-[var(--surface-2)]"
                           title="עריכה"
                           onClick={() => startEdit(l)}
                         >
@@ -221,7 +221,7 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
                         </button>
                         <button
                           type="button"
-                          className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
+                          className="rounded-lg p-1.5 text-[var(--danger)] hover:bg-[var(--danger-soft)]"
                           title="מחיקה"
                           disabled={loading}
                           onClick={() => deleteLocation(l)}
@@ -236,7 +236,7 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
             ))}
             {locations.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-6 text-center text-slate-500">
+                <td colSpan={7} className="py-6 text-center text-[var(--muted)]">
                   אין מיקומים עדיין
                 </td>
               </tr>

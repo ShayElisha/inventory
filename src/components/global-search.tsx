@@ -51,7 +51,7 @@ export function GlobalSearch() {
   return (
     <div className="relative hidden min-w-[200px] flex-1 md:block lg:max-w-md" ref={ref}>
       <div className="relative">
-        <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
         <Input
           value={q}
           onChange={(e) => {
@@ -64,21 +64,21 @@ export function GlobalSearch() {
         />
       </div>
       {open && q.trim() && (
-        <div className="absolute z-50 mt-1 max-h-96 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+        <div className="absolute z-50 mt-1 max-h-96 w-full overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xl">
           {!has && (
-            <div className="px-4 py-6 text-center text-sm text-slate-500">אין תוצאות</div>
+            <div className="px-4 py-6 text-center text-sm text-[var(--muted)]">אין תוצאות</div>
           )}
           {data?.products.map((p) => (
             <Link
               key={p.id}
               href="/products"
               onClick={() => setOpen(false)}
-              className="block px-4 py-2 hover:bg-slate-50"
+              className="block px-4 py-2 hover:bg-[var(--surface-2)]"
             >
-              <div className="text-xs text-slate-400">מוצר</div>
+              <div className="text-xs text-[var(--muted)]">מוצר</div>
               <div className="text-sm font-medium">
                 {p.title}{" "}
-                <span className="font-mono text-xs text-slate-500">{p.baseSku}</span>
+                <span className="font-mono text-xs text-[var(--muted)]">{p.baseSku}</span>
               </div>
             </Link>
           ))}
@@ -87,9 +87,9 @@ export function GlobalSearch() {
               key={v.id}
               href="/pick"
               onClick={() => setOpen(false)}
-              className="block px-4 py-2 hover:bg-slate-50"
+              className="block px-4 py-2 hover:bg-[var(--surface-2)]"
             >
-              <div className="text-xs text-slate-400">SKU</div>
+              <div className="text-xs text-[var(--muted)]">SKU</div>
               <div className="text-sm font-medium">
                 {v.product.title} · {v.sku} · {v.quantityOnHand} יח׳
               </div>
@@ -100,9 +100,9 @@ export function GlobalSearch() {
               key={l.id}
               href="/locations"
               onClick={() => setOpen(false)}
-              className="block px-4 py-2 hover:bg-slate-50"
+              className="block px-4 py-2 hover:bg-[var(--surface-2)]"
             >
-              <div className="text-xs text-slate-400">מיקום</div>
+              <div className="text-xs text-[var(--muted)]">מיקום</div>
               <div className="text-sm font-medium font-mono">{l.code}</div>
             </Link>
           ))}
@@ -111,9 +111,9 @@ export function GlobalSearch() {
               key={p.id}
               href={`/picks/${p.id}`}
               onClick={() => setOpen(false)}
-              className="block px-4 py-2 hover:bg-slate-50"
+              className="block px-4 py-2 hover:bg-[var(--surface-2)]"
             >
-              <div className="text-xs text-slate-400">ליקוט</div>
+              <div className="text-xs text-[var(--muted)]">ליקוט</div>
               <div className="text-sm font-medium">
                 {p.reference} · {p.status}
               </div>

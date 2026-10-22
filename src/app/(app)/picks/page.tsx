@@ -40,15 +40,15 @@ export default async function PicksPage() {
       <div className="space-y-2">
         {lists.length === 0 && (
           <Card>
-            <p className="text-sm text-slate-500">אין רשימות ליקוט עדיין</p>
+            <p className="text-sm text-[var(--muted)]">אין רשימות ליקוט עדיין</p>
           </Card>
         )}
         {lists.map((l) => (
           <Link key={l.id} href={`/picks/${l.id}`}>
-            <Card className="mb-2 flex items-center justify-between hover:bg-slate-50">
+            <Card className="mb-2 flex items-center justify-between hover:bg-[var(--surface-2)]">
               <div>
                 <div className="font-semibold">{l.reference}</div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-[var(--muted)]">
                   {l._count.items} פריטים · {formatDateTime(l.createdAt)}
                   {l.createdBy ? ` · ${l.createdBy.name}` : ""}
                 </div>

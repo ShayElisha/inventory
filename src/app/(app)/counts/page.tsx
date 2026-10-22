@@ -33,10 +33,10 @@ export default async function CountsPage() {
       <div className="space-y-2">
         {sessions.map((s) => (
           <Link key={s.id} href={`/counts/${s.id}`}>
-            <Card className="mb-2 flex items-center justify-between hover:bg-slate-50">
+            <Card className="mb-2 flex items-center justify-between hover:bg-[var(--surface-2)]">
               <div>
                 <div className="font-semibold">{s.name}</div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-[var(--muted)]">
                   {s.zone ? `אזור ${s.zone}` : "כל האזורים"}
                   {s.shelf ? ` · מדף ${s.shelf}` : ""} · {s._count.lines} פריטים ·{" "}
                   {formatDateTime(s.createdAt)}

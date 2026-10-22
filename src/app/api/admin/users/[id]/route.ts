@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSession, hashPassword, isSuperAdmin } from "@/lib/auth";
 import { COMPANY_ROLES, ROLES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
+import { validatePassword } from "@/lib/password";
 
 export async function PATCH(
   req: NextRequest,
@@ -67,11 +68,9 @@ export async function PATCH(
       data.companyId = body.companyId;
     }
     if (body.password) {
-      if (String(body.password).length < 6) {
-        return NextResponse.json(
-          { error: "סיסמה חייבת 6 תווים לפחות" },
-          { status: 400 }
-        );
+      const pwdError = validatePassword(String(body.password));
+      if (pwdError) {
+        return NextResponse.json({ error: pwdError }, { status: 400 });
       }
       data.passwordHash = await hashPassword(String(body.password));
     }

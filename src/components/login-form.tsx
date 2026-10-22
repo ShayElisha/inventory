@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input, Label } from "@/components/ui";
+import { PasswordInput } from "@/components/password-input";
 
 export function LoginForm() {
   const router = useRouter();
@@ -41,12 +42,11 @@ export function LoginForm() {
   return (
     <form
       onSubmit={onSubmit}
-      className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur"
+      className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow)]"
     >
       <div>
         <Label>אימייל</Label>
         <Input
-          className="border-white/20 bg-white/10 text-white"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           type="email"
@@ -54,23 +54,15 @@ export function LoginForm() {
           autoComplete="email"
         />
       </div>
-      <div>
-        <Label>סיסמה</Label>
-        <Input
-          className="border-white/20 bg-white/10 text-white"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          type="password"
-          required
-          autoComplete="current-password"
-        />
-      </div>
-      {error && <p className="text-sm text-rose-300">{error}</p>}
-      <Button
-        type="submit"
-        className="w-full bg-[#b8e06a] text-[#0b1613] hover:bg-[#c8eb84]"
-        disabled={loading}
-      >
+      <PasswordInput
+        value={password}
+        onChange={setPassword}
+        required
+        autoComplete="current-password"
+        showStrength={false}
+      />
+      {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+      <Button type="submit" variant="lime" className="w-full" disabled={loading}>
         {loading ? "מתחבר..." : "כניסה"}
       </Button>
     </form>

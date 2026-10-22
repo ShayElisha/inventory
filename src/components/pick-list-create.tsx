@@ -114,7 +114,7 @@ export function PickListCreate({ variants }: { variants: Variant[] }) {
             צור רשימה
           </Button>
         </div>
-        {error && <p className="text-sm text-rose-600">{error}</p>}
+        {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
       </form>
     </Card>
   );

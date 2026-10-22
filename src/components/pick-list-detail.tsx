@@ -50,7 +50,7 @@ export function PickListDetail({ list }: { list: List }) {
   return (
     <div className="space-y-3">
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}
@@ -58,7 +58,7 @@ export function PickListDetail({ list }: { list: List }) {
         <Card key={it.id} className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-semibold">{it.variant.product.title}</div>
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-[var(--muted)]">
               {it.variant.sku} · {attributesLabel(it.variant.attributes)} · מדף{" "}
               {it.variant.location?.code ?? "—"} · במלאי {it.variant.quantityOnHand}
             </div>

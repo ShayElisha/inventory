@@ -110,9 +110,9 @@ export function ProductForm({
   if (categories.length === 0) {
     return (
       <Card>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-[var(--muted)]">
           אין קטגוריות במערכת. יש ליצור קטגוריה תחילה בעמוד{" "}
-          <a href="/setup" className="font-medium text-teal-700 underline">
+          <a href="/setup" className="font-medium text-[var(--accent)] underline">
             הגדרות
           </a>
           .
@@ -335,7 +335,7 @@ export function ProductForm({
         <Card className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold">וריאציות קיימות</h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-[var(--muted)]">
               ניתן לעדכן ברקוד, מיקום וסף התראה. כמות משתנה דרך קליטה/ניפוק.
             </p>
           </div>
@@ -376,7 +376,7 @@ export function ProductForm({
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
-                  <tr className="text-right text-slate-500">
+                  <tr className="text-right text-[var(--muted)]">
                     <th className="pb-2">SKU</th>
                     <th className="pb-2">מאפיינים</th>
                     <th className="pb-2">ברקוד</th>
@@ -387,7 +387,7 @@ export function ProductForm({
                 </thead>
                 <tbody>
                   {editVariants.map((row, idx) => (
-                    <tr key={row.id} className="border-t border-slate-100">
+                    <tr key={row.id} className="border-t border-[var(--border)]">
                       <td className="py-2 font-mono text-xs">{row.sku}</td>
                       <td className="py-2">{attributesLabel(row.attributes)}</td>
                       <td className="py-2">
@@ -445,7 +445,7 @@ export function ProductForm({
         <Card className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold">מחולל מטריצת וריאציות</h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-[var(--muted)]">
               הזינו ערכים מופרדים בפסיק לכל מאפיין, ואז צרו את כל השילובים
             </p>
           </div>
@@ -477,7 +477,7 @@ export function ProductForm({
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-sm">
                 <thead>
-                  <tr className="text-right text-slate-500">
+                  <tr className="text-right text-[var(--muted)]">
                     <th className="pb-2">מאפיינים</th>
                     <th className="pb-2">SKU</th>
                     <th className="pb-2">ברקוד</th>
@@ -487,7 +487,7 @@ export function ProductForm({
                 </thead>
                 <tbody>
                   {matrixRows.map((row, idx) => (
-                    <tr key={idx} className="border-t border-slate-100">
+                    <tr key={idx} className="border-t border-[var(--border)]">
                       <td className="py-2">
                         {Object.entries(row.attributes)
                           .map(([k, v]) => `${k}:${v}`)
@@ -592,7 +592,7 @@ export function ProductForm({
       )}
 
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}

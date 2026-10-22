@@ -52,7 +52,7 @@ export default async function AdminCompanyPage({
         actions={
           <Link
             href="/admin/companies"
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm hover:bg-[var(--surface-2)]"
           >
             חזרה לרשימה
           </Link>

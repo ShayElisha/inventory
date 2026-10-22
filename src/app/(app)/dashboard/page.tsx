@@ -101,13 +101,13 @@ export default async function DashboardPage({
             </Suspense>
             <Link
               href="/pick"
-              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700"
+              className="rounded-lg bg-[var(--danger)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:opacity-90"
             >
               ניפוק
             </Link>
             <Link
               href="/inbound"
-              className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800"
+              className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)]"
             >
               קליטה
             </Link>
@@ -117,22 +117,22 @@ export default async function DashboardPage({
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
-          <div className="text-sm text-slate-500">שווי מלאי (עלות)</div>
+          <div className="text-sm text-[var(--muted)]">שווי מלאי (עלות)</div>
           <div className="mt-2 text-2xl font-bold">{formatCurrency(valueCost)}</div>
-          <div className="mt-1 text-xs text-slate-500">
+          <div className="mt-1 text-xs text-[var(--muted)]">
             מכירה: {formatCurrency(valueSell)}
           </div>
         </Card>
         <Card>
-          <div className="text-sm text-slate-500">SKUs פעילים</div>
+          <div className="text-sm text-[var(--muted)]">SKUs פעילים</div>
           <div className="mt-2 text-2xl font-bold">{variants.length}</div>
         </Card>
         <Card>
-          <div className="text-sm text-slate-500">מתחת לסף</div>
-          <div className="mt-2 text-2xl font-bold text-rose-700">{low.length}</div>
+          <div className="text-sm text-[var(--muted)]">מתחת לסף</div>
+          <div className="mt-2 text-2xl font-bold text-[var(--danger)]">{low.length}</div>
         </Card>
         <Card>
-          <div className="text-sm text-slate-500">תנועות {periodLabel}</div>
+          <div className="text-sm text-[var(--muted)]">תנועות {periodLabel}</div>
           <div className="mt-2 text-2xl font-bold">
             +{inbound} / −{outbound}
           </div>
@@ -143,14 +143,14 @@ export default async function DashboardPage({
         <Card>
           <h2 className="mb-4 text-lg font-semibold">התראות מלאי חסר</h2>
           {low.length === 0 ? (
-            <p className="text-sm text-slate-500">אין התראות כרגע</p>
+            <p className="text-sm text-[var(--muted)]">אין התראות כרגע</p>
           ) : (
             <ul className="space-y-3">
               {low.slice(0, 8).map((v) => (
-                <li key={v.id} className="flex justify-between gap-3 border-b border-slate-100 pb-3">
+                <li key={v.id} className="flex justify-between gap-3 border-b border-[var(--border)] pb-3">
                   <div>
                     <div className="font-medium">{v.product.title}</div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-xs text-[var(--muted)]">
                       {v.sku} · {attributesLabel(v.attributes)}
                     </div>
                   </div>
@@ -171,7 +171,7 @@ export default async function DashboardPage({
                   <span>{c.name}</span>
                   <span className="font-medium">{c.qty}</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-2)]">
                   <div
                     className="h-full rounded-full bg-teal-600"
                     style={{ width: `${(c.qty / maxCat) * 100}%` }}
@@ -187,7 +187,7 @@ export default async function DashboardPage({
         <h2 className="mb-4 text-lg font-semibold">תנועות אחרונות</h2>
         <table className="w-full min-w-[640px] text-sm">
           <thead>
-            <tr className="border-b text-right text-slate-500">
+            <tr className="border-b text-right text-[var(--muted)]">
               <th className="pb-2 font-medium">זמן</th>
               <th className="pb-2 font-medium">סוג</th>
               <th className="pb-2 font-medium">מוצר</th>
@@ -197,8 +197,8 @@ export default async function DashboardPage({
           </thead>
           <tbody>
             {recentTxns.map((t) => (
-              <tr key={t.id} className="border-b border-slate-50">
-                <td className="py-2.5 text-slate-500">{formatDateTime(t.timestamp)}</td>
+              <tr key={t.id} className="border-b border-[var(--border)]">
+                <td className="py-2.5 text-[var(--muted)]">{formatDateTime(t.timestamp)}</td>
                 <td className="py-2.5">
                   <Badge
                     tone={
@@ -214,12 +214,12 @@ export default async function DashboardPage({
                 </td>
                 <td className="py-2.5">
                   <div className="font-medium">{t.variant.product.title}</div>
-                  <div className="text-xs text-slate-400">{t.variant.sku}</div>
+                  <div className="text-xs text-[var(--muted)]">{t.variant.sku}</div>
                 </td>
                 <td className="py-2.5 font-mono">
                   {t.quantityChanged > 0 ? `+${t.quantityChanged}` : t.quantityChanged}
                 </td>
-                <td className="py-2.5 text-slate-600">{t.reason}</td>
+                <td className="py-2.5 text-[var(--muted)]">{t.reason}</td>
               </tr>
             ))}
           </tbody>

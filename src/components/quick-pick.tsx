@@ -144,7 +144,7 @@ export function QuickPick() {
       </Card>
 
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}
@@ -156,17 +156,17 @@ export function QuickPick() {
 
       {results.length > 0 && !variant && (
         <Card className="space-y-2 p-3">
-          <p className="px-2 text-sm text-slate-500">{results.length} תוצאות — בחרו פריט</p>
+          <p className="px-2 text-sm text-[var(--muted)]">{results.length} תוצאות — בחרו פריט</p>
           <ul className="max-h-80 space-y-1 overflow-y-auto">
             {results.map((v) => (
               <li key={v.id}>
                 <button
                   type="button"
                   onClick={() => selectVariant(v)}
-                  className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-3 text-right hover:bg-teal-50"
+                  className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-3 text-right hover:bg-[var(--accent-soft)]"
                 >
-                  <span className="font-semibold text-slate-900">{v.product.title}</span>
-                  <span className="text-xs text-slate-500">
+                  <span className="font-semibold text-[var(--foreground)]">{v.product.title}</span>
+                  <span className="text-xs text-[var(--muted)]">
                     {v.sku}
                     {attributesLabel(v.attributes) !== "ללא וריאציות"
                       ? ` · ${attributesLabel(v.attributes)}`
@@ -185,18 +185,18 @@ export function QuickPick() {
       {variant && (
         <Card className="space-y-5">
           <div>
-            <div className="text-xs text-slate-500 font-mono">{variant.sku}</div>
-            <h2 className="text-2xl font-bold text-slate-900">{variant.product.title}</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <div className="text-xs text-[var(--muted)] font-mono">{variant.sku}</div>
+            <h2 className="text-2xl font-bold text-[var(--foreground)]">{variant.product.title}</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">
               {attributesLabel(variant.attributes)}
             </p>
-            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-[var(--muted)]">
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" />
                 {variant.location?.code ?? "ללא מיקום"}
               </span>
               <span>
-                במלאי: <strong className="text-slate-800">{variant.quantityOnHand}</strong>
+                במלאי: <strong className="text-[var(--foreground)]">{variant.quantityOnHand}</strong>
                 {variant.quantityReserved > 0 && (
                   <>
                     {" "}
@@ -239,7 +239,7 @@ export function QuickPick() {
                     key={n}
                     type="button"
                     onClick={() => setQty(String(Math.min(n, variant.quantityOnHand)))}
-                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
+                    className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-2)]"
                   >
                     {n}
                   </button>
@@ -247,7 +247,7 @@ export function QuickPick() {
                 <button
                   type="button"
                   onClick={() => setQty(String(variant.quantityOnHand))}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
+                  className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-2)]"
                 >
                   הכל ({variant.quantityOnHand})
                 </button>
@@ -267,7 +267,7 @@ export function QuickPick() {
 
             <button
               type="button"
-              className="w-full text-sm text-slate-500 underline"
+              className="w-full text-sm text-[var(--muted)] underline"
               onClick={() => {
                 setVariant(null);
                 setResults([]);

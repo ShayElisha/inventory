@@ -25,6 +25,7 @@ import {
 import { useEffect, useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
 import { GlobalSearch } from "@/components/global-search";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { ROLE_LABELS, Role } from "@/lib/constants";
 
 const links = [
@@ -68,16 +69,18 @@ export function AppNav() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-[#f4f7f6]/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--nav)] backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-700 text-sm font-bold text-white">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--lime)] font-display text-sm font-bold text-[var(--ink)]">
               מל
             </span>
             <div className="hidden leading-tight sm:block">
-              <div className="text-sm font-bold text-slate-900">מלאים</div>
-              <div className="text-xs text-slate-500">
+              <div className="font-display text-sm font-bold text-[var(--foreground)]">
+                מלאים
+              </div>
+              <div className="text-xs text-[var(--muted)]">
                 {user?.companyName || "לוגיסטיקה ווריאציות"}
               </div>
             </div>
@@ -87,11 +90,12 @@ export function AppNav() {
         <GlobalSearch />
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <NotificationBell />
           {user && (
             <div className="hidden text-left text-xs sm:block">
-              <div className="font-medium text-slate-800">{user.name}</div>
-              <div className="text-slate-500">
+              <div className="font-medium text-[var(--foreground)]">{user.name}</div>
+              <div className="text-[var(--muted)]">
                 {ROLE_LABELS[user.role] || user.role}
               </div>
             </div>
@@ -99,13 +103,13 @@ export function AppNav() {
           <button
             type="button"
             onClick={logout}
-            className="rounded-lg border border-slate-300 bg-white p-2 hover:bg-slate-50"
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 hover:bg-[var(--surface-2)]"
             title="יציאה"
           >
             <LogOut className="h-4 w-4" />
           </button>
           <button
-            className="rounded-lg border border-slate-300 bg-white p-2 lg:hidden"
+            className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 lg:hidden"
             onClick={() => setOpen((v) => !v)}
             aria-label="תפריט"
           >
@@ -116,19 +120,21 @@ export function AppNav() {
 
       <nav className="mx-auto hidden max-w-7xl flex-wrap gap-1 px-4 pb-3 lg:flex">
         {links.map(({ href, label, icon: Icon }) => {
-            const active =
-              href === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition",
-                  active ? "bg-teal-700 text-white" : "text-slate-700 hover:bg-white"
-                )}
-              >
+          const active =
+            href === "/dashboard"
+              ? pathname === "/dashboard"
+              : pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition",
+                active
+                  ? "bg-[var(--accent)] text-[var(--accent-fg)]"
+                  : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
+              )}
+            >
               <Icon className="h-3.5 w-3.5" />
               {label}
             </Link>
@@ -137,7 +143,7 @@ export function AppNav() {
       </nav>
 
       {open && (
-        <nav className="border-t border-slate-200 bg-white px-4 py-2 lg:hidden">
+        <nav className="border-t border-[var(--border)] bg-[var(--surface)] px-4 py-2 lg:hidden">
           {links.map(({ href, label, icon: Icon }) => {
             const active =
               href === "/dashboard"
@@ -150,7 +156,9 @@ export function AppNav() {
                 onClick={() => setOpen(false)}
                 className={cn(
                   "mb-1 flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium",
-                  active ? "bg-teal-50 text-teal-800" : "text-slate-700"
+                  active
+                    ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                    : "text-[var(--foreground)]"
                 )}
               >
                 <Icon className="h-4 w-4" />

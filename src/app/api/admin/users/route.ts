@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSession, hashPassword, isSuperAdmin } from "@/lib/auth";
 import { COMPANY_ROLES, ROLES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
+import { validatePassword } from "@/lib/password";
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -49,11 +50,15 @@ export async function POST(req: NextRequest) {
     const password = String(body.password || "");
     const role = String(body.role || ROLES.WAREHOUSE);
 
-    if (!companyId || !name || !email || password.length < 6) {
+    if (!companyId || !name || !email) {
       return NextResponse.json(
-        { error: "נא למלא חברה, שם, אימייל וסיסמה" },
+        { error: "נא למלא חברה, שם ואימייל" },
         { status: 400 }
       );
+    }
+    const pwdError = validatePassword(password);
+    if (pwdError) {
+      return NextResponse.json({ error: pwdError }, { status: 400 });
     }
     if (!(COMPANY_ROLES as readonly string[]).includes(role)) {
       return NextResponse.json({ error: "תפקיד לא חוקי" }, { status: 400 });

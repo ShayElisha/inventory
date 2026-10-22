@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { LandingAdvantagesLive } from "@/components/landing-advantages-live";
 
 const features = [
   {
@@ -54,6 +56,7 @@ export default async function LandingPage() {
             מלאים
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            <ThemeToggle className="border-white/20 bg-white/10 text-white hover:bg-white/20" />
             {session ? (
               <Link
                 href="/dashboard"
@@ -120,6 +123,8 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
+
+      <LandingAdvantagesLive />
 
       {/* Capabilities strip — one job */}
       <section className="border-y border-white/10 bg-[#102019] py-16">

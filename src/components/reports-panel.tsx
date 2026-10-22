@@ -98,13 +98,13 @@ export function ReportsPanel() {
         </Button>
         <a
           href="/api/export/excel?type=transactions"
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
+          className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-2)]"
         >
           Excel תנועות
         </a>
         <a
           href="/api/export/excel?type=catalog"
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
+          className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium hover:bg-[var(--surface-2)]"
         >
           Excel קטלוג
         </a>
@@ -115,14 +115,14 @@ export function ReportsPanel() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {Object.entries(data.byType).map(([type, qty]) => (
               <Card key={type}>
-                <div className="text-sm text-slate-500">{type}</div>
+                <div className="text-sm text-[var(--muted)]">{type}</div>
                 <div className="mt-1 text-2xl font-bold">{qty}</div>
               </Card>
             ))}
             <Card>
-              <div className="text-sm text-slate-500">השוואת תקופות (נפח מוחלט)</div>
+              <div className="text-sm text-[var(--muted)]">השוואת תקופות (נפח מוחלט)</div>
               <div className="mt-1 text-2xl font-bold">{data.compare.currentAbs}</div>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-[var(--muted)]">
                 קודם: {data.compare.previousAbs} (
                 {data.compare.previousAbs
                   ? `${Math.round(
@@ -140,20 +140,20 @@ export function ReportsPanel() {
             <h2 className="mb-3 text-lg font-semibold">מגמת מלאי (שינוי יומי)</h2>
             <div className="flex h-40 items-end gap-1">
               {data.trend.length === 0 && (
-                <p className="text-sm text-slate-500">אין נתונים בתקופה</p>
+                <p className="text-sm text-[var(--muted)]">אין נתונים בתקופה</p>
               )}
               {data.trend.map((t) => (
                 <div key={t.day} className="flex flex-1 flex-col items-center gap-1">
                   <div
                     className={`w-full rounded-t ${
-                      t.delta >= 0 ? "bg-teal-600" : "bg-rose-500"
+                      t.delta >= 0 ? "bg-teal-600" : "bg-[var(--danger-soft)]0"
                     }`}
                     style={{
                       height: `${Math.max(8, (Math.abs(t.delta) / maxTrend) * 120)}px`,
                     }}
                     title={`${t.day}: ${t.delta}`}
                   />
-                  <span className="text-[9px] text-slate-400">{t.day.slice(5)}</span>
+                  <span className="text-[9px] text-[var(--muted)]">{t.day.slice(5)}</span>
                 </div>
               ))}
             </div>
@@ -164,16 +164,16 @@ export function ReportsPanel() {
               <h2 className="mb-3 font-semibold">Top 20 ניפוקים</h2>
               <ul className="space-y-2 text-sm">
                 {data.top20.map((t, i) => (
-                  <li key={t.sku} className="flex justify-between gap-2 border-b border-slate-50 pb-2">
+                  <li key={t.sku} className="flex justify-between gap-2 border-b border-[var(--border)] pb-2">
                     <span>
                       {i + 1}. {t.title}{" "}
-                      <span className="font-mono text-xs text-slate-400">{t.sku}</span>
+                      <span className="font-mono text-xs text-[var(--muted)]">{t.sku}</span>
                     </span>
                     <strong>{t.qty}</strong>
                   </li>
                 ))}
                 {data.top20.length === 0 && (
-                  <li className="text-slate-500">אין ניפוקים בתקופה</li>
+                  <li className="text-[var(--muted)]">אין ניפוקים בתקופה</li>
                 )}
               </ul>
             </Card>
@@ -182,7 +182,7 @@ export function ReportsPanel() {
               <h2 className="mb-3 font-semibold">שווי מלאי לפי קטגוריה</h2>
               <ul className="space-y-2 text-sm">
                 {data.valueByCategory.map((c) => (
-                  <li key={c.name} className="flex justify-between border-b border-slate-50 pb-2">
+                  <li key={c.name} className="flex justify-between border-b border-[var(--border)] pb-2">
                     <span>
                       {c.name} · {c.qty} יח׳
                     </span>
@@ -198,13 +198,13 @@ export function ReportsPanel() {
               <h2 className="mb-3 font-semibold">פחת ונזקים</h2>
               <ul className="space-y-2 text-sm">
                 {data.waste.map((w, i) => (
-                  <li key={i} className="border-b border-slate-50 pb-2">
+                  <li key={i} className="border-b border-[var(--border)] pb-2">
                     {w.title} · {w.sku} · {w.qty} · {reasonLabel(w.reasonCode)} ·{" "}
                     {formatDateTime(w.at)}
                   </li>
                 ))}
                 {data.waste.length === 0 && (
-                  <li className="text-slate-500">אין רשומות פחת/נזק</li>
+                  <li className="text-[var(--muted)]">אין רשומות פחת/נזק</li>
                 )}
               </ul>
             </Card>
@@ -213,7 +213,7 @@ export function ReportsPanel() {
               <h2 className="mb-3 font-semibold">מלאי מת</h2>
               <ul className="max-h-64 space-y-2 overflow-y-auto text-sm">
                 {data.deadStock.map((d) => (
-                  <li key={d.sku} className="flex justify-between border-b border-slate-50 pb-2">
+                  <li key={d.sku} className="flex justify-between border-b border-[var(--border)] pb-2">
                     <span>
                       {d.title} · {d.sku}
                     </span>
@@ -221,7 +221,7 @@ export function ReportsPanel() {
                   </li>
                 ))}
                 {data.deadStock.length === 0 && (
-                  <li className="text-slate-500">אין מלאי מת</li>
+                  <li className="text-[var(--muted)]">אין מלאי מת</li>
                 )}
               </ul>
             </Card>
@@ -238,7 +238,7 @@ export function ReportsPanel() {
                   </li>
                 ))}
                 {data.accuracy.length === 0 && (
-                  <li className="text-slate-500">אין ספירות סגורות</li>
+                  <li className="text-[var(--muted)]">אין ספירות סגורות</li>
                 )}
               </ul>
             </Card>
@@ -247,7 +247,7 @@ export function ReportsPanel() {
               <h2 className="mb-3 font-semibold">תנועות לפי תאריך/סוג</h2>
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
-                  <tr className="text-right text-slate-500">
+                  <tr className="text-right text-[var(--muted)]">
                     <th className="pb-2">זמן</th>
                     <th className="pb-2">סוג</th>
                     <th className="pb-2">מוצר</th>
@@ -257,7 +257,7 @@ export function ReportsPanel() {
                 </thead>
                 <tbody>
                   {data.movements.slice(0, 50).map((m) => (
-                    <tr key={m.id} className="border-t border-slate-50">
+                    <tr key={m.id} className="border-t border-[var(--border)]">
                       <td className="py-2">{formatDateTime(m.at)}</td>
                       <td className="py-2">
                         <Badge>{m.type}</Badge>

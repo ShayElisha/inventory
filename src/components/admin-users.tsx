@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, Input, Label, Select } from "@/components/ui";
+import { PasswordInput } from "@/components/password-input";
+import { validatePassword } from "@/lib/password";
 import { COMPANY_ROLES, ROLE_LABELS } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
 
@@ -59,6 +61,11 @@ export function AdminUsers({
 
   async function createUser(e: React.FormEvent) {
     e.preventDefault();
+    const pwdError = validatePassword(password);
+    if (pwdError) {
+      setError(pwdError);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -119,7 +126,7 @@ export function AdminUsers({
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}
@@ -181,16 +188,12 @@ export function AdminUsers({
                 required
               />
             </div>
-            <div>
-              <Label>סיסמה</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
+            <PasswordInput
+              value={password}
+              onChange={setPassword}
+              required
+              showStrength
+            />
             <div>
               <Label>תפקיד</Label>
               <Select value={role} onChange={(e) => setRole(e.target.value)}>
@@ -213,7 +216,7 @@ export function AdminUsers({
       <Card className="overflow-x-auto p-0">
         <table className="w-full min-w-[800px] text-sm">
           <thead>
-            <tr className="border-b bg-slate-50 text-right text-slate-500">
+            <tr className="border-b bg-[var(--surface-2)] text-right text-[var(--muted)]">
               <th className="p-3 font-medium">משתמש</th>
               <th className="p-3 font-medium">חברה</th>
               <th className="p-3 font-medium">תפקיד</th>
@@ -224,15 +227,15 @@ export function AdminUsers({
           </thead>
           <tbody>
             {filtered.map((u) => (
-              <tr key={u.id} className="border-b border-slate-50">
+              <tr key={u.id} className="border-b border-[var(--border)]">
                 <td className="p-3">
                   <div className="font-medium">{u.name}</div>
-                  <div className="text-xs text-slate-500">{u.email}</div>
+                  <div className="text-xs text-[var(--muted)]">{u.email}</div>
                 </td>
                 <td className="p-3">
                   <Link
                     href={`/admin/companies/${u.company.id}`}
-                    className="text-teal-800 hover:underline"
+                    className="text-[var(--accent)] hover:underline"
                   >
                     {u.company.name}
                   </Link>
@@ -248,7 +251,7 @@ export function AdminUsers({
                     {u.active ? "פעיל" : "מושעה"}
                   </Badge>
                 </td>
-                <td className="p-3 text-slate-500">
+                <td className="p-3 text-[var(--muted)]">
                   {formatDateTime(u.createdAt)}
                 </td>
                 <td className="p-3">
@@ -277,7 +280,7 @@ export function AdminUsers({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-8 text-center text-slate-500">
+                <td colSpan={6} className="p-8 text-center text-[var(--muted)]">
                   לא נמצאו משתמשים
                 </td>
               </tr>

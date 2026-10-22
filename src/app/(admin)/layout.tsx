@@ -9,7 +9,7 @@ export default async function AdminLayout({
   const session = await requireSuperAdmin();
 
   return (
-    <div className="min-h-full bg-[#eef2ef]">
+    <div className="min-h-full">
       <AdminNav userName={session.name} />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{children}</main>
     </div>

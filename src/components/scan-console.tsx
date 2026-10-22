@@ -134,7 +134,7 @@ export function ScanConsole() {
           type="button"
           onClick={() => setMode("product")}
           className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-medium ${
-            mode === "product" ? "bg-teal-700 text-white" : "bg-white border border-slate-300"
+            mode === "product" ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)] border border-[var(--border)]"
           }`}
         >
           סריקת מוצר
@@ -143,7 +143,7 @@ export function ScanConsole() {
           type="button"
           onClick={() => setMode("relocate")}
           className={`flex-1 rounded-lg px-3 py-2.5 text-sm font-medium ${
-            mode === "relocate" ? "bg-teal-700 text-white" : "bg-white border border-slate-300"
+            mode === "relocate" ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)] border border-[var(--border)]"
           }`}
         >
           העברת מדף
@@ -179,7 +179,7 @@ export function ScanConsole() {
       </Card>
 
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}
@@ -192,30 +192,30 @@ export function ScanConsole() {
       {variant && (
         <Card className="space-y-4">
           <div>
-            <div className="text-xs text-slate-500">{variant.sku}</div>
-            <h2 className="text-xl font-bold text-slate-900">{variant.product.title}</h2>
-            <p className="mt-1 text-sm text-slate-600">
+            <div className="text-xs text-[var(--muted)]">{variant.sku}</div>
+            <h2 className="text-xl font-bold text-[var(--foreground)]">{variant.product.title}</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">
               {attributesLabel(variant.attributes)}
             </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg bg-slate-50 p-3 text-center">
-              <div className="text-xs text-slate-500">מלאי נוכחי</div>
+            <div className="rounded-lg bg-[var(--surface-2)] p-3 text-center">
+              <div className="text-xs text-[var(--muted)]">מלאי נוכחי</div>
               <div
                 className={`text-3xl font-bold ${
                   variant.quantityOnHand <= variant.minAlertLevel
-                    ? "text-rose-600"
-                    : "text-teal-800"
+                    ? "text-[var(--danger)]"
+                    : "text-[var(--accent)]"
                 }`}
               >
                 {variant.quantityOnHand}
               </div>
             </div>
-            <div className="rounded-lg bg-slate-50 p-3 text-center">
-              <div className="text-xs text-slate-500">מיקום</div>
+            <div className="rounded-lg bg-[var(--surface-2)] p-3 text-center">
+              <div className="text-xs text-[var(--muted)]">מיקום</div>
               <div className="mt-1 flex items-center justify-center gap-1 font-mono text-lg font-semibold">
-                <MapPin className="h-4 w-4 text-slate-400" />
+                <MapPin className="h-4 w-4 text-[var(--muted)]" />
                 {variant.location?.code ?? "—"}
               </div>
             </div>
@@ -243,7 +243,7 @@ export function ScanConsole() {
             </Button>
           </div>
 
-          <p className="text-center text-xs text-slate-400">
+          <p className="text-center text-xs text-[var(--muted)]">
             ברקוד: {variant.barcode} · שמור: {variant.quantityReserved}
           </p>
         </Card>

@@ -133,13 +133,13 @@ export function BulkAndImport({ variants }: { variants: Variant[] }) {
 
       <Card className="space-y-3">
         <h2 className="text-lg font-semibold">ייבוא מוצרים CSV</h2>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-[var(--muted)]">
           כותרות: title,baseSku,categoryName,barcode,sku,costPrice,sellingPrice,qty,unitOfMeasure
           (UNIT/CARTON/SQM)
         </p>
         <Label>הדבק CSV או העלה תוכן</Label>
         <textarea
-          className="h-48 w-full rounded-lg border border-slate-300 p-3 font-mono text-xs"
+          className="h-48 w-full rounded-lg border border-[var(--border)] p-3 font-mono text-xs"
           value={csv}
           onChange={(e) => setCsv(e.target.value)}
         />
@@ -165,7 +165,7 @@ export function BulkAndImport({ variants }: { variants: Variant[] }) {
             </div>
           )}
           {error && (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
               {error}
             </div>
           )}

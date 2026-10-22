@@ -100,7 +100,7 @@ export function ProductsCatalog({
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {error}
         </div>
       )}
@@ -145,7 +145,7 @@ export function ProductsCatalog({
       <div className="space-y-2">
         {products.length === 0 && (
           <Card>
-            <p className="text-sm text-slate-500">לא נמצאו מוצרים</p>
+            <p className="text-sm text-[var(--muted)]">לא נמצאו מוצרים</p>
           </Card>
         )}
         {products.map((p) => {
@@ -161,30 +161,30 @@ export function ProductsCatalog({
                   onClick={() => setOpenId(open ? null : p.id)}
                 >
                   {open ? (
-                    <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+                    <ChevronDown className="h-4 w-4 shrink-0 text-[var(--muted)]" />
                   ) : (
-                    <ChevronLeft className="h-4 w-4 shrink-0 text-slate-400" />
+                    <ChevronLeft className="h-4 w-4 shrink-0 text-[var(--muted)]" />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-slate-900">{p.title}</span>
+                      <span className="font-semibold text-[var(--foreground)]">{p.title}</span>
                       <Badge>{p.category.name}</Badge>
                       {hasLow && <Badge tone="danger">מלאי נמוך</Badge>}
                     </div>
-                    <div className="mt-1 text-xs text-slate-500">
+                    <div className="mt-1 text-xs text-[var(--muted)]">
                       מק״ט בסיס: {p.baseSku} · {p.variants.length} וריאציות · סה״כ{" "}
                       {totalQty} {unitLabel(p.unitOfMeasure || "UNIT")}
                       {p.supplier ? ` · ${p.supplier.name}` : ""}
                     </div>
                   </div>
-                  <div className="hidden text-sm text-slate-600 sm:block">
+                  <div className="hidden text-sm text-[var(--muted)] sm:block">
                     ₪{p.sellingPrice}
                   </div>
                 </button>
                 <div className="flex shrink-0 items-center gap-1">
                   <Link
                     href={`/products/${p.id}/edit`}
-                    className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50"
+                    className="inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 text-[var(--foreground)] hover:bg-[var(--surface-2)]"
                     title="עריכה"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -194,7 +194,7 @@ export function ProductsCatalog({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="p-2 text-rose-600 hover:bg-rose-50"
+                    className="p-2 text-[var(--danger)] hover:bg-[var(--danger-soft)]"
                     title="מחיקה"
                     disabled={busyId === p.id}
                     onClick={(e) => {
@@ -208,10 +208,10 @@ export function ProductsCatalog({
               </div>
 
               {open && (
-                <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-3">
+                <div className="border-t border-[var(--border)] bg-[var(--surface-2)]/50 px-5 py-3">
                   <button
                     type="button"
-                    className="mb-3 inline-flex items-center gap-1 text-xs text-teal-700"
+                    className="mb-3 inline-flex items-center gap-1 text-xs text-[var(--accent)]"
                     onClick={() =>
                       setHistoryFor(historyFor === p.id ? null : p.id)
                     }
@@ -220,9 +220,9 @@ export function ProductsCatalog({
                     היסטוריית שינויים
                   </button>
                   {historyFor === p.id && (
-                    <ul className="mb-4 space-y-1 rounded-lg bg-white p-3 text-xs">
+                    <ul className="mb-4 space-y-1 rounded-lg bg-[var(--surface)] p-3 text-xs">
                       {history.length === 0 && (
-                        <li className="text-slate-500">אין שינויים מתועדים</li>
+                        <li className="text-[var(--muted)]">אין שינויים מתועדים</li>
                       )}
                       {history.map((h) => (
                         <li key={h.id}>
@@ -235,7 +235,7 @@ export function ProductsCatalog({
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[700px] text-sm">
                       <thead>
-                        <tr className="text-right text-slate-500">
+                        <tr className="text-right text-[var(--muted)]">
                           <th className="pb-2 font-medium">SKU</th>
                           <th className="pb-2 font-medium">ברקוד</th>
                           <th className="pb-2 font-medium">מאפיינים</th>
@@ -246,7 +246,7 @@ export function ProductsCatalog({
                       </thead>
                       <tbody>
                         {p.variants.map((v) => (
-                          <tr key={v.id} className="border-t border-slate-100">
+                          <tr key={v.id} className="border-t border-[var(--border)]">
                             <td className="py-2 font-mono text-xs">{v.sku}</td>
                             <td className="py-2 font-mono text-xs">{v.barcode}</td>
                             <td className="py-2">{attributesLabel(v.attributes)}</td>

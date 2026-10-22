@@ -75,7 +75,7 @@ export default async function AdminHomePage() {
         actions={
           <Link
             href="/admin/companies"
-            className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-medium text-white hover:bg-teal-800"
+            className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)]"
           >
             חברה חדשה
           </Link>
@@ -87,16 +87,16 @@ export default async function AdminHomePage() {
           const Icon = s.icon;
           return (
             <Link key={s.label} href={s.href}>
-              <Card className="transition hover:border-teal-300 hover:shadow-md">
+              <Card className="transition hover:border-[var(--accent)] hover:shadow-md">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm text-slate-500">{s.label}</p>
-                    <p className="mt-1 text-3xl font-bold text-slate-900">
+                    <p className="text-sm text-[var(--muted)]">{s.label}</p>
+                    <p className="mt-1 text-3xl font-bold text-[var(--foreground)]">
                       {s.value}
                     </p>
-                    <p className="mt-1 text-xs text-slate-500">{s.hint}</p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">{s.hint}</p>
                   </div>
-                  <span className="rounded-lg bg-teal-50 p-2 text-teal-700">
+                  <span className="rounded-lg bg-[var(--accent-soft)] p-2 text-[var(--accent)]">
                     <Icon className="h-5 w-5" />
                   </span>
                 </div>
@@ -109,14 +109,14 @@ export default async function AdminHomePage() {
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">חברות אחרונות</h2>
-          <Link href="/admin/companies" className="text-sm text-teal-700">
+          <Link href="/admin/companies" className="text-sm text-[var(--accent)]">
             הכל ←
           </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="border-b text-right text-slate-500">
+              <tr className="border-b text-right text-[var(--muted)]">
                 <th className="pb-2 font-medium">שם</th>
                 <th className="pb-2 font-medium">סטטוס</th>
                 <th className="pb-2 font-medium">משתמשים</th>
@@ -126,15 +126,15 @@ export default async function AdminHomePage() {
             </thead>
             <tbody>
               {recentCompanies.map((c) => (
-                <tr key={c.id} className="border-b border-slate-50">
+                <tr key={c.id} className="border-b border-[var(--border)]">
                   <td className="py-2.5">
                     <Link
                       href={`/admin/companies/${c.id}`}
-                      className="font-medium text-teal-800 hover:underline"
+                      className="font-medium text-[var(--accent)] hover:underline"
                     >
                       {c.name}
                     </Link>
-                    <div className="text-xs text-slate-400">{c.slug}</div>
+                    <div className="text-xs text-[var(--muted)]">{c.slug}</div>
                   </td>
                   <td className="py-2.5">
                     <Badge tone={c.active ? "ok" : "danger"}>
@@ -143,14 +143,14 @@ export default async function AdminHomePage() {
                   </td>
                   <td className="py-2.5">{c._count.users}</td>
                   <td className="py-2.5">{c._count.products}</td>
-                  <td className="py-2.5 text-slate-500">
+                  <td className="py-2.5 text-[var(--muted)]">
                     {formatDateTime(c.createdAt)}
                   </td>
                 </tr>
               ))}
               {recentCompanies.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">
+                  <td colSpan={5} className="py-8 text-center text-[var(--muted)]">
                     אין חברות עדיין
                   </td>
                 </tr>
