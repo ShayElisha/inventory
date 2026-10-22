@@ -7,6 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         String   @default("WAREHOUSE") // ADMIN | WAREHOUSE | VIEWER
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  auditLogs       AuditLog[]
+  pickLists       PickList[]
+  stockCounts     StockCountSession[]
+  productChanges  ProductChangeLog[]
+  notifications   Notification[]      @relation("NotificationActor")
+
+  @@map("users")
+}
+
 model Category {
   id              String    @id @default(cuid())
   name            String
@@ -28,23 +46,27 @@ model Supplier {
 }
 
 model Product {
-  id           String           @id @default(cuid())
-  categoryId   String           @map("category_id")
-  title        String
-  baseSku      String           @unique @map("base_sku")
-  description  String?
-  supplierId   String?          @map("supplier_id")
-  costPrice    Float            @default(0) @map("cost_price")
-  sellingPrice Float            @default(0) @map("selling_price")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
+  id             String   @id @default(cuid())
+  categoryId     String   @map("category_id")
+  title          String
+  baseSku        String   @unique @map("base_sku")
+  description    String?
+  supplierId     String?  @map("supplier_id")
+  costPrice      Float    @default(0) @map("cost_price")
+  sellingPrice   Float    @default(0) @map("selling_price")
+  unitOfMeasure  String   @default("UNIT") @map("unit_of_measure") // UNIT | CARTON | SQM
+  unitsPerCarton Int      @default(1) @map("units_per_carton")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  category Category         @relation(fields: [categoryId], references: [id])
-  supplier Supplier?        @relation(fields: [supplierId], references: [id])
+  category Category          @relation(fields: [categoryId], references: [id])
+  supplier Supplier?         @relation(fields: [supplierId], references: [id])
   variants ProductVariant[]
+  changes  ProductChangeLog[]
 
   @@index([categoryId])
   @@index([supplierId])
+  @@index([title])
   @@map("products")
 }
 
@@ -57,6 +79,8 @@ model WarehouseLocation {
   code     String           @unique
   variants ProductVariant[]
 
+  @@index([zone])
+  @@index([shelf])
   @@map("warehouse_locations")
 }
 
@@ -76,6 +100,8 @@ model ProductVariant {
   product      Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
   location     WarehouseLocation? @relation(fields: [locationId], references: [id])
   transactions StockTransaction[]
+  pickItems    PickListItem[]
+  countLines   StockCountLine[]
 
   @@index([productId])
   @@index([barcode])
@@ -92,8 +118,10 @@ model StockTransaction {
   previousQuantity Int      @map("previous_quantity")
   newQuantity      Int      @map("new_quantity")
   reason           String
+  reasonCode       String?  @map("reason_code") // SALE | WASTE | RETURN | DAMAGE | OTHER | COUNT | ...
   fromLocationId   String?  @map("from_location_id")
   toLocationId     String?  @map("to_location_id")
+  userId           String?  @map("user_id")
   timestamp        DateTime @default(now())
 
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
@@ -101,5 +129,119 @@ model StockTransaction {
   @@index([variantId])
   @@index([timestamp])
   @@index([type])
+  @@index([reasonCode])
   @@map("stock_transactions")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?  @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  details    String   @default("{}")
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model ProductChangeLog {
+  id        String   @id @default(cuid())
+  productId String   @map("product_id")
+  userId    String?  @map("user_id")
+  field     String
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@index([productId])
+  @@index([createdAt])
+  @@map("product_change_logs")
+}
+
+model PickList {
+  id          String   @id @default(cuid())
+  reference   String
+  status      String   @default("OPEN") // OPEN | IN_PROGRESS | DONE | CANCELLED
+  notes       String?
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  createdBy User?          @relation(fields: [createdById], references: [id])
+  items     PickListItem[]
+
+  @@index([status])
+  @@map("pick_lists")
+}
+
+model PickListItem {
+  id          String  @id @default(cuid())
+  pickListId  String  @map("pick_list_id")
+  variantId   String  @map("variant_id")
+  quantity    Int
+  pickedQty   Int     @default(0) @map("picked_qty")
+  status      String  @default("PENDING") // PENDING | DONE
+
+  pickList PickList       @relation(fields: [pickListId], references: [id], onDelete: Cascade)
+  variant  ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([pickListId])
+  @@map("pick_list_items")
+}
+
+model StockCountSession {
+  id          String   @id @default(cuid())
+  name        String
+  zone        String?
+  shelf       String?
+  status      String   @default("OPEN") // OPEN | CLOSED
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  closedAt    DateTime? @map("closed_at")
+
+  createdBy User?            @relation(fields: [createdById], references: [id])
+  lines     StockCountLine[]
+
+  @@map("stock_count_sessions")
+}
+
+model StockCountLine {
+  id            String @id @default(cuid())
+  sessionId     String @map("session_id")
+  variantId     String @map("variant_id")
+  systemQty     Int    @map("system_qty")
+  countedQty    Int?   @map("counted_qty")
+  variance      Int?
+
+  session StockCountSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  variant ProductVariant    @relation(fields: [variantId], references: [id])
+
+  @@unique([sessionId, variantId])
+  @@map("stock_count_lines")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String // LOW_STOCK | DEAD_STOCK | COUNT_VARIANCE | PICK_READY | SYSTEM
+  title     String
+  body      String
+  href      String?
+  read      Boolean  @default(false)
+  userId    String?  @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation("NotificationActor", fields: [userId], references: [id])
+
+  @@index([read, createdAt])
+  @@map("notifications")
 }

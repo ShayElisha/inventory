@@ -30,6 +30,8 @@ export async function applyStockChange(params: {
   /** Absolute delta for INBOUND (+), OUTBOUND (-), or signed delta for ADJUSTMENT */
   quantityChanged: number;
   reason: string;
+  reasonCode?: string | null;
+  userId?: string | null;
   locationId?: string | null;
   fromLocationId?: string | null;
   toLocationId?: string | null;
@@ -41,6 +43,8 @@ export async function applyStockChange(params: {
     variantId,
     type,
     reason,
+    reasonCode,
+    userId,
     locationId,
     fromLocationId,
     toLocationId,
@@ -105,6 +109,8 @@ export async function applyStockChange(params: {
         previousQuantity,
         newQuantity,
         reason,
+        reasonCode: reasonCode || null,
+        userId: userId || null,
         fromLocationId: fromLocationId ?? (type === "TRANSFER" ? variant.locationId : null),
         toLocationId: toLocationId ?? (type === "INBOUND" ? locationId ?? null : null),
       },

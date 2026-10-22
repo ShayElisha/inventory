@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Button, Card, Input, Label } from "@/components/ui";
+import { Button, Card, Input, Label, Select } from "@/components/ui";
 import { attributesLabel } from "@/lib/utils";
+import { OUTBOUND_REASONS } from "@/lib/constants";
 import { PackageMinus, MapPin, Search } from "lucide-react";
 
 type VariantPayload = {
@@ -24,6 +25,7 @@ export function QuickPick() {
   const [results, setResults] = useState<VariantPayload[]>([]);
   const [variant, setVariant] = useState<VariantPayload | null>(null);
   const [qty, setQty] = useState("1");
+  const [reasonCode, setReasonCode] = useState("SALE");
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
@@ -90,7 +92,7 @@ export function QuickPick() {
         body: JSON.stringify({
           variantId: variant.id,
           quantity,
-          reason: "ניפוק",
+          reasonCode,
         }),
       });
       const data = await res.json();
@@ -206,6 +208,19 @@ export function QuickPick() {
           </div>
 
           <form onSubmit={pick} className="space-y-4">
+            <div>
+              <Label>סיבת ניפוק</Label>
+              <Select
+                value={reasonCode}
+                onChange={(e) => setReasonCode(e.target.value)}
+              >
+                {OUTBOUND_REASONS.map((r) => (
+                  <option key={r.code} value={r.code}>
+                    {r.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
             <div>
               <Label>כמה להוציא?</Label>
               <Input

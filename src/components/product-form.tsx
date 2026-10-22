@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
 import { buildVariantSku, generateMatrixCombinations } from "@/lib/sku";
 import { parseJsonArray } from "@/lib/json";
+import { UNIT_OF_MEASURE } from "@/lib/constants";
 
 type Category = {
   id: string;
@@ -38,6 +39,8 @@ export function ProductForm({
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id || "");
   const [costPrice, setCostPrice] = useState("0");
   const [sellingPrice, setSellingPrice] = useState("0");
+  const [unitOfMeasure, setUnitOfMeasure] = useState("UNIT");
+  const [unitsPerCarton, setUnitsPerCarton] = useState("1");
   const [simpleBarcode, setSimpleBarcode] = useState("");
   const [simpleQty, setSimpleQty] = useState("0");
   const [simpleLocationId, setSimpleLocationId] = useState("");
@@ -103,6 +106,8 @@ export function ProductForm({
         supplierId: supplierId || null,
         costPrice,
         sellingPrice,
+        unitOfMeasure,
+        unitsPerCarton: Number(unitsPerCarton) || 1,
       };
 
       if (category?.hasVariants) {
@@ -196,6 +201,29 @@ export function ProductForm({
             step="0.01"
             value={sellingPrice}
             onChange={(e) => setSellingPrice(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label>יחידת מידה</Label>
+          <Select
+            value={unitOfMeasure}
+            onChange={(e) => setUnitOfMeasure(e.target.value)}
+          >
+            {UNIT_OF_MEASURE.map((u) => (
+              <option key={u.code} value={u.code}>
+                {u.label}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label>יח׳ בקרטון</Label>
+          <Input
+            type="number"
+            min="1"
+            value={unitsPerCarton}
+            onChange={(e) => setUnitsPerCarton(e.target.value)}
+            disabled={unitOfMeasure !== "CARTON"}
           />
         </div>
         <div className="sm:col-span-2">

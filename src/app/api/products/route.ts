@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { buildVariantSku, generateMatrixCombinations } from "@/lib/sku";
 import { parseJsonArray, stringifyJson } from "@/lib/json";
+import { logProductChange, writeAudit } from "@/lib/audit";
+import { getSession } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
@@ -36,6 +38,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSession();
     const body = await req.json();
     const {
       title,
@@ -45,6 +48,8 @@ export async function POST(req: NextRequest) {
       supplierId,
       costPrice,
       sellingPrice,
+      unitOfMeasure,
+      unitsPerCarton,
       variants,
       simpleBarcode,
       simpleQty,
@@ -73,6 +78,8 @@ export async function POST(req: NextRequest) {
           supplierId: supplierId || null,
           costPrice: Number(costPrice) || 0,
           sellingPrice: Number(sellingPrice) || 0,
+          unitOfMeasure: unitOfMeasure || "UNIT",
+          unitsPerCarton: Number(unitsPerCarton) || 1,
         },
       });
 
@@ -161,6 +168,22 @@ export async function POST(req: NextRequest) {
         include: { variants: true, category: true },
       });
     });
+
+    if (product) {
+      await logProductChange({
+        productId: product.id,
+        field: "created",
+        oldValue: null,
+        newValue: product.title,
+        userId: session?.id,
+      });
+      await writeAudit({
+        action: "CREATE",
+        entityType: "Product",
+        entityId: product.id,
+        details: { title: product.title, baseSku: product.baseSku },
+      });
+    }
 
     return NextResponse.json(product, { status: 201 });
   } catch (e) {
