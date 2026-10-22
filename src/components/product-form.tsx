@@ -7,12 +7,22 @@ import { buildVariantSku, generateMatrixCombinations } from "@/lib/sku";
 import { parseJsonArray } from "@/lib/json";
 import { UNIT_OF_MEASURE } from "@/lib/constants";
 import { attributesLabel } from "@/lib/utils";
+import { parseCustomData, parseFieldOptions } from "@/lib/custom-fields";
 
 type Category = {
   id: string;
   name: string;
   hasVariants: boolean;
   attributeSchema: string;
+};
+
+type CustomFieldDef = {
+  id: string;
+  key: string;
+  label: string;
+  fieldType: string;
+  options: string;
+  required: boolean;
 };
 
 type VariantRow = {
@@ -34,6 +44,7 @@ type ExistingProduct = {
   sellingPrice: number;
   unitOfMeasure: string;
   unitsPerCarton: number;
+  customData?: string;
   variants: {
     id: string;
     sku: string;
@@ -49,15 +60,18 @@ export function ProductForm({
   categories,
   suppliers,
   locations,
+  customFields = [],
   product,
 }: {
   categories: Category[];
   suppliers: { id: string; name: string }[];
   locations: { id: string; code: string }[];
+  customFields?: CustomFieldDef[];
   product?: ExistingProduct;
 }) {
   const router = useRouter();
   const isEdit = Boolean(product);
+  const initialCustom = parseCustomData(product?.customData);
   const [title, setTitle] = useState(product?.title || "");
   const [baseSku, setBaseSku] = useState(product?.baseSku || "");
   const [description, setDescription] = useState(product?.description || "");
@@ -75,6 +89,35 @@ export function ProductForm({
   const [unitsPerCarton, setUnitsPerCarton] = useState(
     String(product?.unitsPerCarton ?? 1)
   );
+  const [weightKg, setWeightKg] = useState(
+    String((product as { weightKg?: number | null })?.weightKg ?? "")
+  );
+  const [volumeLiters, setVolumeLiters] = useState(
+    String((product as { volumeLiters?: number | null })?.volumeLiters ?? "")
+  );
+  const [trackLots, setTrackLots] = useState(
+    Boolean((product as { trackLots?: boolean })?.trackLots)
+  );
+  const [trackSerials, setTrackSerials] = useState(
+    Boolean((product as { trackSerials?: boolean })?.trackSerials)
+  );
+  const [isKit, setIsKit] = useState(
+    Boolean((product as { isKit?: boolean })?.isKit)
+  );
+  const [customValues, setCustomValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const f of customFields) {
+      const v = initialCustom[f.key];
+      if (f.fieldType === "BOOLEAN") {
+        init[f.key] = v === true || v === "true" ? "true" : "false";
+      } else if (v === undefined || v === null) {
+        init[f.key] = "";
+      } else {
+        init[f.key] = String(v);
+      }
+    }
+    return init;
+  });
   const [simpleBarcode, setSimpleBarcode] = useState(
     product?.variants[0]?.barcode || ""
   );
@@ -145,11 +188,53 @@ export function ProductForm({
     setError("");
   }
 
+  function buildCustomDataPayload(): Record<string, unknown> | null {
+    const out: Record<string, unknown> = {};
+    for (const f of customFields) {
+      const raw = customValues[f.key] ?? "";
+      if (f.required) {
+        if (f.fieldType === "BOOLEAN") {
+          // always has value
+        } else if (String(raw).trim() === "") {
+          setError(`שדה חובה: ${f.label}`);
+          return null;
+        }
+      }
+      if (f.fieldType === "BOOLEAN") {
+        out[f.key] = raw === "true";
+      } else if (f.fieldType === "NUMBER") {
+        if (String(raw).trim() === "") {
+          if (f.required) {
+            setError(`שדה חובה: ${f.label}`);
+            return null;
+          }
+          out[f.key] = null;
+        } else {
+          const n = Number(raw);
+          if (Number.isNaN(n)) {
+            setError(`ערך לא תקין ב־${f.label}`);
+            return null;
+          }
+          out[f.key] = n;
+        }
+      } else {
+        out[f.key] = String(raw).trim();
+      }
+    }
+    return out;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
+      const customData = buildCustomDataPayload();
+      if (customData === null) {
+        setLoading(false);
+        return;
+      }
+
       if (isEdit && product) {
         const payload: Record<string, unknown> = {
           title,
@@ -161,6 +246,12 @@ export function ProductForm({
           sellingPrice,
           unitOfMeasure,
           unitsPerCarton: Number(unitsPerCarton) || 1,
+          weightKg: weightKg === "" ? null : Number(weightKg),
+          volumeLiters: volumeLiters === "" ? null : Number(volumeLiters),
+          trackLots,
+          trackSerials,
+          isKit,
+          customData,
         };
 
         if (editVariants.length === 1 && !category?.hasVariants) {
@@ -203,6 +294,12 @@ export function ProductForm({
         sellingPrice,
         unitOfMeasure,
         unitsPerCarton: Number(unitsPerCarton) || 1,
+        weightKg: weightKg === "" ? null : Number(weightKg),
+        volumeLiters: volumeLiters === "" ? null : Number(volumeLiters),
+        trackLots,
+        trackSerials,
+        isKit,
+        customData,
       };
 
       if (category?.hasVariants) {
@@ -321,6 +418,50 @@ export function ProductForm({
             disabled={unitOfMeasure !== "CARTON"}
           />
         </div>
+        <div>
+          <Label>משקל (ק״ג)</Label>
+          <Input
+            type="number"
+            min="0"
+            step="0.001"
+            value={weightKg}
+            onChange={(e) => setWeightKg(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label>נפח (ליטר)</Label>
+          <Input
+            type="number"
+            min="0"
+            step="0.001"
+            value={volumeLiters}
+            onChange={(e) => setVolumeLiters(e.target.value)}
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={trackLots}
+            onChange={(e) => setTrackLots(e.target.checked)}
+          />
+          מעקב אצוות / תוקף
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={trackSerials}
+            onChange={(e) => setTrackSerials(e.target.checked)}
+          />
+          מעקב מספר סידורי
+        </label>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={isKit}
+            onChange={(e) => setIsKit(e.target.checked)}
+          />
+          מוצר קיט / BOM (הרכבה מרכיבים)
+        </label>
         <div className="sm:col-span-2">
           <Label>תיאור</Label>
           <Textarea
@@ -330,6 +471,78 @@ export function ProductForm({
           />
         </div>
       </Card>
+
+      {customFields.length > 0 && (
+        <Card className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <h2 className="text-lg font-semibold">שדות מותאמים</h2>
+            <p className="text-sm text-[var(--muted)]">
+              מוגדרים בהגדרות הבסיס של החברה
+            </p>
+          </div>
+          {customFields.map((f) => {
+            const opts = parseFieldOptions(f.options);
+            return (
+              <div key={f.id}>
+                <Label>
+                  {f.label}
+                  {f.required ? " *" : ""}
+                </Label>
+                {f.fieldType === "SELECT" ? (
+                  <Select
+                    value={customValues[f.key] || ""}
+                    onChange={(e) =>
+                      setCustomValues((prev) => ({
+                        ...prev,
+                        [f.key]: e.target.value,
+                      }))
+                    }
+                    required={f.required}
+                  >
+                    <option value="">בחרו…</option>
+                    {opts.map((o) => (
+                      <option key={o} value={o}>
+                        {o}
+                      </option>
+                    ))}
+                  </Select>
+                ) : f.fieldType === "BOOLEAN" ? (
+                  <Select
+                    value={customValues[f.key] || "false"}
+                    onChange={(e) =>
+                      setCustomValues((prev) => ({
+                        ...prev,
+                        [f.key]: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="false">לא</option>
+                    <option value="true">כן</option>
+                  </Select>
+                ) : (
+                  <Input
+                    type={
+                      f.fieldType === "NUMBER"
+                        ? "number"
+                        : f.fieldType === "DATE"
+                          ? "date"
+                          : "text"
+                    }
+                    value={customValues[f.key] || ""}
+                    onChange={(e) =>
+                      setCustomValues((prev) => ({
+                        ...prev,
+                        [f.key]: e.target.value,
+                      }))
+                    }
+                    required={f.required}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </Card>
+      )}
 
       {isEdit ? (
         <Card className="space-y-4">

@@ -96,6 +96,34 @@ export async function PATCH(
         body.unitsPerCarton !== undefined
           ? Number(body.unitsPerCarton) || 1
           : existing.unitsPerCarton,
+      customData:
+        body.customData !== undefined
+          ? typeof body.customData === "object"
+            ? JSON.stringify(body.customData)
+            : String(body.customData || "{}")
+          : existing.customData,
+      weightKg:
+        body.weightKg !== undefined
+          ? body.weightKg === null || body.weightKg === ""
+            ? null
+            : Number(body.weightKg)
+          : existing.weightKg,
+      volumeLiters:
+        body.volumeLiters !== undefined
+          ? body.volumeLiters === null || body.volumeLiters === ""
+            ? null
+            : Number(body.volumeLiters)
+          : existing.volumeLiters,
+      trackLots:
+        body.trackLots !== undefined
+          ? Boolean(body.trackLots)
+          : existing.trackLots,
+      trackSerials:
+        body.trackSerials !== undefined
+          ? Boolean(body.trackSerials)
+          : existing.trackSerials,
+      isKit:
+        body.isKit !== undefined ? Boolean(body.isKit) : existing.isKit,
     };
 
     const product = await prisma.$transaction(async (tx) => {

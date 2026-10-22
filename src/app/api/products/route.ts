@@ -57,6 +57,12 @@ export async function POST(req: NextRequest) {
       simpleQty,
       simpleLocationId,
       matrixOptions,
+      customData,
+      weightKg,
+      volumeLiters,
+      trackLots,
+      trackSerials,
+      isKit,
     } = body;
 
     if (!title || !baseSku || !categoryId) {
@@ -85,6 +91,25 @@ export async function POST(req: NextRequest) {
           sellingPrice: Number(sellingPrice) || 0,
           unitOfMeasure: unitOfMeasure || "UNIT",
           unitsPerCarton: Number(unitsPerCarton) || 1,
+          weightKg:
+            weightKg === null || weightKg === undefined || weightKg === ""
+              ? null
+              : Number(weightKg),
+          volumeLiters:
+            volumeLiters === null ||
+            volumeLiters === undefined ||
+            volumeLiters === ""
+              ? null
+              : Number(volumeLiters),
+          trackLots: Boolean(trackLots),
+          trackSerials: Boolean(trackSerials),
+          isKit: Boolean(isKit),
+          customData:
+            customData && typeof customData === "object"
+              ? JSON.stringify(customData)
+              : typeof customData === "string"
+                ? customData
+                : "{}",
         },
       });
 

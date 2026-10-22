@@ -23,7 +23,7 @@ import {
 import { prisma } from "@/lib/db";
 import { Badge, Card } from "@/components/ui";
 import { DashboardPeriod } from "@/components/dashboard-period";
-import { requireTenant } from "@/lib/tenant";
+import { getCompanyModules, requireTenant } from "@/lib/tenant";
 import { canAdmin, canWrite } from "@/lib/auth";
 import { ROLE_LABELS, Role, ROLES } from "@/lib/constants";
 import { attributesLabel, formatCurrency, formatDateTime, cn } from "@/lib/utils";
@@ -155,6 +155,7 @@ export default async function DashboardPage({
 }) {
   noStore();
   const session = await requireTenant();
+  const modules = await getCompanyModules(session.companyId);
   const { period = "today" } = await searchParams;
   const now = new Date();
   const from =
@@ -432,14 +433,17 @@ export default async function DashboardPage({
         <Card className="flex flex-col">
           <div className="mb-4 flex items-center justify-between gap-2">
             <h2 className="font-display text-lg font-semibold">תור עבודה</h2>
-            <Link
-              href="/picks"
-              className="text-xs font-medium text-[var(--accent)] hover:underline"
-            >
-              כל הליקוטים
-            </Link>
+            {modules.pick && (
+              <Link
+                href="/picks"
+                className="text-xs font-medium text-[var(--accent)] hover:underline"
+              >
+                כל הליקוטים
+              </Link>
+            )}
           </div>
-          {openPicks.length === 0 && openCounts.length === 0 ? (
+          {(modules.pick ? openPicks.length === 0 : true) &&
+          openCounts.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
               <CheckCircle2 className="h-8 w-8 text-[var(--ok)]" />
               <p className="text-sm font-medium">אין משימות פתוחות</p>
@@ -449,7 +453,8 @@ export default async function DashboardPage({
             </div>
           ) : (
             <ul className="space-y-2">
-              {openPicks.map((p) => {
+              {modules.pick &&
+                openPicks.map((p) => {
                 const done = p.items.filter((i) => i.status === "DONE").length;
                 const total = p.items.length || 1;
                 const pct = Math.round((done / total) * 100);
@@ -759,27 +764,33 @@ export default async function DashboardPage({
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {operate && (
             <>
-              <ActionTile
-                href="/pick"
-                label="ניפוק"
-                desc="הוצאה מהירה מהמלאי"
-                icon={PackageMinus}
-                tone="danger"
-              />
-              <ActionTile
-                href="/inbound"
-                label="קליטה"
-                desc="הכנסת סחורה למדף"
-                icon={PackagePlus}
-                tone="accent"
-              />
-              <ActionTile
-                href="/picks"
-                label="ליקוט"
-                desc={`${openPicks.length} רשימות פתוחות`}
-                icon={ClipboardList}
-                tone="lime"
-              />
+              {modules.sales && (
+                <ActionTile
+                  href="/pick"
+                  label="ניפוק"
+                  desc="הוצאה מהירה מהמלאי"
+                  icon={PackageMinus}
+                  tone="danger"
+                />
+              )}
+              {modules.inbound && (
+                <ActionTile
+                  href="/inbound"
+                  label="קליטה"
+                  desc="הכנסת סחורה למדף"
+                  icon={PackagePlus}
+                  tone="accent"
+                />
+              )}
+              {modules.pick && (
+                <ActionTile
+                  href="/picks"
+                  label="ליקוט"
+                  desc={`${openPicks.length} רשימות פתוחות`}
+                  icon={ClipboardList}
+                  tone="lime"
+                />
+              )}
               <ActionTile
                 href="/counts"
                 label="ספירה"

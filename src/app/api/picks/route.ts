@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
+import { assertModuleApi } from "@/lib/tenant";
 
 export async function GET() {
-  const session = await getSession();
+  const gate = await assertModuleApi("pick");
+  if (gate.error) return gate.error;
+  const session = gate.session;
   const lists = await prisma.pickList.findMany({
     where: session?.companyId ? { companyId: session.companyId } : undefined,
     include: {
@@ -17,7 +19,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
+  const gate = await assertModuleApi("pick");
+  if (gate.error) return gate.error;
+  const session = gate.session!;
   if (!session?.companyId) {
     return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
   }

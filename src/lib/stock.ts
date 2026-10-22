@@ -38,6 +38,15 @@ export async function applyStockChange(params: {
   /** For ADJUSTMENT set-to-count: pass absolute new quantity instead of delta */
   setQuantityTo?: number;
   reserveDelta?: number;
+  companyId?: string | null;
+  lotCode?: string | null;
+  expiryDate?: Date | string | null;
+  serial?: string | null;
+  purchaseOrderId?: string | null;
+  salesOrderId?: string | null;
+  correctedTxnId?: string | null;
+  /** FEFO: prefer earliest expiry when outbound without explicit lot */
+  preferFefo?: boolean;
 }) {
   const {
     variantId,
@@ -50,6 +59,14 @@ export async function applyStockChange(params: {
     toLocationId,
     setQuantityTo,
     reserveDelta,
+    companyId,
+    lotCode,
+    expiryDate,
+    serial,
+    purchaseOrderId,
+    salesOrderId,
+    correctedTxnId,
+    preferFefo,
   } = params;
 
   return prisma.$transaction(async (tx) => {
@@ -101,6 +118,117 @@ export async function applyStockChange(params: {
       data,
     });
 
+    let lotId: string | null = null;
+    let serialId: string | null = null;
+    const absQty = Math.abs(quantityChanged);
+    const cid =
+      companyId ||
+      (
+        await tx.product.findFirst({
+          where: { id: variant.productId },
+          select: { companyId: true },
+        })
+      )?.companyId;
+
+    if (cid && (lotCode || preferFefo) && type !== "TRANSFER") {
+      if (type === "INBOUND" && lotCode) {
+        const locKey = locationId || null;
+        let lot = await tx.inventoryLot.findFirst({
+          where: {
+            companyId: cid,
+            variantId,
+            lotCode,
+            locationId: locKey,
+          },
+        });
+        if (!lot) {
+          lot = await tx.inventoryLot.create({
+            data: {
+              companyId: cid,
+              variantId,
+              lotCode,
+              locationId: locKey,
+              expiryDate: expiryDate ? new Date(expiryDate) : null,
+              quantity: absQty,
+            },
+          });
+        } else {
+          lot = await tx.inventoryLot.update({
+            where: { id: lot.id },
+            data: {
+              quantity: lot.quantity + absQty,
+              expiryDate: expiryDate
+                ? new Date(expiryDate)
+                : lot.expiryDate,
+            },
+          });
+        }
+        lotId = lot.id;
+      } else if (type === "OUTBOUND") {
+        let lot = lotCode
+          ? await tx.inventoryLot.findFirst({
+              where: {
+                companyId: cid,
+                variantId,
+                lotCode,
+                quantity: { gt: 0 },
+              },
+              orderBy: { expiryDate: "asc" },
+            })
+          : preferFefo
+            ? await tx.inventoryLot.findFirst({
+                where: {
+                  companyId: cid,
+                  variantId,
+                  quantity: { gt: 0 },
+                },
+                orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
+              })
+            : null;
+        if (lot) {
+          if (lot.quantity < absQty) {
+            throw new StockError("אין מספיק מלאי באצווה");
+          }
+          await tx.inventoryLot.update({
+            where: { id: lot.id },
+            data: { quantity: lot.quantity - absQty },
+          });
+          lotId = lot.id;
+        }
+      }
+    }
+
+    if (cid && serial) {
+      if (type === "INBOUND") {
+        const created = await tx.serialNumber.create({
+          data: {
+            companyId: cid,
+            variantId,
+            serial: String(serial).trim(),
+            status: "IN_STOCK",
+            lotId,
+            locationId: locationId || null,
+          },
+        });
+        serialId = created.id;
+      } else if (type === "OUTBOUND") {
+        const sn = await tx.serialNumber.findFirst({
+          where: {
+            companyId: cid,
+            variantId,
+            serial: String(serial).trim(),
+            status: "IN_STOCK",
+          },
+        });
+        if (!sn) throw new StockError("מספר סידורי לא במלאי");
+        await tx.serialNumber.update({
+          where: { id: sn.id },
+          data: { status: "SOLD" },
+        });
+        serialId = sn.id;
+      }
+    }
+
     const txn = await tx.stockTransaction.create({
       data: {
         variantId,
@@ -111,13 +239,108 @@ export async function applyStockChange(params: {
         reason,
         reasonCode: reasonCode || null,
         userId: userId || null,
-        fromLocationId: fromLocationId ?? (type === "TRANSFER" ? variant.locationId : null),
-        toLocationId: toLocationId ?? (type === "INBOUND" ? locationId ?? null : null),
+        fromLocationId:
+          fromLocationId ??
+          (type === "TRANSFER" ? variant.locationId : null),
+        toLocationId:
+          toLocationId ?? (type === "INBOUND" ? locationId ?? null : null),
+        lotId,
+        serialId,
+        purchaseOrderId: purchaseOrderId || null,
+        salesOrderId: salesOrderId || null,
+        correctedTxnId: correctedTxnId || null,
       },
     });
 
     return { variant: updated, transaction: txn };
   });
+}
+
+/** תיקון תנועה — יוצר תנועת היפוך ומקשר ל־audit */
+export async function correctStockTransaction(params: {
+  transactionId: string;
+  userId?: string | null;
+  reason?: string;
+}) {
+  const original = await prisma.stockTransaction.findUnique({
+    where: { id: params.transactionId },
+    include: { variant: { include: { product: true } } },
+  });
+  if (!original) throw new StockError("תנועה לא נמצאה");
+  if (original.correctedTxnId) {
+    throw new StockError("התנועה כבר תוקנה");
+  }
+
+  const reverseType: StockTxnType =
+    original.type === "INBOUND"
+      ? "OUTBOUND"
+      : original.type === "OUTBOUND"
+        ? "INBOUND"
+        : "ADJUSTMENT";
+
+  const absQty = Math.abs(original.quantityChanged);
+  const result = await applyStockChange({
+    variantId: original.variantId,
+    type: reverseType,
+    quantityChanged: absQty,
+    reason: params.reason || `תיקון תנועה ${original.id}`,
+    reasonCode: "CORRECTION",
+    userId: params.userId,
+    companyId: original.variant.product.companyId,
+    correctedTxnId: original.id,
+    locationId: original.toLocationId,
+  });
+
+  await prisma.stockTransaction.update({
+    where: { id: original.id },
+    data: { correctedTxnId: result.transaction.id },
+  });
+
+  return result;
+}
+
+/** סימולציה בלי שינוי מלאי */
+export async function simulateOutbound(lines: { variantId: string; quantity: number }[]) {
+  const results: {
+    variantId: string;
+    sku: string;
+    title: string;
+    requested: number;
+    available: number;
+    ok: boolean;
+  }[] = [];
+
+  for (const line of lines) {
+    const v = await prisma.productVariant.findUnique({
+      where: { id: line.variantId },
+      include: { product: true },
+    });
+    if (!v) {
+      results.push({
+        variantId: line.variantId,
+        sku: "?",
+        title: "לא נמצא",
+        requested: line.quantity,
+        available: 0,
+        ok: false,
+      });
+      continue;
+    }
+    const available = v.quantityOnHand - v.quantityReserved;
+    results.push({
+      variantId: v.id,
+      sku: v.sku,
+      title: v.product.title,
+      requested: line.quantity,
+      available,
+      ok: available >= line.quantity,
+    });
+  }
+
+  return {
+    ok: results.every((r) => r.ok),
+    results,
+  };
 }
 
 export async function quickAdjust(variantId: string, delta: 1 | -1, reason?: string) {

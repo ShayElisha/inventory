@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { applyStockChange, StockError } from "@/lib/stock";
+import { assertModuleApi } from "@/lib/tenant";
 
 export async function POST(req: NextRequest) {
   try {
+    const gate = await assertModuleApi("inbound");
+    if (gate.error) return gate.error;
+
     const body = await req.json();
     const { variantId, quantity, reason, locationId } = body;
 

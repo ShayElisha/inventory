@@ -1,7 +1,14 @@
 import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { destroySession, getSession, isSuperAdmin, SessionUser } from "@/lib/auth";
 import { ROLES } from "@/lib/constants";
+import {
+  CompanyModules,
+  modulesFromCompany,
+  SellableModuleId,
+  SELLABLE_MODULES,
+} from "@/lib/modules";
 
 export async function requireTenant(): Promise<SessionUser> {
   const session = await getSession();
@@ -18,6 +25,50 @@ export async function requireTenant(): Promise<SessionUser> {
   }
 
   return session;
+}
+
+export async function getCompanyModules(
+  companyId: string
+): Promise<CompanyModules> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { modInbound: true, modSales: true, modPick: true },
+  });
+  return modulesFromCompany(company || {});
+}
+
+/** חוסם עמוד אם המודול כבוי לחברה */
+export async function requireModule(moduleId: SellableModuleId) {
+  const session = await requireTenant();
+  const modules = await getCompanyModules(session.companyId);
+  if (!modules[moduleId]) {
+    redirect("/dashboard?module=off");
+  }
+  return { session, modules };
+}
+
+/** לשימוש ב־API — מחזיר Response אם המודול כבוי */
+export async function assertModuleApi(moduleId: SellableModuleId) {
+  const session = await getSession();
+  if (!session?.companyId) {
+    return {
+      session: null,
+      error: NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 }),
+    };
+  }
+  const modules = await getCompanyModules(session.companyId);
+  if (!modules[moduleId]) {
+    const label =
+      SELLABLE_MODULES.find((m) => m.id === moduleId)?.label || moduleId;
+    return {
+      session,
+      error: NextResponse.json(
+        { error: `מודול «${label}» אינו פעיל לחברה זו`, code: "MODULE_OFF" },
+        { status: 403 }
+      ),
+    };
+  }
+  return { session, error: null as null };
 }
 
 export async function requireCompanyAdmin(): Promise<SessionUser> {

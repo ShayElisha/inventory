@@ -7,7 +7,7 @@ import { requireTenant } from "@/lib/tenant";
 export default async function NewProductPage() {
   noStore();
   const session = await requireTenant();
-  const [categories, suppliers, locations] = await Promise.all([
+  const [categories, suppliers, locations, customFields] = await Promise.all([
     prisma.category.findMany({
       where: { companyId: session.companyId },
       orderBy: { name: "asc" },
@@ -19,6 +19,14 @@ export default async function NewProductPage() {
     prisma.warehouseLocation.findMany({
       where: { companyId: session.companyId },
       orderBy: { code: "asc" },
+    }),
+    prisma.customField.findMany({
+      where: {
+        companyId: session.companyId,
+        entityType: "PRODUCT",
+        active: true,
+      },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),
   ]);
 
@@ -32,6 +40,7 @@ export default async function NewProductPage() {
         categories={categories}
         suppliers={suppliers}
         locations={locations}
+        customFields={customFields}
       />
     </div>
   );

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { applyStockChange, StockError } from "@/lib/stock";
-import { getSession } from "@/lib/auth";
 import { OUTBOUND_REASONS } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
+import { assertModuleApi } from "@/lib/tenant";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
+    const gate = await assertModuleApi("sales");
+    if (gate.error) return gate.error;
+    const session = gate.session;
     const body = await req.json();
     const { variantId, quantity, reason, reasonCode, releaseReserved } = body;
 

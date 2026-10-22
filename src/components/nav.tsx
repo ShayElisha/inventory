@@ -29,6 +29,8 @@ import {
   ClipboardCheck,
   LineChart,
   SlidersHorizontal,
+  ShoppingCart,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -36,6 +38,11 @@ import { GlobalSearch } from "@/components/global-search";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandLogo } from "@/components/brand-logo";
 import { ROLE_LABELS, ROLES, Role } from "@/lib/constants";
+import {
+  CompanyModules,
+  DEFAULT_MODULES,
+  navHrefAllowed,
+} from "@/lib/modules";
 
 type NavItem = {
   href: string;
@@ -64,7 +71,9 @@ const groups: NavGroup[] = [
     icon: Boxes,
     items: [
       { href: "/pick", label: "ניפוק", icon: PackageMinus },
+      { href: "/orders", label: "הזמנות לקוח", icon: ShoppingCart },
       { href: "/inbound", label: "קליטה", icon: PackagePlus },
+      { href: "/purchases", label: "רכש / PO", icon: FileSpreadsheet },
       { href: "/scan", label: "סריקה", icon: ScanBarcode },
       { href: "/stock", label: "תנועות", icon: ArrowLeftRight },
     ],
@@ -275,11 +284,15 @@ export function AppNav() {
     role: Role;
     companyName?: string;
   } | null>(null);
+  const [modules, setModules] = useState<CompanyModules>(DEFAULT_MODULES);
 
   useEffect(() => {
     fetch("/api/auth/me")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setUser(d?.user || null))
+      .then((d) => {
+        setUser(d?.user || null);
+        if (d?.modules) setModules(d.modules);
+      })
       .catch(() => setUser(null));
   }, [pathname]);
 
@@ -294,10 +307,15 @@ export function AppNav() {
   }
 
   const isAdmin = user?.role === ROLES.ADMIN;
-  const visibleGroups = groups.map((g) => ({
-    ...g,
-    items: g.items.filter((i) => !i.adminOnly || isAdmin),
-  }));
+  const visibleGroups = groups
+    .map((g) => ({
+      ...g,
+      items: g.items.filter(
+        (i) =>
+          (!i.adminOnly || isAdmin) && navHrefAllowed(i.href, modules)
+      ),
+    }))
+    .filter((g) => g.items.length > 0);
 
   const dashActive = isActive(pathname, topLink.href);
   const DashIcon = topLink.icon;

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { PickListDetail } from "@/components/pick-list-detail";
-import { requireTenant } from "@/lib/tenant";
+import { requireModule } from "@/lib/tenant";
 
 export default async function PickDetailPage({
   params,
@@ -11,7 +11,7 @@ export default async function PickDetailPage({
   params: Promise<{ id: string }>;
 }) {
   noStore();
-  const session = await requireTenant();
+  const { session } = await requireModule("pick");
   const { id } = await params;
   const [list, variants] = await Promise.all([
     prisma.pickList.findFirst({

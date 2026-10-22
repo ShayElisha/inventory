@@ -31,6 +31,9 @@ type Company = {
   phone: string | null;
   approved: boolean;
   active: boolean;
+  modInbound: boolean;
+  modSales: boolean;
+  modPick: boolean;
   createdAt: string;
   users: UserRow[];
   _count: {
@@ -50,6 +53,9 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
   const [phone, setPhone] = useState(company.phone || "");
   const [approved, setApproved] = useState(company.approved);
   const [active, setActive] = useState(company.active);
+  const [modInbound, setModInbound] = useState(company.modInbound !== false);
+  const [modSales, setModSales] = useState(company.modSales !== false);
+  const [modPick, setModPick] = useState(company.modPick !== false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -67,12 +73,24 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
       const res = await fetch(`/api/admin/companies/${company.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug, phone, approved, active }),
+        body: JSON.stringify({
+          name,
+          slug,
+          phone,
+          approved,
+          active,
+          modInbound,
+          modSales,
+          modPick,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
       if (data.approved != null) setApproved(data.approved);
       if (data.active != null) setActive(data.active);
+      if (data.modInbound != null) setModInbound(data.modInbound);
+      if (data.modSales != null) setModSales(data.modSales);
+      if (data.modPick != null) setModPick(data.modPick);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
@@ -220,6 +238,45 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
           </Card>
         ))}
       </div>
+
+      <Card>
+        <h2 className="mb-1 text-lg font-semibold">מודולי מכירה</h2>
+        <p className="mb-4 text-sm text-[var(--muted)]">
+          מדליקים לפי מה שהלקוח רכש. ליבה (מוצרים, מלאי, הגדרות) תמיד פעילה.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {(
+            [
+              ["קליטה", modInbound, setModInbound],
+              ["מכירה", modSales, setModSales],
+              ["ליקוט", modPick, setModPick],
+            ] as const
+          ).map(([label, value, setValue]) => (
+            <label
+              key={label}
+              className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3"
+            >
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={value}
+                onChange={(e) => setValue(e.target.checked)}
+              />
+              <span>
+                <span className="block font-medium">{label}</span>
+                <span className="text-xs text-[var(--muted)]">
+                  {label === "קליטה" && "מסך קליטה למלאי"}
+                  {label === "מכירה" && "ניפוק ותבניות ניפוק"}
+                  {label === "ליקוט" && "רשימות ותבניות ליקוט"}
+                </span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-[var(--muted)]">
+          השינויים נשמרים יחד עם «שמור שינויים» בפרטי החברה.
+        </p>
+      </Card>
 
       <Card>
         <h2 className="mb-4 text-lg font-semibold">פרטי חברה</h2>

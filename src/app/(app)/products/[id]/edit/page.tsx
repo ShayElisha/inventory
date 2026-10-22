@@ -14,26 +14,35 @@ export default async function EditProductPage({
   const session = await requireTenant();
   const { id } = await params;
 
-  const [product, categories, suppliers, locations] = await Promise.all([
-    prisma.product.findFirst({
-      where: { id, companyId: session.companyId },
-      include: {
-        variants: { orderBy: { sku: "asc" } },
-      },
-    }),
-    prisma.category.findMany({
-      where: { companyId: session.companyId },
-      orderBy: { name: "asc" },
-    }),
-    prisma.supplier.findMany({
-      where: { companyId: session.companyId },
-      orderBy: { name: "asc" },
-    }),
-    prisma.warehouseLocation.findMany({
-      where: { companyId: session.companyId },
-      orderBy: { code: "asc" },
-    }),
-  ]);
+  const [product, categories, suppliers, locations, customFields] =
+    await Promise.all([
+      prisma.product.findFirst({
+        where: { id, companyId: session.companyId },
+        include: {
+          variants: { orderBy: { sku: "asc" } },
+        },
+      }),
+      prisma.category.findMany({
+        where: { companyId: session.companyId },
+        orderBy: { name: "asc" },
+      }),
+      prisma.supplier.findMany({
+        where: { companyId: session.companyId },
+        orderBy: { name: "asc" },
+      }),
+      prisma.warehouseLocation.findMany({
+        where: { companyId: session.companyId },
+        orderBy: { code: "asc" },
+      }),
+      prisma.customField.findMany({
+        where: {
+          companyId: session.companyId,
+          entityType: "PRODUCT",
+          active: true,
+        },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      }),
+    ]);
 
   if (!product) notFound();
 
@@ -47,6 +56,7 @@ export default async function EditProductPage({
         categories={categories}
         suppliers={suppliers}
         locations={locations}
+        customFields={customFields}
         product={product}
       />
     </div>

@@ -33,6 +33,24 @@ type Report = {
     prevTo: string;
   };
   accuracy: { id: string; name: string; accuracyPct: number; exact: number; lines: number }[];
+  inventoryValue?: { cost: number; sell: number };
+  abc?: {
+    sku: string;
+    title: string;
+    sellValue: number;
+    abc: string;
+    ageDays: number;
+    turnover: number;
+    marginPct: number;
+  }[];
+  aging?: { d0_30: number; d31_90: number; d91_180: number; d180p: number };
+  turnoverTop?: { sku: string; title: string; turnover: number }[];
+  grossMargin?: {
+    revenue: number;
+    cogs: number;
+    margin: number;
+    marginPct: number;
+  };
   movements: {
     id: string;
     type: string;
@@ -134,7 +152,97 @@ export function ReportsPanel() {
                 )
               </div>
             </Card>
+            {data.inventoryValue && (
+              <Card>
+                <div className="text-sm text-[var(--muted)]">שווי מלאי (עלות)</div>
+                <div className="mt-1 text-2xl font-bold">
+                  {formatCurrency(data.inventoryValue.cost)}
+                </div>
+                <div className="text-xs text-[var(--muted)]">
+                  מכירה: {formatCurrency(data.inventoryValue.sell)}
+                </div>
+              </Card>
+            )}
+            {data.grossMargin && (
+              <Card>
+                <div className="text-sm text-[var(--muted)]">רווחיות גולמית (תקופה)</div>
+                <div className="mt-1 text-2xl font-bold">
+                  {data.grossMargin.marginPct}%
+                </div>
+                <div className="text-xs text-[var(--muted)]">
+                  {formatCurrency(data.grossMargin.margin)} · הכנסות{" "}
+                  {formatCurrency(data.grossMargin.revenue)}
+                </div>
+              </Card>
+            )}
           </div>
+
+          {(data.abc || data.aging) && (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {data.abc && (
+                <Card>
+                  <h2 className="mb-3 font-semibold">ABC · Aging · תחלופה</h2>
+                  <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
+                    {data.abc.slice(0, 25).map((r) => (
+                      <li
+                        key={r.sku}
+                        className="flex justify-between gap-2 border-b border-[var(--border)] py-1"
+                      >
+                        <span>
+                          <Badge tone={r.abc === "A" ? "ok" : r.abc === "B" ? "warn" : "neutral"}>
+                            {r.abc}
+                          </Badge>{" "}
+                          {r.title}{" "}
+                          <span className="font-mono text-xs text-[var(--muted)]">
+                            {r.sku}
+                          </span>
+                        </span>
+                        <span className="text-xs text-[var(--muted)]">
+                          {r.ageDays}י׳ · ×{r.turnover} · {r.marginPct}%
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              )}
+              {data.aging && (
+                <Card>
+                  <h2 className="mb-3 font-semibold">Aging מלאי</h2>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex justify-between">
+                      <span>0–30 יום</span>
+                      <strong>{data.aging.d0_30}</strong>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>31–90</span>
+                      <strong>{data.aging.d31_90}</strong>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>91–180</span>
+                      <strong>{data.aging.d91_180}</strong>
+                    </li>
+                    <li className="flex justify-between">
+                      <span>180+</span>
+                      <strong>{data.aging.d180p}</strong>
+                    </li>
+                  </ul>
+                  {data.turnoverTop && (
+                    <>
+                      <h3 className="mb-2 mt-4 text-sm font-semibold">תחלופה גבוהה</h3>
+                      <ul className="space-y-1 text-xs">
+                        {data.turnoverTop.slice(0, 8).map((t) => (
+                          <li key={t.sku} className="flex justify-between">
+                            <span>{t.title}</span>
+                            <span>×{t.turnover}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                </Card>
+              )}
+            </div>
+          )}
 
           <Card>
             <h2 className="mb-3 text-lg font-semibold">מגמת מלאי (שינוי יומי)</h2>

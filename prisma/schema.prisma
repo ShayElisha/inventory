@@ -15,17 +15,29 @@ model Company {
   // false = ממתינה לאישור סופר־אדמין אחרי הרשמה עצמית
   approved  Boolean  @default(false)
   active    Boolean  @default(true)
+  // מודולי מכירה — סופר־אדמין מדליק לפי דרישה
+  modInbound Boolean @default(true) @map("mod_inbound") // קליטה
+  modSales   Boolean @default(true) @map("mod_sales") // מכירה / ניפוק
+  modPick    Boolean @default(true) @map("mod_pick") // ליקוט
   createdAt DateTime @default(now()) @map("created_at")
 
-  users         User[]
-  categories    Category[]
-  suppliers     Supplier[]
-  products      Product[]
-  locations     WarehouseLocation[]
-  pickLists     PickList[]
-  pickTemplates PickTemplate[]
-  stockCounts   StockCountSession[]
-  notifications Notification[]
+  users              User[]
+  categories         Category[]
+  suppliers          Supplier[]
+  products           Product[]
+  locations          WarehouseLocation[]
+  pickLists          PickList[]
+  pickTemplates      PickTemplate[]
+  outboundTemplates  OutboundTemplate[]
+  customFields       CustomField[]
+  stockCounts        StockCountSession[]
+  notifications      Notification[]
+  purchaseOrders     PurchaseOrder[]
+  salesOrders        SalesOrder[]
+  inventoryLots      InventoryLot[]
+  serialNumbers      SerialNumber[]
+  waitlistItems      WaitlistItem[]
+  stockDocuments     StockDocument[]
 
   @@map("companies")
 }
@@ -74,6 +86,7 @@ model Supplier {
   companyId String    @map("company_id")
   name      String
   products  Product[]
+  purchaseOrders PurchaseOrder[]
   createdAt DateTime  @default(now()) @map("created_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -92,16 +105,23 @@ model Product {
   supplierId     String?  @map("supplier_id")
   costPrice      Float    @default(0) @map("cost_price")
   sellingPrice   Float    @default(0) @map("selling_price")
-  unitOfMeasure  String   @default("UNIT") @map("unit_of_measure") // UNIT | CARTON | SQM
+  unitOfMeasure  String   @default("UNIT") @map("unit_of_measure") // UNIT | CARTON | SQM | KG | LITER | METER | PAIR | SET
   unitsPerCarton Int      @default(1) @map("units_per_carton")
+  weightKg       Float?   @map("weight_kg")
+  volumeLiters   Float?   @map("volume_liters")
+  trackLots      Boolean  @default(false) @map("track_lots")
+  trackSerials   Boolean  @default(false) @map("track_serials")
+  isKit          Boolean  @default(false) @map("is_kit")
+  customData     String   @default("{}") @map("custom_data") // JSON: { [fieldKey]: value }
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  category Category          @relation(fields: [categoryId], references: [id])
-  supplier Supplier?         @relation(fields: [supplierId], references: [id])
-  variants ProductVariant[]
-  changes  ProductChangeLog[]
+  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category     Category          @relation(fields: [categoryId], references: [id])
+  supplier     Supplier?         @relation(fields: [supplierId], references: [id])
+  variants     ProductVariant[]
+  changes      ProductChangeLog[]
+  kitComponents KitComponent[]   @relation("KitProduct")
 
   @@unique([companyId, baseSku])
   @@index([categoryId])
@@ -109,6 +129,58 @@ model Product {
   @@index([title])
   @@index([companyId])
   @@map("products")
+}
+
+model CustomField {
+  id         String   @id @default(cuid())
+  companyId  String   @map("company_id")
+  entityType String   @default("PRODUCT") @map("entity_type") // PRODUCT
+  key        String
+  label      String
+  fieldType  String   @default("TEXT") @map("field_type") // TEXT | NUMBER | DATE | SELECT | BOOLEAN
+  options    String   @default("[]") // JSON string array for SELECT
+  required   Boolean  @default(false)
+  sortOrder  Int      @default(0) @map("sort_order")
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, entityType, key])
+  @@index([companyId, entityType, active])
+  @@map("custom_fields")
+}
+
+model OutboundTemplate {
+  id          String   @id @default(cuid())
+  companyId   String   @map("company_id")
+  name        String
+  notes       String?
+  reasonCode  String   @default("SALE") @map("reason_code")
+  active      Boolean  @default(true)
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items   OutboundTemplateItem[]
+
+  @@index([companyId])
+  @@map("outbound_templates")
+}
+
+model OutboundTemplateItem {
+  id         String @id @default(cuid())
+  templateId String @map("template_id")
+  variantId  String @map("variant_id")
+  quantity   Int
+
+  template OutboundTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  variant  ProductVariant   @relation(fields: [variantId], references: [id])
+
+  @@unique([templateId, variantId])
+  @@index([templateId])
+  @@map("outbound_template_items")
 }
 
 model WarehouseLocation {
@@ -120,6 +192,8 @@ model WarehouseLocation {
   bin       String
   code      String
   variants  ProductVariant[]
+  lots      InventoryLot[]
+  serials   SerialNumber[]
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -145,10 +219,17 @@ model ProductVariant {
 
   product      Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
   location     WarehouseLocation? @relation(fields: [locationId], references: [id])
-  transactions  StockTransaction[]
-  pickItems     PickListItem[]
-  templateItems PickTemplateItem[]
-  countLines    StockCountLine[]
+  transactions          StockTransaction[]
+  pickItems             PickListItem[]
+  templateItems         PickTemplateItem[]
+  outboundTemplateItems OutboundTemplateItem[]
+  countLines            StockCountLine[]
+  lots                  InventoryLot[]
+  serials               SerialNumber[]
+  poLines               PurchaseOrderLine[]
+  soLines               SalesOrderLine[]
+  waitlistItems         WaitlistItem[]
+  kitAsComponent        KitComponent[] @relation("KitComponentVariant")
 
   @@unique([sku])
   @@unique([barcode])
@@ -157,6 +238,186 @@ model ProductVariant {
   @@index([sku])
   @@index([locationId])
   @@map("product_variants")
+}
+
+model KitComponent {
+  id                 String @id @default(cuid())
+  kitProductId       String @map("kit_product_id")
+  componentVariantId String @map("component_variant_id")
+  quantity           Int    @default(1)
+
+  kitProduct       Product        @relation("KitProduct", fields: [kitProductId], references: [id], onDelete: Cascade)
+  componentVariant ProductVariant @relation("KitComponentVariant", fields: [componentVariantId], references: [id])
+
+  @@unique([kitProductId, componentVariantId])
+  @@index([kitProductId])
+  @@map("kit_components")
+}
+
+model InventoryLot {
+  id         String    @id @default(cuid())
+  companyId  String    @map("company_id")
+  variantId  String    @map("variant_id")
+  lotCode    String    @map("lot_code")
+  expiryDate DateTime? @map("expiry_date")
+  quantity   Int       @default(0)
+  locationId String?   @map("location_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  company  Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  variant  ProductVariant      @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  location WarehouseLocation?  @relation(fields: [locationId], references: [id])
+  serials  SerialNumber[]
+  txns     StockTransaction[]
+
+  @@unique([companyId, variantId, lotCode, locationId])
+  @@index([companyId, expiryDate])
+  @@index([variantId])
+  @@map("inventory_lots")
+}
+
+model SerialNumber {
+  id         String   @id @default(cuid())
+  companyId  String   @map("company_id")
+  variantId  String   @map("variant_id")
+  serial     String
+  status     String   @default("IN_STOCK") // IN_STOCK | SOLD | RETURNED | DAMAGED
+  lotId      String?  @map("lot_id")
+  locationId String?  @map("location_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  company  Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  variant  ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  lot      InventoryLot?      @relation(fields: [lotId], references: [id])
+  location WarehouseLocation? @relation(fields: [locationId], references: [id])
+  txns     StockTransaction[]
+
+  @@unique([companyId, serial])
+  @@index([variantId, status])
+  @@map("serial_numbers")
+}
+
+model PurchaseOrder {
+  id            String    @id @default(cuid())
+  companyId     String    @map("company_id")
+  supplierId    String?   @map("supplier_id")
+  number        String
+  status        String    @default("DRAFT") // DRAFT | ORDERED | PARTIAL | RECEIVED | CANCELLED
+  invoiceNumber String?   @map("invoice_number")
+  notes         String?
+  expectedAt    DateTime? @map("expected_at")
+  createdById   String?   @map("created_by_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  company   Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier  Supplier?           @relation(fields: [supplierId], references: [id])
+  lines     PurchaseOrderLine[]
+  documents StockDocument[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id          String @id @default(cuid())
+  poId        String @map("po_id")
+  variantId   String @map("variant_id")
+  qtyOrdered  Int    @map("qty_ordered")
+  qtyReceived Int    @default(0) @map("qty_received")
+  unitCost    Float  @default(0) @map("unit_cost")
+
+  po      PurchaseOrder  @relation(fields: [poId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([poId, variantId])
+  @@index([poId])
+  @@map("purchase_order_lines")
+}
+
+model SalesOrder {
+  id              String    @id @default(cuid())
+  companyId       String    @map("company_id")
+  number          String
+  customerName    String    @map("customer_name")
+  customerPhone   String?   @map("customer_phone")
+  status          String    @default("OPEN") // OPEN | PARTIAL | FULFILLED | PACKED | SHIPPED | CANCELLED
+  priority        Int       @default(3) // 1=גבוה … 5=נמוך
+  slaDueAt        DateTime? @map("sla_due_at")
+  vatRate         Float     @default(17) @map("vat_rate")
+  discountTiers   String    @default("[]") @map("discount_tiers") // JSON [{minQty, percent}]
+  shippingCarrier String?   @map("shipping_carrier")
+  shippingRef     String?   @map("shipping_ref")
+  notes           String?
+  createdById     String?   @map("created_by_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lines     SalesOrderLine[]
+  documents StockDocument[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status, priority])
+  @@index([slaDueAt])
+  @@map("sales_orders")
+}
+
+model SalesOrderLine {
+  id           String @id @default(cuid())
+  orderId      String @map("order_id")
+  variantId    String @map("variant_id")
+  qtyOrdered   Int    @map("qty_ordered")
+  qtyFulfilled Int    @default(0) @map("qty_fulfilled")
+  unitPrice    Float  @default(0) @map("unit_price")
+
+  order   SalesOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([orderId, variantId])
+  @@index([orderId])
+  @@map("sales_order_lines")
+}
+
+model WaitlistItem {
+  id           String   @id @default(cuid())
+  companyId    String   @map("company_id")
+  variantId    String   @map("variant_id")
+  quantity     Int
+  customerName String?  @map("customer_name")
+  notes        String?
+  status       String   @default("OPEN") // OPEN | NOTIFIED | FULFILLED | CANCELLED
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([companyId, status])
+  @@index([variantId])
+  @@map("waitlist_items")
+}
+
+model StockDocument {
+  id            String   @id @default(cuid())
+  companyId     String   @map("company_id")
+  type          String // INVOICE | DELIVERY_NOTE | CREDIT_NOTE | RMA
+  number        String
+  purchaseOrderId String? @map("purchase_order_id")
+  salesOrderId    String? @map("sales_order_id")
+  payloadJson   String   @default("{}") @map("payload_json")
+  subtotal      Float    @default(0)
+  vatAmount     Float    @default(0) @map("vat_amount")
+  total         Float    @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  salesOrder    SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+
+  @@unique([companyId, type, number])
+  @@index([companyId, type])
+  @@map("stock_documents")
 }
 
 model StockTransaction {
@@ -171,14 +432,24 @@ model StockTransaction {
   fromLocationId   String?  @map("from_location_id")
   toLocationId     String?  @map("to_location_id")
   userId           String?  @map("user_id")
+  lotId            String?  @map("lot_id")
+  serialId         String?  @map("serial_id")
+  correctedTxnId   String?  @map("corrected_txn_id")
+  purchaseOrderId  String?  @map("purchase_order_id")
+  salesOrderId     String?  @map("sales_order_id")
   timestamp        DateTime @default(now())
 
   variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  lot     InventoryLot?  @relation(fields: [lotId], references: [id])
+  serial  SerialNumber?  @relation(fields: [serialId], references: [id])
 
   @@index([variantId])
   @@index([timestamp])
   @@index([type])
   @@index([reasonCode])
+  @@index([lotId])
+  @@index([salesOrderId])
+  @@index([purchaseOrderId])
   @@map("stock_transactions")
 }
 

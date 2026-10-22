@@ -29,6 +29,28 @@ export const UNIT_OF_MEASURE = [
   { code: "UNIT", label: "יח׳" },
   { code: "CARTON", label: "קרטון" },
   { code: "SQM", label: "מ״ר" },
+  { code: "KG", label: "ק״ג" },
+  { code: "LITER", label: "ליטר" },
+  { code: "METER", label: "מטר" },
+  { code: "PAIR", label: "זוג" },
+  { code: "SET", label: "סט" },
+] as const;
+
+export const PO_STATUSES = [
+  { code: "DRAFT", label: "טיוטה" },
+  { code: "ORDERED", label: "הוזמן" },
+  { code: "PARTIAL", label: "קליטה חלקית" },
+  { code: "RECEIVED", label: "נקלט במלואו" },
+  { code: "CANCELLED", label: "בוטל" },
+] as const;
+
+export const SO_STATUSES = [
+  { code: "OPEN", label: "פתוח" },
+  { code: "PARTIAL", label: "ניפוק חלקי" },
+  { code: "FULFILLED", label: "סופק" },
+  { code: "PACKED", label: "ארוז" },
+  { code: "SHIPPED", label: "יצא" },
+  { code: "CANCELLED", label: "בוטל" },
 ] as const;
 
 export function unitLabel(code: string) {

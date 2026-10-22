@@ -105,11 +105,16 @@ export async function middleware(req: NextRequest) {
       "/api/suppliers",
       "/api/picks",
       "/api/pick-templates",
+      "/api/outbound-templates",
+      "/api/custom-fields",
       "/api/counts",
       "/api/import",
       "/api/bulk",
       "/api/admin",
       "/api/team",
+      "/api/purchase-orders",
+      "/api/sales-orders",
+      "/api/kits",
     ];
     const isWrite =
       ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) &&

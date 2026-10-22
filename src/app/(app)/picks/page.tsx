@@ -5,11 +5,11 @@ import { Badge, Card, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/utils";
 import { PickListCreate } from "@/components/pick-list-create";
 import { PickTemplatesPanel } from "@/components/pick-templates-panel";
-import { requireTenant } from "@/lib/tenant";
+import { requireModule } from "@/lib/tenant";
 
 export default async function PicksPage() {
   noStore();
-  const session = await requireTenant();
+  const { session } = await requireModule("pick");
   const [lists, variants, templates] = await Promise.all([
     prisma.pickList.findMany({
       where: { companyId: session.companyId },

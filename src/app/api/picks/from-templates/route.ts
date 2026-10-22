@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession, canWrite } from "@/lib/auth";
+import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
+import { assertModuleApi } from "@/lib/tenant";
 
 /** יוצר רשימות ליקוט נפרדות מכמה תבניות — לליקוט במקביל */
 export async function POST(req: NextRequest) {
-  const session = await getSession();
+  const gate = await assertModuleApi("pick");
+  if (gate.error) return gate.error;
+  const session = gate.session!;
   if (!session?.companyId || !canWrite(session.role)) {
     return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
   }

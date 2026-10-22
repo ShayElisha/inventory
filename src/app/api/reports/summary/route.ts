@@ -137,6 +137,68 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  // שווי מלאי כולל + ABC + aging + תחלופה + שולי רווח
+  let inventoryCost = 0;
+  let inventorySell = 0;
+  const abcRows = variants.map((v) => {
+    const sellValue = v.quantityOnHand * v.product.sellingPrice;
+    const costValue = v.quantityOnHand * v.product.costPrice;
+    inventoryCost += costValue;
+    inventorySell += sellValue;
+    const sold = outbound
+      .filter((t) => t.variantId === v.id)
+      .reduce((s, t) => s + Math.abs(t.quantityChanged), 0);
+    const revenue = sold * v.product.sellingPrice;
+    const cogs = sold * v.product.costPrice;
+    const last = v.transactions[0]?.timestamp;
+    const ageDays = last
+      ? Math.floor((Date.now() - last.getTime()) / (1000 * 60 * 60 * 24))
+      : 9999;
+    const avgStock = Math.max(v.quantityOnHand, 1);
+    const turnover = sold / avgStock;
+    return {
+      sku: v.sku,
+      title: v.product.title,
+      qty: v.quantityOnHand,
+      sellValue,
+      costValue,
+      sold,
+      revenue,
+      margin: revenue - cogs,
+      marginPct: revenue ? Math.round(((revenue - cogs) / revenue) * 100) : 0,
+      ageDays,
+      turnover: Math.round(turnover * 100) / 100,
+    };
+  });
+
+  const bySell = [...abcRows].sort((a, b) => b.sellValue - a.sellValue);
+  const totalSell = bySell.reduce((s, r) => s + r.sellValue, 0) || 1;
+  let cum = 0;
+  const abc = bySell.map((r) => {
+    cum += r.sellValue;
+    const pct = cum / totalSell;
+    const classLetter = pct <= 0.8 ? "A" : pct <= 0.95 ? "B" : "C";
+    return { ...r, abc: classLetter };
+  });
+
+  const aging = {
+    d0_30: abcRows.filter((r) => r.ageDays <= 30).length,
+    d31_90: abcRows.filter((r) => r.ageDays > 30 && r.ageDays <= 90).length,
+    d91_180: abcRows.filter((r) => r.ageDays > 90 && r.ageDays <= 180).length,
+    d180p: abcRows.filter((r) => r.ageDays > 180).length,
+  };
+
+  const grossMargin = {
+    revenue: abcRows.reduce((s, r) => s + r.revenue, 0),
+    cogs: abcRows.reduce((s, r) => s + r.sold * (variants.find((v) => v.sku === r.sku)?.product.costPrice || 0), 0),
+    margin: 0,
+    marginPct: 0,
+  };
+  grossMargin.margin = grossMargin.revenue - grossMargin.cogs;
+  grossMargin.marginPct = grossMargin.revenue
+    ? Math.round((grossMargin.margin / grossMargin.revenue) * 100)
+    : 0;
+
   return NextResponse.json({
     from,
     to,
@@ -160,6 +222,11 @@ export async function GET(req: NextRequest) {
       prevTo,
     },
     accuracy,
+    inventoryValue: { cost: inventoryCost, sell: inventorySell },
+    abc: abc.slice(0, 50),
+    aging,
+    turnoverTop: [...abcRows].sort((a, b) => b.turnover - a.turnover).slice(0, 20),
+    grossMargin,
     movements: txns.slice(0, 500).map((t) => ({
       id: t.id,
       type: t.type,
