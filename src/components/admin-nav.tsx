@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { BrandLogo } from "@/components/brand-logo";
 
 const links = [
   { href: "/admin", label: "סקירה", icon: LayoutDashboard },
@@ -36,11 +37,9 @@ export function AdminNav({ userName }: { userName?: string }) {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-3">
           <Link href="/admin" className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--lime)] font-display text-sm font-bold text-[var(--ink)]">
-              SA
-            </span>
+            <BrandLogo href="" size="sm" showWordmark={false} light photo />
             <div className="leading-tight">
-              <div className="font-display text-sm font-bold">מלאים · סופר אדמין</div>
+              <div className="font-display text-sm font-bold">Sfira · סופר אדמין</div>
               <div className="text-xs text-white/50">ניהול פלטפורמה</div>
             </div>
           </Link>

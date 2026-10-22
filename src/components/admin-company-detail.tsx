@@ -53,6 +53,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
 
   const [uName, setUName] = useState("");
   const [uEmail, setUEmail] = useState("");
+  const [uPhone, setUPhone] = useState("");
   const [uPassword, setUPassword] = useState("");
   const [uRole, setURole] = useState<string>("WAREHOUSE");
 
@@ -78,6 +79,10 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
 
   async function addUser(e: React.FormEvent) {
     e.preventDefault();
+    if (!uEmail.trim() && !uPhone.trim()) {
+      setError("נא למלא אימייל או טלפון");
+      return;
+    }
     const pwdError = validatePassword(uPassword);
     if (pwdError) {
       setError(pwdError);
@@ -93,6 +98,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
           companyId: company.id,
           name: uName,
           email: uEmail,
+          phone: uPhone,
           password: uPassword,
           role: uRole,
         }),
@@ -101,6 +107,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setUName("");
       setUEmail("");
+      setUPhone("");
       setUPassword("");
       setURole("WAREHOUSE");
       router.refresh();
@@ -244,7 +251,15 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
               type="email"
               value={uEmail}
               onChange={(e) => setUEmail(e.target.value)}
-              required
+              placeholder="אופציונלי אם יש טלפון"
+            />
+          </div>
+          <div>
+            <Label>טלפון</Label>
+            <Input
+              value={uPhone}
+              onChange={(e) => setUPhone(e.target.value)}
+              placeholder="050-0000000"
             />
           </div>
           <PasswordInput

@@ -9,6 +9,12 @@ export async function requireTenant(): Promise<SessionUser> {
   return session;
 }
 
+export async function requireCompanyAdmin(): Promise<SessionUser> {
+  const session = await requireTenant();
+  if (session.role !== ROLES.ADMIN) redirect("/dashboard");
+  return session;
+}
+
 export async function requireSuperAdmin(): Promise<SessionUser> {
   const session = await getSession();
   if (!session) redirect("/login");

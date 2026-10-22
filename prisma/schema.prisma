@@ -31,7 +31,8 @@ model User {
   id           String   @id @default(cuid())
   companyId    String   @map("company_id")
   name         String
-  email        String   @unique
+  email        String?  @unique
+  phone        String?  @unique
   passwordHash String   @map("password_hash")
   role         String   @default("WAREHOUSE") // SUPER_ADMIN | ADMIN | WAREHOUSE | VIEWER
   active       Boolean  @default(true)
@@ -45,6 +46,7 @@ model User {
   notifications   Notification[]      @relation("NotificationActor")
 
   @@index([companyId])
+  @@index([phone])
   @@map("users")
 }
 

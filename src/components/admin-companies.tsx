@@ -31,12 +31,17 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
   const [phone, setPhone] = useState("");
   const [adminName, setAdminName] = useState("");
   const [email, setEmail] = useState("");
+  const [adminPhone, setAdminPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function createCompany(e: React.FormEvent) {
     e.preventDefault();
+    if (!email.trim() && !adminPhone.trim()) {
+      setError("נא למלא אימייל או טלפון למנהל");
+      return;
+    }
     const pwdError = validatePassword(password);
     if (pwdError) {
       setError(pwdError);
@@ -48,7 +53,14 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
       const res = await fetch("/api/admin/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, adminName, email, password }),
+        body: JSON.stringify({
+          name,
+          phone,
+          adminName,
+          email,
+          adminPhone,
+          password,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
@@ -57,6 +69,7 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
       setPhone("");
       setAdminName("");
       setEmail("");
+      setAdminPhone("");
       setPassword("");
       router.refresh();
     } catch (err) {
@@ -156,7 +169,15 @@ export function AdminCompanies({ companies }: { companies: Company[] }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
+                placeholder="אופציונלי אם יש טלפון"
+              />
+            </div>
+            <div>
+              <Label>טלפון מנהל</Label>
+              <Input
+                value={adminPhone}
+                onChange={(e) => setAdminPhone(e.target.value)}
+                placeholder="050-0000000"
               />
             </div>
             <PasswordInput

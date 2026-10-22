@@ -21,11 +21,13 @@ import {
   Wrench,
   Shield,
   LogOut,
+  Users,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
 import { GlobalSearch } from "@/components/global-search";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { BrandLogo } from "@/components/brand-logo";
 import { ROLE_LABELS, Role } from "@/lib/constants";
 
 const links = [
@@ -41,6 +43,7 @@ const links = [
   { href: "/locations", label: "מיקומים", icon: MapPin },
   { href: "/scan", label: "סריקה", icon: ScanBarcode },
   { href: "/audit", label: "Audit", icon: Shield },
+  { href: "/team", label: "עובדים", icon: Users },
   { href: "/setup", label: "הגדרות", icon: Settings2 },
   { href: "/export", label: "ייצוא", icon: Download },
 ];
@@ -73,12 +76,10 @@ export function AppNav() {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--lime)] font-display text-sm font-bold text-[var(--ink)]">
-              מל
-            </span>
+            <BrandLogo href="" size="sm" showWordmark={false} photo />
             <div className="hidden leading-tight sm:block">
               <div className="font-display text-sm font-bold text-[var(--foreground)]">
-                מלאים
+                Sfira
               </div>
               <div className="text-xs text-[var(--muted)]">
                 {user?.companyName || "לוגיסטיקה ווריאציות"}

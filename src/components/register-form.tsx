@@ -9,15 +9,20 @@ import { validatePassword } from "@/lib/password";
 export function RegisterForm() {
   const router = useRouter();
   const [companyName, setCompanyName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
   const [adminName, setAdminName] = useState("");
   const [email, setEmail] = useState("");
+  const [adminPhone, setAdminPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!email.trim() && !adminPhone.trim()) {
+      setError("נא למלא אימייל או טלפון להתחברות (לפחות אחד)");
+      return;
+    }
     const pwdError = validatePassword(password);
     if (pwdError) {
       setError(pwdError);
@@ -29,7 +34,14 @@ export function RegisterForm() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyName, phone, adminName, email, password }),
+        body: JSON.stringify({
+          companyName,
+          companyPhone,
+          adminName,
+          email,
+          adminPhone,
+          password,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה בהרשמה");
@@ -57,15 +69,17 @@ export function RegisterForm() {
         />
       </div>
       <div>
-        <Label>טלפון (אופציונלי)</Label>
+        <Label>טלפון חברה (אופציונלי)</Label>
         <Input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="050-0000000"
+          value={companyPhone}
+          onChange={(e) => setCompanyPhone(e.target.value)}
+          placeholder="03-0000000"
         />
       </div>
       <div className="border-t border-[var(--border)] pt-4">
-        <p className="mb-3 text-xs text-[var(--muted)]">פרטי מנהל ראשי</p>
+        <p className="mb-3 text-xs text-[var(--muted)]">
+          פרטי מנהל ראשי — התחברות באימייל ו/או בטלפון
+        </p>
         <div className="space-y-3">
           <div>
             <Label>שם מלא</Label>
@@ -76,12 +90,22 @@ export function RegisterForm() {
             />
           </div>
           <div>
-            <Label>אימייל להתחברות</Label>
+            <Label>אימייל</Label>
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
+              placeholder="אופציונלי אם יש טלפון"
+              autoComplete="email"
+            />
+          </div>
+          <div>
+            <Label>טלפון אישי</Label>
+            <Input
+              value={adminPhone}
+              onChange={(e) => setAdminPhone(e.target.value)}
+              placeholder="050-0000000"
+              autoComplete="tel"
             />
           </div>
           <PasswordInput

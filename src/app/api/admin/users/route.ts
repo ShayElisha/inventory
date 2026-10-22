@@ -4,6 +4,13 @@ import { getSession, hashPassword, isSuperAdmin } from "@/lib/auth";
 import { COMPANY_ROLES, ROLES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
 import { validatePassword } from "@/lib/password";
+import {
+  formatPhoneDisplay,
+  isEmail,
+  looksLikePhone,
+  normalizeEmail,
+  normalizePhone,
+} from "@/lib/contact";
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
@@ -28,6 +35,8 @@ export async function GET(req: NextRequest) {
       id: u.id,
       name: u.name,
       email: u.email,
+      phone: u.phone,
+      phoneDisplay: formatPhoneDisplay(u.phone),
       role: u.role,
       active: u.active,
       createdAt: u.createdAt,
@@ -46,16 +55,30 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const companyId = String(body.companyId || "");
     const name = String(body.name || "").trim();
-    const email = String(body.email || "").trim().toLowerCase();
+    const emailRaw = String(body.email || "").trim();
+    const phoneRaw = String(body.phone || "").trim();
     const password = String(body.password || "");
     const role = String(body.role || ROLES.WAREHOUSE);
 
-    if (!companyId || !name || !email) {
+    if (!companyId || !name) {
+      return NextResponse.json({ error: "נא למלא חברה ושם" }, { status: 400 });
+    }
+
+    const email = emailRaw ? normalizeEmail(emailRaw) : null;
+    const phone = phoneRaw ? normalizePhone(phoneRaw) : null;
+    if (!email && !phone) {
       return NextResponse.json(
-        { error: "נא למלא חברה, שם ואימייל" },
+        { error: "נא למלא אימייל או טלפון" },
         { status: 400 }
       );
     }
+    if (emailRaw && !isEmail(emailRaw)) {
+      return NextResponse.json({ error: "אימייל לא תקין" }, { status: 400 });
+    }
+    if (phoneRaw && !looksLikePhone(phoneRaw)) {
+      return NextResponse.json({ error: "טלפון לא תקין" }, { status: 400 });
+    }
+
     const pwdError = validatePassword(password);
     if (pwdError) {
       return NextResponse.json({ error: pwdError }, { status: 400 });
@@ -71,9 +94,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "חברה לא נמצאה" }, { status: 404 });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return NextResponse.json({ error: "האימייל כבר רשום" }, { status: 400 });
+    if (email) {
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) {
+        return NextResponse.json({ error: "האימייל כבר רשום" }, { status: 400 });
+      }
+    }
+    if (phone) {
+      const existing = await prisma.user.findUnique({ where: { phone } });
+      if (existing) {
+        return NextResponse.json({ error: "הטלפון כבר רשום" }, { status: 400 });
+      }
     }
 
     const user = await prisma.user.create({
@@ -81,6 +112,7 @@ export async function POST(req: NextRequest) {
         companyId,
         name,
         email,
+        phone,
         passwordHash: await hashPassword(password),
         role,
         active: true,
@@ -95,7 +127,7 @@ export async function POST(req: NextRequest) {
       entityType: "User",
       entityId: user.id,
       userId: session.id,
-      details: { email, companyId, role },
+      details: { email, phone, companyId, role },
     });
 
     return NextResponse.json(
@@ -103,6 +135,8 @@ export async function POST(req: NextRequest) {
         id: user.id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
+        phoneDisplay: formatPhoneDisplay(user.phone),
         role: user.role,
         active: user.active,
         company: user.company,

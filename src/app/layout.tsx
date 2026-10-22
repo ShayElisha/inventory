@@ -20,15 +20,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "מלאים | ניהול מלאי, לוגיסטיקה ווריאציות",
+  title: "Sfira | ניהול מלאי, לוגיסטיקה ווריאציות",
   description:
-    "פלטפורמה לחברות לניהול מלאי בזמן אמת, וריאציות, ליקוט, ספירות ודוחות",
+    "Sfira — פלטפורמה לחברות לניהול מלאי בזמן אמת, וריאציות, ליקוט, ספירות ודוחות",
+  icons: {
+    icon: "/sfira-mark.svg",
+    apple: "/sfira-logo.jpg",
+  },
 };
 
 const themeInitScript = `
 (function(){
   try {
-    var t = localStorage.getItem('malaim-theme');
+    var t = localStorage.getItem('sfira-theme') || localStorage.getItem('malaim-theme');
     if (t !== 'light' && t !== 'dark') {
       t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }

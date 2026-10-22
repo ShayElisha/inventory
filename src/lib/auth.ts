@@ -3,6 +3,11 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { Role, ROLES } from "@/lib/constants";
+import {
+  detectLoginKind,
+  normalizeEmail,
+  normalizePhone,
+} from "@/lib/contact";
 
 const COOKIE = "inventory_session";
 const secret = () =>
@@ -14,6 +19,7 @@ export type SessionUser = {
   id: string;
   name: string;
   email: string;
+  phone: string;
   role: Role;
   companyId: string;
   companyName: string;
@@ -32,6 +38,7 @@ export async function createSession(user: SessionUser) {
     id: user.id,
     name: user.name,
     email: user.email,
+    phone: user.phone,
     role: user.role,
     companyId: user.companyId,
     companyName: user.companyName,
@@ -64,7 +71,8 @@ export async function getSession(): Promise<SessionUser | null> {
     return {
       id: String(payload.id),
       name: String(payload.name),
-      email: String(payload.email),
+      email: String(payload.email || ""),
+      phone: String(payload.phone || ""),
       role: payload.role as Role,
       companyId: String(payload.companyId || ""),
       companyName: String(payload.companyName || ""),
@@ -106,13 +114,54 @@ export function slugifyCompany(name: string) {
   return base || `company-${Date.now().toString(36)}`;
 }
 
+/** חיפוש משתמש לפי אימייל או טלפון */
+export async function findUserByLogin(identifier: string) {
+  const kind = detectLoginKind(identifier);
+  if (!kind) return null;
+
+  if (kind === "email") {
+    const email = normalizeEmail(identifier);
+    return prisma.user.findUnique({
+      where: { email },
+      include: { company: true },
+    });
+  }
+
+  const phone = normalizePhone(identifier);
+  if (!phone) return null;
+  return prisma.user.findUnique({
+    where: { phone },
+    include: { company: true },
+  });
+}
+
+export function sessionFromUser(user: {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: string;
+  companyId: string;
+  company: { name: string };
+}): SessionUser {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email || "",
+    phone: user.phone || "",
+    role: user.role as Role,
+    companyId: user.companyId,
+    companyName: user.company.name,
+  };
+}
+
 export async function ensureSuperAdmin() {
   let platform = await prisma.company.findUnique({ where: { slug: "platform" } });
   if (!platform) {
     platform = await prisma.company.create({
       data: {
         id: "cm_platform_company_001",
-        name: "פלטפורמת מלאים",
+        name: "פלטפורמת Sfira",
         slug: "platform",
         active: true,
       },
@@ -126,6 +175,7 @@ export async function ensureSuperAdmin() {
       data: {
         name: "סופר אדמין",
         email,
+        phone: "972500000000",
         passwordHash: await hashPassword("super123"),
         role: ROLES.SUPER_ADMIN,
         companyId: platform.id,
@@ -165,6 +215,7 @@ export async function ensureDefaultUsers() {
       {
         name: "מנהל",
         email: "admin@inventory.local",
+        phone: "972501111111",
         passwordHash: await hashPassword("admin123"),
         role: ROLES.ADMIN,
         companyId: company.id,
@@ -172,6 +223,7 @@ export async function ensureDefaultUsers() {
       {
         name: "מחסנאי",
         email: "warehouse@inventory.local",
+        phone: "972502222222",
         passwordHash: await hashPassword("wh123"),
         role: ROLES.WAREHOUSE,
         companyId: company.id,
@@ -179,6 +231,7 @@ export async function ensureDefaultUsers() {
       {
         name: "צופה",
         email: "viewer@inventory.local",
+        phone: "972503333333",
         passwordHash: await hashPassword("view123"),
         role: ROLES.VIEWER,
         companyId: company.id,

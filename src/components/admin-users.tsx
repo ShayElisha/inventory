@@ -43,6 +43,7 @@ export function AdminUsers({
   const [companyId, setCompanyId] = useState(companies[0]?.id || "");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("WAREHOUSE");
 
@@ -61,6 +62,10 @@ export function AdminUsers({
 
   async function createUser(e: React.FormEvent) {
     e.preventDefault();
+    if (!email.trim() && !phone.trim()) {
+      setError("נא למלא אימייל או טלפון");
+      return;
+    }
     const pwdError = validatePassword(password);
     if (pwdError) {
       setError(pwdError);
@@ -72,13 +77,14 @@ export function AdminUsers({
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId, name, email, password, role }),
+        body: JSON.stringify({ companyId, name, email, phone, password, role }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setShowCreate(false);
       setName("");
       setEmail("");
+      setPhone("");
       setPassword("");
       router.refresh();
     } catch (err) {
@@ -185,7 +191,15 @@ export function AdminUsers({
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
+                placeholder="אופציונלי אם יש טלפון"
+              />
+            </div>
+            <div>
+              <Label>טלפון</Label>
+              <Input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="050-0000000"
               />
             </div>
             <PasswordInput

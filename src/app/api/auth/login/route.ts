@@ -1,25 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import {
   createSession,
   ensureDefaultUsers,
+  findUserByLogin,
   isSuperAdmin,
+  sessionFromUser,
   verifyPassword,
 } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
-import { Role, ROLES } from "@/lib/constants";
+import { ROLES } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   await ensureDefaultUsers();
-  const { email, password } = await req.json();
-  if (!email || !password) {
-    return NextResponse.json({ error: "חסרים פרטים" }, { status: 400 });
+  const body = await req.json();
+  const identifier = String(body.identifier || body.email || body.phone || "").trim();
+  const password = String(body.password || "");
+
+  if (!identifier || !password) {
+    return NextResponse.json(
+      { error: "נא להזין אימייל או טלפון וסיסמה" },
+      { status: 400 }
+    );
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email: String(email).trim().toLowerCase() },
-    include: { company: true },
-  });
+  const user = await findUserByLogin(identifier);
   if (!user || !user.active) {
     return NextResponse.json({ error: "פרטי התחברות שגויים" }, { status: 401 });
   }
@@ -39,14 +43,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  await createSession({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role as Role,
-    companyId: user.companyId,
-    companyName: user.company.name,
-  });
+  const sessionUser = sessionFromUser(user);
+  await createSession(sessionUser);
 
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -58,17 +56,17 @@ export async function POST(req: NextRequest) {
     entityId: user.id,
     ip,
     userId: user.id,
-    details: { email: user.email, companyId: user.companyId },
+    details: {
+      identifier,
+      email: user.email,
+      phone: user.phone,
+      companyId: user.companyId,
+    },
   });
 
   return NextResponse.json({
     user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      companyId: user.companyId,
-      companyName: user.company.name,
+      ...sessionUser,
       isSuperAdmin: isSuperAdmin(user.role),
     },
   });

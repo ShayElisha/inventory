@@ -9,6 +9,12 @@ import {
 import { ROLES } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
 import { validatePassword } from "@/lib/password";
+import {
+  isEmail,
+  looksLikePhone,
+  normalizeEmail,
+  normalizePhone,
+} from "@/lib/contact";
 
 export async function GET() {
   const session = await getSession();
@@ -43,25 +49,52 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const companyName = String(body.name || "").trim();
-    const phone = String(body.phone || "").trim() || null;
+    const companyPhoneRaw = String(body.phone || "").trim();
     const adminName = String(body.adminName || "").trim();
-    const email = String(body.email || "").trim().toLowerCase();
+    const emailRaw = String(body.email || "").trim();
+    const adminPhoneRaw = String(body.adminPhone || "").trim();
     const password = String(body.password || "");
 
-    if (!companyName || !adminName || !email) {
+    if (!companyName || !adminName) {
       return NextResponse.json(
-        { error: "נא למלא שם חברה, מנהל ואימייל" },
+        { error: "נא למלא שם חברה ומנהל" },
         { status: 400 }
       );
     }
+
+    const email = emailRaw ? normalizeEmail(emailRaw) : null;
+    const adminPhone = adminPhoneRaw ? normalizePhone(adminPhoneRaw) : null;
+    if (!email && !adminPhone) {
+      return NextResponse.json(
+        { error: "נא למלא אימייל או טלפון למנהל" },
+        { status: 400 }
+      );
+    }
+    if (emailRaw && !isEmail(emailRaw)) {
+      return NextResponse.json({ error: "אימייל לא תקין" }, { status: 400 });
+    }
+    if (adminPhoneRaw && !looksLikePhone(adminPhoneRaw)) {
+      return NextResponse.json({ error: "טלפון לא תקין" }, { status: 400 });
+    }
+
     const pwdError = validatePassword(password);
     if (pwdError) {
       return NextResponse.json({ error: pwdError }, { status: 400 });
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return NextResponse.json({ error: "האימייל כבר רשום" }, { status: 400 });
+    if (email) {
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+      if (existingUser) {
+        return NextResponse.json({ error: "האימייל כבר רשום" }, { status: 400 });
+      }
+    }
+    if (adminPhone) {
+      const existingPhone = await prisma.user.findUnique({
+        where: { phone: adminPhone },
+      });
+      if (existingPhone) {
+        return NextResponse.json({ error: "הטלפון כבר רשום" }, { status: 400 });
+      }
     }
 
     let slug = slugifyCompany(companyName);
@@ -70,16 +103,20 @@ export async function POST(req: NextRequest) {
     if (slugTaken) slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
 
     const passwordHash = await hashPassword(password);
+    const companyPhone = companyPhoneRaw
+      ? normalizePhone(companyPhoneRaw) || companyPhoneRaw
+      : null;
 
     const result = await prisma.$transaction(async (tx) => {
       const company = await tx.company.create({
-        data: { name: companyName, slug, phone, active: true },
+        data: { name: companyName, slug, phone: companyPhone, active: true },
       });
       const user = await tx.user.create({
         data: {
           companyId: company.id,
           name: adminName,
           email,
+          phone: adminPhone,
           passwordHash,
           role: ROLES.ADMIN,
         },
@@ -92,7 +129,7 @@ export async function POST(req: NextRequest) {
       entityType: "Company",
       entityId: result.company.id,
       userId: session.id,
-      details: { name: companyName, adminEmail: email },
+      details: { name: companyName, adminEmail: email, adminPhone },
     });
 
     return NextResponse.json(result, { status: 201 });

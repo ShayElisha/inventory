@@ -28,7 +28,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
-    const stored = localStorage.getItem("malaim-theme") as Theme | null;
+    const stored = (localStorage.getItem("sfira-theme") ||
+      localStorage.getItem("malaim-theme")) as Theme | null;
     const preferred =
       stored === "light" || stored === "dark"
         ? stored
@@ -41,7 +42,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
-    localStorage.setItem("malaim-theme", next);
+    localStorage.setItem("sfira-theme", next);
     applyTheme(next);
   }, []);
 

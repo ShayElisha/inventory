@@ -109,10 +109,10 @@ export function LandingAdvantagesLive() {
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
         <div className="max-w-2xl">
           <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
-            היתרונות — בזמן אמת
+            היתרונות של Sfira — בזמן אמת
           </h2>
           <p className="mt-2 text-white/65">
-            זרימת מחסן חיה שממחישה איך מלאים מקצרת תהליכים ומגדילה דיוק.
+            זרימת מחסן חיה שממחישה איך Sfira מקצרת תהליכים ומגדילה דיוק.
           </p>
         </div>
 

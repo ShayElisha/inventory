@@ -152,12 +152,111 @@ body {
   animation: land-fade-up 0.9s ease-out 0.15s both;
 }
 
+@keyframes land-logo-in {
+  from {
+    opacity: 0;
+    transform: scale(0.88) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.land-logo-in {
+  animation: land-logo-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .land-cap {
   animation: land-fade-up 0.7s ease-out both;
 }
 
 .land-feature-img {
   animation: land-fade-in 1s ease-out both;
+}
+
+@keyframes land-ken {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.08);
+  }
+}
+
+@keyframes land-orb {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(24px, -16px);
+  }
+}
+
+@keyframes land-chip {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
+}
+
+@keyframes land-stat-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.land-hero-ken {
+  animation: land-ken 18s ease-in-out alternate infinite;
+}
+
+.land-orb {
+  animation: land-orb 10s ease-in-out infinite;
+}
+
+.land-orb-delay {
+  animation: land-orb 12s ease-in-out 1.5s infinite;
+}
+
+.land-float-chip {
+  animation: land-chip 4.5s ease-in-out infinite;
+}
+
+.land-float-chip-delay {
+  animation: land-chip 5.2s ease-in-out 0.8s infinite;
+}
+
+.land-stat {
+  animation: land-stat-in 0.7s ease-out both;
+}
+
+.land-stat:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.land-stat:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.land-stat:nth-child(4) {
+  animation-delay: 0.24s;
+}
+
+.land-audience {
+  animation: land-fade-up 0.75s ease-out both;
+}
+
+.land-card-glow {
+  box-shadow: 0 0 32px rgba(184, 224, 106, 0.12);
 }
 
 .adv-pulse::before {

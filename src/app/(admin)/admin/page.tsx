@@ -70,7 +70,7 @@ export default async function AdminHomePage() {
   return (
     <div>
       <PageHeader
-        title="לוח בקרה — סופר אדמין"
+        title="לוח בקרה — Sfira"
         description="ניהול חברות, משתמשים וסטטוס הפלטפורמה"
         actions={
           <Link

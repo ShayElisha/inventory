@@ -77,12 +77,25 @@ export async function middleware(req: NextRequest) {
       "/api/import",
       "/api/bulk",
       "/api/admin",
+      "/api/team",
     ];
     const isWrite =
       ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) &&
       writePaths.some((p) => pathname.startsWith(p));
     if (isWrite && role === "VIEWER") {
       return NextResponse.json({ error: "אין הרשאה לביצוע פעולה" }, { status: 403 });
+    }
+    // ניהול עובדים — מנהל חברה בלבד
+    if (
+      pathname.startsWith("/api/team") &&
+      ["POST", "PUT", "PATCH", "DELETE"].includes(req.method) &&
+      role !== "ADMIN" &&
+      role !== "SUPER_ADMIN"
+    ) {
+      return NextResponse.json(
+        { error: "רק מנהל חברה יכול לנהל עובדים" },
+        { status: 403 }
+      );
     }
     return NextResponse.next();
   } catch {

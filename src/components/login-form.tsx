@@ -8,7 +8,7 @@ import { PasswordInput } from "@/components/password-input";
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,7 @@ export function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
@@ -45,13 +45,13 @@ export function LoginForm() {
       className="space-y-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[var(--shadow)]"
     >
       <div>
-        <Label>אימייל</Label>
+        <Label>אימייל או טלפון</Label>
         <Input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          type="email"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
           required
-          autoComplete="email"
+          autoComplete="username"
+          placeholder="name@company.com או 050-0000000"
         />
       </div>
       <PasswordInput
