@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth";
 
 /** חיפוש לפי ברקוד, מק״ט או שם מוצר */
 export async function GET(req: NextRequest) {
+  const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
+  const companyId = session.companyId;
   const q = req.nextUrl.searchParams.get("q")?.trim();
   if (!q) {
     return NextResponse.json({ error: "חסר קוד או שם" }, { status: 400 });
@@ -10,6 +16,7 @@ export async function GET(req: NextRequest) {
 
   const exact = await prisma.productVariant.findFirst({
     where: {
+      product: { companyId },
       OR: [
         { barcode: q },
         { sku: q },
@@ -28,6 +35,7 @@ export async function GET(req: NextRequest) {
 
   const variants = await prisma.productVariant.findMany({
     where: {
+      product: { companyId },
       OR: [
         { sku: { contains: q } },
         { barcode: { contains: q } },

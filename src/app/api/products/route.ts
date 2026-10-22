@@ -3,9 +3,10 @@ import { prisma } from "@/lib/db";
 import { buildVariantSku, generateMatrixCombinations } from "@/lib/sku";
 import { parseJsonArray, stringifyJson } from "@/lib/json";
 import { logProductChange, writeAudit } from "@/lib/audit";
-import { getSession } from "@/lib/auth";
+import { getSession, requireSession } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
+  const session = await requireSession();
   const { searchParams } = req.nextUrl;
   const categoryId = searchParams.get("categoryId");
   const supplierId = searchParams.get("supplierId");
@@ -13,6 +14,7 @@ export async function GET(req: NextRequest) {
 
   const products = await prisma.product.findMany({
     where: {
+      companyId: session.companyId,
       ...(categoryId ? { categoryId } : {}),
       ...(supplierId ? { supplierId } : {}),
     },
@@ -38,7 +40,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await requireSession();
     const body = await req.json();
     const {
       title,
@@ -61,7 +63,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "חסרים שדות חובה" }, { status: 400 });
     }
 
-    const category = await prisma.category.findUnique({ where: { id: categoryId } });
+    const category = await prisma.category.findFirst({
+      where: { id: categoryId, companyId: session.companyId },
+    });
     if (!category) {
       return NextResponse.json({ error: "קטגוריה לא נמצאה" }, { status: 400 });
     }
@@ -71,6 +75,7 @@ export async function POST(req: NextRequest) {
     const product = await prisma.$transaction(async (tx) => {
       const created = await tx.product.create({
         data: {
+          companyId: session.companyId,
           title,
           baseSku: String(baseSku).toUpperCase(),
           description: description || null,

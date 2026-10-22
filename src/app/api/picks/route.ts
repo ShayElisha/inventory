@@ -4,7 +4,9 @@ import { getSession } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 
 export async function GET() {
+  const session = await getSession();
   const lists = await prisma.pickList.findMany({
+    where: session?.companyId ? { companyId: session.companyId } : undefined,
     include: {
       items: { include: { variant: { include: { product: true, location: true } } } },
       createdBy: true,
@@ -16,6 +18,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
   const body = await req.json();
   const { reference, notes, items } = body;
   if (!reference || !items?.length) {
@@ -24,9 +29,10 @@ export async function POST(req: NextRequest) {
 
   const list = await prisma.pickList.create({
     data: {
+      companyId: session.companyId,
       reference,
       notes: notes || null,
-      createdById: session?.id || null,
+      createdById: session.id,
       updatedAt: new Date(),
       items: {
         create: items.map(

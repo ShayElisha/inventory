@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
-import { Heebo, Geist_Mono } from "next/font/google";
-import { AppNav } from "@/components/nav";
+import { Heebo, Rubik, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 const heebo = Heebo({
   variable: "--font-heebo",
   subsets: ["hebrew", "latin"],
+});
+
+const rubik = Rubik({
+  variable: "--font-rubik",
+  subsets: ["hebrew", "latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const geistMono = Geist_Mono({
@@ -14,8 +19,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "מערכת מלאי | לוגיסטיקה ווריאציות",
-  description: "ניהול מלאי בזמן אמת עם וריאציות, מחסן ומסופון",
+  title: "מלאים | ניהול מלאי, לוגיסטיקה ווריאציות",
+  description:
+    "פלטפורמה לחברות לניהול מלאי בזמן אמת, וריאציות, ליקוט, ספירות ודוחות",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -23,11 +29,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="he"
       dir="rtl"
-      className={`${heebo.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${heebo.variable} ${rubik.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <AppNav />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{children}</main>
+      <body className="min-h-full flex flex-col font-[family-name:var(--font-heebo)]">
+        {children}
       </body>
     </html>
   );

@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { stringifyJson } from "@/lib/json";
+import { requireSession } from "@/lib/auth";
 
 export async function GET() {
-  const categories = await prisma.category.findMany({ orderBy: { name: "asc" } });
+  const session = await requireSession();
+  const categories = await prisma.category.findMany({
+    where: { companyId: session.companyId },
+    orderBy: { name: "asc" },
+  });
   return NextResponse.json(categories);
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireSession();
     const { name, hasVariants, attributeSchema } = await req.json();
     if (!name?.trim()) {
       return NextResponse.json({ error: "שם קטגוריה חובה" }, { status: 400 });
@@ -23,6 +29,7 @@ export async function POST(req: NextRequest) {
 
     const category = await prisma.category.create({
       data: {
+        companyId: session.companyId,
         name: String(name).trim(),
         hasVariants: Boolean(hasVariants),
         attributeSchema: stringifyJson(hasVariants ? schema : []),

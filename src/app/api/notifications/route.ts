@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth";
 import { refreshSystemNotifications } from "@/lib/notifications";
 
 export async function GET() {
-  await refreshSystemNotifications();
+  const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
+  await refreshSystemNotifications(session.companyId);
   const items = await prisma.notification.findMany({
+    where: { companyId: session.companyId },
     orderBy: { createdAt: "desc" },
     take: 40,
   });
@@ -13,15 +19,19 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
+  const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
   const body = await req.json();
   if (body.all) {
     await prisma.notification.updateMany({
-      where: { read: false },
+      where: { companyId: session.companyId, read: false },
       data: { read: true },
     });
   } else if (body.id) {
-    await prisma.notification.update({
-      where: { id: body.id },
+    await prisma.notification.updateMany({
+      where: { id: body.id, companyId: session.companyId },
       data: { read: true },
     });
   }

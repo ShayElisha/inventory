@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { transferByLocationCode, transferLocation, StockError } from "@/lib/stock";
+import { getSession } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+    }
     const body = await req.json();
     const { variantId, toLocationId, locationCode, reason } = body;
 
@@ -11,8 +16,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "חסרים שדות חובה" }, { status: 400 });
     }
 
+    const owned = await prisma.productVariant.findFirst({
+      where: { id: variantId, product: { companyId: session.companyId } },
+      select: { id: true },
+    });
+    if (!owned) {
+      return NextResponse.json({ error: "מוצר לא נמצא" }, { status: 404 });
+    }
+
     const result = locationCode
-      ? await transferByLocationCode(variantId, String(locationCode), reason)
+      ? await transferByLocationCode(
+          variantId,
+          String(locationCode),
+          reason,
+          session.companyId
+        )
       : await transferLocation(variantId, String(toLocationId), reason);
 
     return NextResponse.json(result);
@@ -23,7 +41,12 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
+  const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
   const locations = await prisma.warehouseLocation.findMany({
+    where: { companyId: session.companyId },
     orderBy: { code: "asc" },
   });
   return NextResponse.json(locations);

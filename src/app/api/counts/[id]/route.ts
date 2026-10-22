@@ -8,9 +8,13 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await getSession();
+  if (!user?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
   const { id } = await params;
-  const session = await prisma.stockCountSession.findUnique({
-    where: { id },
+  const session = await prisma.stockCountSession.findFirst({
+    where: { id, companyId: user.companyId },
     include: {
       lines: {
         include: {
@@ -32,6 +36,15 @@ export async function PATCH(
   const { id } = await params;
   const body = await req.json();
   const user = await getSession();
+  if (!user?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
+
+  const owned = await prisma.stockCountSession.findFirst({
+    where: { id, companyId: user.companyId },
+    select: { id: true },
+  });
+  if (!owned) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
 
   if (body.action === "set_count") {
     const countedQty = Number(body.countedQty);
@@ -52,8 +65,8 @@ export async function PATCH(
   }
 
   if (body.action === "close_and_adjust") {
-    const session = await prisma.stockCountSession.findUnique({
-      where: { id },
+    const session = await prisma.stockCountSession.findFirst({
+      where: { id, companyId: user.companyId },
       include: { lines: true },
     });
     if (!session) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });

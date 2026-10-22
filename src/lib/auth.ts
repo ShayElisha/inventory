@@ -15,6 +15,8 @@ export type SessionUser = {
   name: string;
   email: string;
   role: Role;
+  companyId: string;
+  companyName: string;
 };
 
 export async function hashPassword(password: string) {
@@ -31,6 +33,8 @@ export async function createSession(user: SessionUser) {
     name: user.name,
     email: user.email,
     role: user.role,
+    companyId: user.companyId,
+    companyName: user.companyName,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("14d")
@@ -62,6 +66,8 @@ export async function getSession(): Promise<SessionUser | null> {
       name: String(payload.name),
       email: String(payload.email),
       role: payload.role as Role,
+      companyId: String(payload.companyId || ""),
+      companyName: String(payload.companyName || ""),
     };
   } catch {
     return null;
@@ -74,37 +80,108 @@ export async function requireSession() {
   return session;
 }
 
+export function isSuperAdmin(role: Role | string) {
+  return role === ROLES.SUPER_ADMIN;
+}
+
 export function canWrite(role: Role) {
-  return role === ROLES.ADMIN || role === ROLES.WAREHOUSE;
+  return (
+    role === ROLES.SUPER_ADMIN ||
+    role === ROLES.ADMIN ||
+    role === ROLES.WAREHOUSE
+  );
 }
 
 export function canAdmin(role: Role) {
-  return role === ROLES.ADMIN;
+  return role === ROLES.ADMIN || role === ROLES.SUPER_ADMIN;
+}
+
+export function slugifyCompany(name: string) {
+  const base = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^\u0590-\u05FFa-z0-9]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return base || `company-${Date.now().toString(36)}`;
+}
+
+export async function ensureSuperAdmin() {
+  let platform = await prisma.company.findUnique({ where: { slug: "platform" } });
+  if (!platform) {
+    platform = await prisma.company.create({
+      data: {
+        id: "cm_platform_company_001",
+        name: "פלטפורמת מלאים",
+        slug: "platform",
+        active: true,
+      },
+    });
+  }
+
+  const email = "super@malaim.local";
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (!existing) {
+    await prisma.user.create({
+      data: {
+        name: "סופר אדמין",
+        email,
+        passwordHash: await hashPassword("super123"),
+        role: ROLES.SUPER_ADMIN,
+        companyId: platform.id,
+        active: true,
+      },
+    });
+  } else if (existing.role !== ROLES.SUPER_ADMIN) {
+    await prisma.user.update({
+      where: { id: existing.id },
+      data: { role: ROLES.SUPER_ADMIN, companyId: platform.id, active: true },
+    });
+  }
 }
 
 export async function ensureDefaultUsers() {
-  const count = await prisma.user.count();
+  await ensureSuperAdmin();
+
+  let company = await prisma.company.findUnique({ where: { slug: "demo" } });
+  if (!company) {
+    company = await prisma.company.create({
+      data: {
+        id: "cm_default_company_001",
+        name: "חברת דוגמה",
+        slug: "demo",
+        active: true,
+      },
+    });
+  }
+
+  const count = await prisma.user.count({
+    where: { companyId: company.id, role: { not: ROLES.SUPER_ADMIN } },
+  });
   if (count > 0) return;
-  const passwordHash = await hashPassword("admin123");
+
   await prisma.user.createMany({
     data: [
       {
         name: "מנהל",
         email: "admin@inventory.local",
-        passwordHash,
+        passwordHash: await hashPassword("admin123"),
         role: ROLES.ADMIN,
+        companyId: company.id,
       },
       {
         name: "מחסנאי",
         email: "warehouse@inventory.local",
         passwordHash: await hashPassword("wh123"),
         role: ROLES.WAREHOUSE,
+        companyId: company.id,
       },
       {
         name: "צופה",
         email: "viewer@inventory.local",
         passwordHash: await hashPassword("view123"),
         role: ROLES.VIEWER,
+        companyId: company.id,
       },
     ],
   });

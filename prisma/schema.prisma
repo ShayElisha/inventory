@@ -7,49 +7,81 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users         User[]
+  categories    Category[]
+  suppliers     Supplier[]
+  products      Product[]
+  locations     WarehouseLocation[]
+  pickLists     PickList[]
+  stockCounts   StockCountSession[]
+  notifications Notification[]
+
+  @@map("companies")
+}
+
 model User {
   id           String   @id @default(cuid())
+  companyId    String   @map("company_id")
   name         String
   email        String   @unique
   passwordHash String   @map("password_hash")
-  role         String   @default("WAREHOUSE") // ADMIN | WAREHOUSE | VIEWER
+  role         String   @default("WAREHOUSE") // SUPER_ADMIN | ADMIN | WAREHOUSE | VIEWER
   active       Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at")
 
+  company         Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   auditLogs       AuditLog[]
   pickLists       PickList[]
   stockCounts     StockCountSession[]
   productChanges  ProductChangeLog[]
   notifications   Notification[]      @relation("NotificationActor")
 
+  @@index([companyId])
   @@map("users")
 }
 
 model Category {
   id              String    @id @default(cuid())
+  companyId       String    @map("company_id")
   name            String
   hasVariants     Boolean   @default(false) @map("has_variants")
   attributeSchema String    @default("[]") @map("attribute_schema")
   products        Product[]
   createdAt       DateTime  @default(now()) @map("created_at")
 
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
   @@map("categories")
 }
 
 model Supplier {
   id        String    @id @default(cuid())
+  companyId String    @map("company_id")
   name      String
   products  Product[]
   createdAt DateTime  @default(now()) @map("created_at")
 
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
   @@map("suppliers")
 }
 
 model Product {
   id             String   @id @default(cuid())
+  companyId      String   @map("company_id")
   categoryId     String   @map("category_id")
   title          String
-  baseSku        String   @unique @map("base_sku")
+  baseSku        String   @map("base_sku")
   description    String?
   supplierId     String?  @map("supplier_id")
   costPrice      Float    @default(0) @map("cost_price")
@@ -59,36 +91,44 @@ model Product {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
+  company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   category Category          @relation(fields: [categoryId], references: [id])
   supplier Supplier?         @relation(fields: [supplierId], references: [id])
   variants ProductVariant[]
   changes  ProductChangeLog[]
 
+  @@unique([companyId, baseSku])
   @@index([categoryId])
   @@index([supplierId])
   @@index([title])
+  @@index([companyId])
   @@map("products")
 }
 
 model WarehouseLocation {
-  id       String           @id @default(cuid())
-  zone     String
-  aisle    String
-  shelf    String
-  bin      String
-  code     String           @unique
-  variants ProductVariant[]
+  id        String           @id @default(cuid())
+  companyId String           @map("company_id")
+  zone      String
+  aisle     String
+  shelf     String
+  bin       String
+  code      String
+  variants  ProductVariant[]
 
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, code])
   @@index([zone])
   @@index([shelf])
+  @@index([companyId])
   @@map("warehouse_locations")
 }
 
 model ProductVariant {
   id               String   @id @default(cuid())
   productId        String   @map("product_id")
-  sku              String   @unique
-  barcode          String   @unique
+  sku              String
+  barcode          String
   attributes       String   @default("{}")
   quantityOnHand   Int      @default(0) @map("quantity_on_hand")
   quantityReserved Int      @default(0) @map("quantity_reserved")
@@ -103,6 +143,8 @@ model ProductVariant {
   pickItems    PickListItem[]
   countLines   StockCountLine[]
 
+  @@unique([sku])
+  @@unique([barcode])
   @@index([productId])
   @@index([barcode])
   @@index([sku])
@@ -170,6 +212,7 @@ model ProductChangeLog {
 
 model PickList {
   id          String   @id @default(cuid())
+  companyId   String   @map("company_id")
   reference   String
   status      String   @default("OPEN") // OPEN | IN_PROGRESS | DONE | CANCELLED
   notes       String?
@@ -177,10 +220,12 @@ model PickList {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdBy User?          @relation(fields: [createdById], references: [id])
   items     PickListItem[]
 
   @@index([status])
+  @@index([companyId])
   @@map("pick_lists")
 }
 
@@ -200,18 +245,21 @@ model PickListItem {
 }
 
 model StockCountSession {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
+  companyId   String    @map("company_id")
   name        String
   zone        String?
   shelf       String?
-  status      String   @default("OPEN") // OPEN | CLOSED
-  createdById String?  @map("created_by_id")
-  createdAt   DateTime @default(now()) @map("created_at")
+  status      String    @default("OPEN") // OPEN | CLOSED
+  createdById String?   @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
   closedAt    DateTime? @map("closed_at")
 
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdBy User?            @relation(fields: [createdById], references: [id])
   lines     StockCountLine[]
 
+  @@index([companyId])
   @@map("stock_count_sessions")
 }
 
@@ -232,6 +280,7 @@ model StockCountLine {
 
 model Notification {
   id        String   @id @default(cuid())
+  companyId String   @map("company_id")
   type      String // LOW_STOCK | DEAD_STOCK | COUNT_VARIANCE | PICK_READY | SYSTEM
   title     String
   body      String
@@ -240,8 +289,9 @@ model Notification {
   userId    String?  @map("user_id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  user User? @relation("NotificationActor", fields: [userId], references: [id])
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation("NotificationActor", fields: [userId], references: [id])
 
-  @@index([read, createdAt])
+  @@index([companyId, read, createdAt])
   @@map("notifications")
 }

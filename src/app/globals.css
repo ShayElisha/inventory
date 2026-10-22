@@ -1,29 +1,69 @@
 @import "tailwindcss";
 
 :root {
-  --background: #eef3f1;
-  --foreground: #0f172a;
+  --background: #eef2ef;
+  --foreground: #12201c;
   --surface: #ffffff;
-  --accent: #0f766e;
-  --accent-soft: #ccfbf1;
+  --accent: #1f6b57;
+  --accent-soft: #d7efe6;
+  --ink: #0b1613;
+  --lime: #b8e06a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-heebo);
+  --font-display: var(--font-rubik);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background:
-    radial-gradient(ellipse 80% 50% at 100% -20%, #c7ebe4 0%, transparent 55%),
-    radial-gradient(ellipse 60% 40% at 0% 100%, #dbe7e4 0%, transparent 50%),
-    var(--background);
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-heebo), system-ui, sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+.font-display {
+  font-family: var(--font-rubik), var(--font-heebo), system-ui, sans-serif;
+}
+
+@keyframes land-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes land-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.land-hero-copy {
+  animation: land-fade-up 0.85s ease-out both;
+}
+
+.land-hero-cta {
+  animation: land-fade-up 0.9s ease-out 0.15s both;
+}
+
+.land-cap {
+  animation: land-fade-up 0.7s ease-out both;
+}
+
+.land-feature-img {
+  animation: land-fade-in 1s ease-out both;
 }

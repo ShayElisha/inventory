@@ -7,6 +7,9 @@ import { getSession } from "@/lib/auth";
 /** CSV: title,baseSku,categoryName,barcode,sku,costPrice,sellingPrice,qty,unitOfMeasure */
 export async function POST(req: NextRequest) {
   const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
   const text = await req.text();
   const lines = text
     .replace(/^\uFEFF/, "")
@@ -42,18 +45,26 @@ export async function POST(req: NextRequest) {
       }
 
       let category = await prisma.category.findFirst({
-        where: { name: categoryName },
+        where: { companyId: session.companyId, name: categoryName },
       });
       if (!category) {
         category = await prisma.category.create({
-          data: { name: categoryName, hasVariants: false, attributeSchema: "[]" },
+          data: {
+            companyId: session.companyId,
+            name: categoryName,
+            hasVariants: false,
+            attributeSchema: "[]",
+          },
         });
       }
 
-      let product = await prisma.product.findUnique({ where: { baseSku } });
+      let product = await prisma.product.findFirst({
+        where: { companyId: session.companyId, baseSku },
+      });
       if (!product) {
         product = await prisma.product.create({
           data: {
+            companyId: session.companyId,
             title,
             baseSku,
             categoryId: category.id,

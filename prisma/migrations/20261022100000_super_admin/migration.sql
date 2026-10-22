@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "companies" ADD COLUMN IF NOT EXISTS "active" BOOLEAN NOT NULL DEFAULT true;

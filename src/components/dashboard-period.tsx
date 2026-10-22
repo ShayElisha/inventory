@@ -12,7 +12,7 @@ export function DashboardPeriod() {
     <Select
       className="w-40"
       value={period}
-      onChange={(e) => router.push(`/?period=${e.target.value}`)}
+      onChange={(e) => router.push(`/dashboard?period=${e.target.value}`)}
     >
       <option value="today">היום</option>
       <option value="week">שבוע</option>

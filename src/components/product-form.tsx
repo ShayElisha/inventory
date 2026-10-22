@@ -6,6 +6,7 @@ import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
 import { buildVariantSku, generateMatrixCombinations } from "@/lib/sku";
 import { parseJsonArray } from "@/lib/json";
 import { UNIT_OF_MEASURE } from "@/lib/constants";
+import { attributesLabel } from "@/lib/utils";
 
 type Category = {
   id: string;
@@ -22,28 +23,79 @@ type VariantRow = {
   locationId: string;
 };
 
+type ExistingProduct = {
+  id: string;
+  title: string;
+  baseSku: string;
+  description: string | null;
+  categoryId: string;
+  supplierId: string | null;
+  costPrice: number;
+  sellingPrice: number;
+  unitOfMeasure: string;
+  unitsPerCarton: number;
+  variants: {
+    id: string;
+    sku: string;
+    barcode: string;
+    attributes: string;
+    quantityOnHand: number;
+    minAlertLevel: number;
+    locationId: string | null;
+  }[];
+};
+
 export function ProductForm({
   categories,
   suppliers,
   locations,
+  product,
 }: {
   categories: Category[];
   suppliers: { id: string; name: string }[];
   locations: { id: string; code: string }[];
+  product?: ExistingProduct;
 }) {
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [baseSku, setBaseSku] = useState("");
-  const [description, setDescription] = useState("");
-  const [categoryId, setCategoryId] = useState(categories[0]?.id || "");
-  const [supplierId, setSupplierId] = useState(suppliers[0]?.id || "");
-  const [costPrice, setCostPrice] = useState("0");
-  const [sellingPrice, setSellingPrice] = useState("0");
-  const [unitOfMeasure, setUnitOfMeasure] = useState("UNIT");
-  const [unitsPerCarton, setUnitsPerCarton] = useState("1");
-  const [simpleBarcode, setSimpleBarcode] = useState("");
+  const isEdit = Boolean(product);
+  const [title, setTitle] = useState(product?.title || "");
+  const [baseSku, setBaseSku] = useState(product?.baseSku || "");
+  const [description, setDescription] = useState(product?.description || "");
+  const [categoryId, setCategoryId] = useState(
+    product?.categoryId || categories[0]?.id || ""
+  );
+  const [supplierId, setSupplierId] = useState(product?.supplierId || "");
+  const [costPrice, setCostPrice] = useState(String(product?.costPrice ?? 0));
+  const [sellingPrice, setSellingPrice] = useState(
+    String(product?.sellingPrice ?? 0)
+  );
+  const [unitOfMeasure, setUnitOfMeasure] = useState(
+    product?.unitOfMeasure || "UNIT"
+  );
+  const [unitsPerCarton, setUnitsPerCarton] = useState(
+    String(product?.unitsPerCarton ?? 1)
+  );
+  const [simpleBarcode, setSimpleBarcode] = useState(
+    product?.variants[0]?.barcode || ""
+  );
   const [simpleQty, setSimpleQty] = useState("0");
-  const [simpleLocationId, setSimpleLocationId] = useState("");
+  const [simpleLocationId, setSimpleLocationId] = useState(
+    product?.variants[0]?.locationId || ""
+  );
+  const [simpleMinAlert, setSimpleMinAlert] = useState(
+    String(product?.variants[0]?.minAlertLevel ?? 5)
+  );
+  const [editVariants, setEditVariants] = useState(
+    (product?.variants || []).map((v) => ({
+      id: v.id,
+      sku: v.sku,
+      barcode: v.barcode,
+      attributes: v.attributes,
+      quantityOnHand: v.quantityOnHand,
+      minAlertLevel: v.minAlertLevel,
+      locationId: v.locationId || "",
+    }))
+  );
   const [attrOptions, setAttrOptions] = useState<Record<string, string>>({});
   const [matrixRows, setMatrixRows] = useState<VariantRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -98,6 +150,49 @@ export function ProductForm({
     setLoading(true);
     setError("");
     try {
+      if (isEdit && product) {
+        const payload: Record<string, unknown> = {
+          title,
+          baseSku: baseSku.toUpperCase(),
+          description,
+          categoryId,
+          supplierId: supplierId || null,
+          costPrice,
+          sellingPrice,
+          unitOfMeasure,
+          unitsPerCarton: Number(unitsPerCarton) || 1,
+        };
+
+        if (editVariants.length === 1 && !category?.hasVariants) {
+          payload.variants = [
+            {
+              id: editVariants[0].id,
+              barcode: simpleBarcode || editVariants[0].barcode,
+              locationId: simpleLocationId || null,
+              minAlertLevel: Number(simpleMinAlert) || 0,
+            },
+          ];
+        } else if (editVariants.length > 0) {
+          payload.variants = editVariants.map((v) => ({
+            id: v.id,
+            barcode: v.barcode,
+            locationId: v.locationId || null,
+            minAlertLevel: v.minAlertLevel,
+          }));
+        }
+
+        const res = await fetch(`/api/products/${product.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "שגיאה");
+        router.push("/products");
+        router.refresh();
+        return;
+      }
+
       const payload: Record<string, unknown> = {
         title,
         baseSku: baseSku.toUpperCase(),
@@ -161,7 +256,7 @@ export function ProductForm({
             value={categoryId}
             onChange={(e) => {
               setCategoryId(e.target.value);
-              setMatrixRows([]);
+              if (!isEdit) setMatrixRows([]);
             }}
           >
             {categories.map((c) => (
@@ -236,7 +331,117 @@ export function ProductForm({
         </div>
       </Card>
 
-      {category?.hasVariants ? (
+      {isEdit ? (
+        <Card className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">וריאציות קיימות</h2>
+            <p className="text-sm text-slate-500">
+              ניתן לעדכן ברקוד, מיקום וסף התראה. כמות משתנה דרך קליטה/ניפוק.
+            </p>
+          </div>
+          {editVariants.length === 1 && !category?.hasVariants ? (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <Label>ברקוד</Label>
+                <Input
+                  value={simpleBarcode}
+                  onChange={(e) => setSimpleBarcode(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>סף התראה</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={simpleMinAlert}
+                  onChange={(e) => setSimpleMinAlert(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>מיקום</Label>
+                <Select
+                  value={simpleLocationId}
+                  onChange={(e) => setSimpleLocationId(e.target.value)}
+                >
+                  <option value="">ללא</option>
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.code}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="text-right text-slate-500">
+                    <th className="pb-2">SKU</th>
+                    <th className="pb-2">מאפיינים</th>
+                    <th className="pb-2">ברקוד</th>
+                    <th className="pb-2">מלאי</th>
+                    <th className="pb-2">סף</th>
+                    <th className="pb-2">מיקום</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {editVariants.map((row, idx) => (
+                    <tr key={row.id} className="border-t border-slate-100">
+                      <td className="py-2 font-mono text-xs">{row.sku}</td>
+                      <td className="py-2">{attributesLabel(row.attributes)}</td>
+                      <td className="py-2">
+                        <Input
+                          className="font-mono text-xs"
+                          value={row.barcode}
+                          onChange={(e) => {
+                            const next = [...editVariants];
+                            next[idx] = { ...row, barcode: e.target.value };
+                            setEditVariants(next);
+                          }}
+                        />
+                      </td>
+                      <td className="py-2">{row.quantityOnHand}</td>
+                      <td className="py-2 w-20">
+                        <Input
+                          type="number"
+                          min="0"
+                          value={row.minAlertLevel}
+                          onChange={(e) => {
+                            const next = [...editVariants];
+                            next[idx] = {
+                              ...row,
+                              minAlertLevel: Number(e.target.value) || 0,
+                            };
+                            setEditVariants(next);
+                          }}
+                        />
+                      </td>
+                      <td className="py-2">
+                        <Select
+                          value={row.locationId}
+                          onChange={(e) => {
+                            const next = [...editVariants];
+                            next[idx] = { ...row, locationId: e.target.value };
+                            setEditVariants(next);
+                          }}
+                        >
+                          <option value="">ללא</option>
+                          {locations.map((l) => (
+                            <option key={l.id} value={l.id}>
+                              {l.code}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      ) : category?.hasVariants ? (
         <Card className="space-y-4">
           <div>
             <h2 className="text-lg font-semibold">מחולל מטריצת וריאציות</h2>
@@ -394,7 +599,7 @@ export function ProductForm({
 
       <div className="flex gap-3">
         <Button type="submit" disabled={loading}>
-          {loading ? "שומר..." : "שמור מוצר"}
+          {loading ? "שומר..." : isEdit ? "שמור שינויים" : "שמור מוצר"}
         </Button>
         <Button type="button" variant="secondary" onClick={() => router.back()}>
           ביטול

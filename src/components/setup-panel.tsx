@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Input, Label } from "@/components/ui";
 import { parseJsonArray } from "@/lib/json";
+import { Pencil, Trash2, Check, X } from "lucide-react";
 
 type Category = {
   id: string;
@@ -26,6 +27,14 @@ export function SetupPanel({
   const [supName, setSupName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [editCatId, setEditCatId] = useState<string | null>(null);
+  const [editCatName, setEditCatName] = useState("");
+  const [editCatHasVariants, setEditCatHasVariants] = useState(false);
+  const [editCatAttrs, setEditCatAttrs] = useState("");
+
+  const [editSupId, setEditSupId] = useState<string | null>(null);
+  const [editSupName, setEditSupName] = useState("");
 
   async function addCategory(e: React.FormEvent) {
     e.preventDefault();
@@ -67,6 +76,95 @@ export function SetupPanel({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setSupName("");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שגיאה");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function startEditCategory(c: Category) {
+    setEditCatId(c.id);
+    setEditCatName(c.name);
+    setEditCatHasVariants(c.hasVariants);
+    setEditCatAttrs(parseJsonArray(c.attributeSchema).join(", "));
+  }
+
+  async function saveCategory(id: string) {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/categories/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editCatName,
+          hasVariants: editCatHasVariants,
+          attributeSchema: editCatAttrs,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה");
+      setEditCatId(null);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שגיאה");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deleteCategory(c: Category) {
+    if (!confirm(`למחוק את הקטגוריה "${c.name}"?`)) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/categories/${c.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "שגיאה במחיקה");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שגיאה");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveSupplier(id: string) {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/suppliers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editSupName }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה");
+      setEditSupId(null);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שגיאה");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deleteSupplier(s: { id: string; name: string }) {
+    if (
+      !confirm(
+        `למחוק את הספק "${s.name}"? מוצרים מקושרים יישארו ללא ספק.`
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/suppliers/${s.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "שגיאה במחיקה");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
@@ -119,18 +217,87 @@ export function SetupPanel({
             </Button>
           </form>
 
-          <ul className="mt-6 space-y-2 border-t border-slate-100 pt-4">
+          <ul className="mt-6 space-y-3 border-t border-slate-100 pt-4">
             {categories.length === 0 && (
               <li className="text-sm text-slate-500">אין קטגוריות עדיין</li>
             )}
             {categories.map((c) => (
-              <li key={c.id} className="text-sm">
-                <span className="font-medium">{c.name}</span>
-                {c.hasVariants && (
-                  <span className="text-slate-500">
-                    {" "}
-                    · {parseJsonArray(c.attributeSchema).join(", ") || "וריאציות"}
-                  </span>
+              <li key={c.id} className="rounded-lg border border-slate-100 p-3">
+                {editCatId === c.id ? (
+                  <div className="space-y-2">
+                    <Input
+                      value={editCatName}
+                      onChange={(e) => setEditCatName(e.target.value)}
+                    />
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={editCatHasVariants}
+                        onChange={(e) => setEditCatHasVariants(e.target.checked)}
+                      />
+                      וריאציות
+                    </label>
+                    {editCatHasVariants && (
+                      <Input
+                        value={editCatAttrs}
+                        onChange={(e) => setEditCatAttrs(e.target.value)}
+                        placeholder="Size, Color"
+                      />
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={loading}
+                        onClick={() => saveCategory(c.id)}
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                        שמור
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setEditCatId(null)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        ביטול
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="text-sm">
+                      <span className="font-medium">{c.name}</span>
+                      {c.hasVariants && (
+                        <span className="text-slate-500">
+                          {" "}
+                          ·{" "}
+                          {parseJsonArray(c.attributeSchema).join(", ") ||
+                            "וריאציות"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+                        title="עריכה"
+                        onClick={() => startEditCategory(c)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
+                        title="מחיקה"
+                        disabled={loading}
+                        onClick={() => deleteCategory(c)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
                 )}
               </li>
             ))}
@@ -153,13 +320,64 @@ export function SetupPanel({
             </Button>
           </form>
 
-          <ul className="mt-6 space-y-2 border-t border-slate-100 pt-4">
+          <ul className="mt-6 space-y-3 border-t border-slate-100 pt-4">
             {suppliers.length === 0 && (
               <li className="text-sm text-slate-500">אין ספקים עדיין</li>
             )}
             {suppliers.map((s) => (
-              <li key={s.id} className="text-sm font-medium">
-                {s.name}
+              <li key={s.id} className="rounded-lg border border-slate-100 p-3">
+                {editSupId === s.id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      className="min-w-[140px] flex-1"
+                      value={editSupName}
+                      onChange={(e) => setEditSupName(e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={loading}
+                      onClick={() => saveSupplier(s.id)}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      שמור
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setEditSupId(null)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{s.name}</span>
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+                        title="עריכה"
+                        onClick={() => {
+                          setEditSupId(s.id);
+                          setEditSupName(s.name);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
+                        title="מחיקה"
+                        disabled={loading}
+                        onClick={() => deleteSupplier(s)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

@@ -1,4 +1,5 @@
 export const ROLES = {
+  SUPER_ADMIN: "SUPER_ADMIN",
   ADMIN: "ADMIN",
   WAREHOUSE: "WAREHOUSE",
   VIEWER: "VIEWER",
@@ -7,10 +8,13 @@ export const ROLES = {
 export type Role = (typeof ROLES)[keyof typeof ROLES];
 
 export const ROLE_LABELS: Record<Role, string> = {
+  SUPER_ADMIN: "סופר אדמין",
   ADMIN: "מנהל",
   WAREHOUSE: "מחסנאי",
   VIEWER: "צופה",
 };
+
+export const COMPANY_ROLES = [ROLES.ADMIN, ROLES.WAREHOUSE, ROLES.VIEWER] as const;
 
 export const OUTBOUND_REASONS = [
   { code: "SALE", label: "מכירה" },

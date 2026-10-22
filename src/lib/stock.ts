@@ -159,10 +159,14 @@ export async function transferLocation(
 export async function transferByLocationCode(
   variantId: string,
   locationCode: string,
-  reason = "העברת מיקום בסריקה"
+  reason = "העברת מיקום בסריקה",
+  companyId?: string
 ) {
-  const location = await prisma.warehouseLocation.findUnique({
-    where: { code: locationCode },
+  const location = await prisma.warehouseLocation.findFirst({
+    where: {
+      code: locationCode,
+      ...(companyId ? { companyId } : {}),
+    },
   });
   if (!location) throw new StockError("קוד מיקום לא נמצא");
   return transferLocation(variantId, location.id, reason);

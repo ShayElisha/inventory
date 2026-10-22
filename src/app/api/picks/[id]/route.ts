@@ -8,9 +8,13 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
   const { id } = await params;
-  const list = await prisma.pickList.findUnique({
-    where: { id },
+  const list = await prisma.pickList.findFirst({
+    where: { id, companyId: session.companyId },
     include: {
       items: {
         include: { variant: { include: { product: true, location: true } } },
@@ -29,6 +33,15 @@ export async function PATCH(
   const { id } = await params;
   const body = await req.json();
   const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
+
+  const owned = await prisma.pickList.findFirst({
+    where: { id, companyId: session.companyId },
+    select: { id: true },
+  });
+  if (!owned) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
 
   if (body.action === "pick_item") {
     const item = await prisma.pickListItem.findUnique({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth";
 import { startOfDay, subDays, startOfWeek, startOfMonth } from "date-fns";
 
 function periodStart(period: string) {
@@ -11,6 +12,12 @@ function periodStart(period: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
+  const companyId = session.companyId;
+
   const period = req.nextUrl.searchParams.get("period") || "today";
   const fromParam = req.nextUrl.searchParams.get("from");
   const toParam = req.nextUrl.searchParams.get("to");
@@ -21,16 +28,21 @@ export async function GET(req: NextRequest) {
 
   const [txns, variants, categories] = await Promise.all([
     prisma.stockTransaction.findMany({
-      where: { timestamp: { gte: from, lte: to } },
+      where: {
+        timestamp: { gte: from, lte: to },
+        variant: { product: { companyId } },
+      },
       include: { variant: { include: { product: { include: { category: true } } } } },
     }),
     prisma.productVariant.findMany({
+      where: { product: { companyId } },
       include: {
         product: { include: { category: true } },
         transactions: { orderBy: { timestamp: "desc" }, take: 1 },
       },
     }),
     prisma.category.findMany({
+      where: { companyId },
       include: { products: { include: { variants: true } } },
     }),
   ]);
@@ -85,7 +97,6 @@ export async function GET(req: NextRequest) {
       lastMovement: v.transactions[0]?.timestamp || null,
     }));
 
-  // daily trend of on-hand change
   const trendMap = new Map<string, number>();
   for (const t of txns) {
     const day = t.timestamp.toISOString().slice(0, 10);
@@ -95,18 +106,20 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([day, delta]) => ({ day, delta }));
 
-  // compare periods: current window vs previous equal window
   const windowMs = to.getTime() - from.getTime();
   const prevTo = new Date(from.getTime());
   const prevFrom = new Date(from.getTime() - windowMs);
   const prevTxns = await prisma.stockTransaction.findMany({
-    where: { timestamp: { gte: prevFrom, lt: prevTo } },
+    where: {
+      timestamp: { gte: prevFrom, lt: prevTo },
+      variant: { product: { companyId } },
+    },
   });
   const sumAbs = (arr: { quantityChanged: number }[]) =>
     arr.reduce((s, t) => s + Math.abs(t.quantityChanged), 0);
 
   const closedCounts = await prisma.stockCountSession.findMany({
-    where: { status: "CLOSED" },
+    where: { companyId, status: "CLOSED" },
     include: { lines: true },
     orderBy: { closedAt: "desc" },
     take: 20,

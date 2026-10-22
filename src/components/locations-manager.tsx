@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Input, Label } from "@/components/ui";
+import { Pencil, Trash2, Check, X } from "lucide-react";
 
 type Location = {
   id: string;
@@ -22,6 +23,11 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
   const [bin, setBin] = useState("01");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editZone, setEditZone] = useState("");
+  const [editAisle, setEditAisle] = useState("");
+  const [editShelf, setEditShelf] = useState("");
+  const [editBin, setEditBin] = useState("");
 
   async function createLocation(e: React.FormEvent) {
     e.preventDefault();
@@ -35,6 +41,55 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שגיאה");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function startEdit(l: Location) {
+    setEditId(l.id);
+    setEditZone(l.zone);
+    setEditAisle(l.aisle);
+    setEditShelf(l.shelf);
+    setEditBin(l.bin);
+  }
+
+  async function saveEdit(id: string) {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/locations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          zone: editZone,
+          aisle: editAisle,
+          shelf: editShelf,
+          bin: editBin,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה");
+      setEditId(null);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שגיאה");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function deleteLocation(l: Location) {
+    if (!confirm(`למחוק את המיקום ${l.code}?`)) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/locations/${l.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "שגיאה במחיקה");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
@@ -75,7 +130,7 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
       </Card>
 
       <Card className="lg:col-span-2 overflow-x-auto">
-        <table className="w-full min-w-[480px] text-sm">
+        <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-right text-slate-500">
               <th className="pb-2 font-medium">קוד</th>
@@ -83,20 +138,109 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
               <th className="pb-2 font-medium">מעבר</th>
               <th className="pb-2 font-medium">מדף</th>
               <th className="pb-2 font-medium">תא</th>
-              <th className="pb-2 font-medium">SKU במקום</th>
+              <th className="pb-2 font-medium">SKU</th>
+              <th className="pb-2 font-medium">פעולות</th>
             </tr>
           </thead>
           <tbody>
             {locations.map((l) => (
               <tr key={l.id} className="border-b border-slate-50">
-                <td className="py-2.5 font-mono font-medium">{l.code}</td>
-                <td className="py-2.5">{l.zone}</td>
-                <td className="py-2.5">{l.aisle}</td>
-                <td className="py-2.5">{l.shelf}</td>
-                <td className="py-2.5">{l.bin}</td>
-                <td className="py-2.5">{l._count.variants}</td>
+                {editId === l.id ? (
+                  <>
+                    <td className="py-2 font-mono text-xs text-slate-500">
+                      {editZone.toUpperCase()}-{editAisle}-{editShelf}-{editBin}
+                    </td>
+                    <td className="py-2">
+                      <Input
+                        className="w-16"
+                        value={editZone}
+                        onChange={(e) => setEditZone(e.target.value)}
+                      />
+                    </td>
+                    <td className="py-2">
+                      <Input
+                        className="w-16"
+                        value={editAisle}
+                        onChange={(e) => setEditAisle(e.target.value)}
+                      />
+                    </td>
+                    <td className="py-2">
+                      <Input
+                        className="w-16"
+                        value={editShelf}
+                        onChange={(e) => setEditShelf(e.target.value)}
+                      />
+                    </td>
+                    <td className="py-2">
+                      <Input
+                        className="w-16"
+                        value={editBin}
+                        onChange={(e) => setEditBin(e.target.value)}
+                      />
+                    </td>
+                    <td className="py-2">{l._count.variants}</td>
+                    <td className="py-2">
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          className="rounded-lg p-1.5 text-teal-700 hover:bg-teal-50"
+                          title="שמור"
+                          disabled={loading}
+                          onClick={() => saveEdit(l.id)}
+                        >
+                          <Check className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+                          title="ביטול"
+                          onClick={() => setEditId(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="py-2.5 font-mono font-medium">{l.code}</td>
+                    <td className="py-2.5">{l.zone}</td>
+                    <td className="py-2.5">{l.aisle}</td>
+                    <td className="py-2.5">{l.shelf}</td>
+                    <td className="py-2.5">{l.bin}</td>
+                    <td className="py-2.5">{l._count.variants}</td>
+                    <td className="py-2.5">
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100"
+                          title="עריכה"
+                          onClick={() => startEdit(l)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50"
+                          title="מחיקה"
+                          disabled={loading}
+                          onClick={() => deleteLocation(l)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </>
+                )}
               </tr>
             ))}
+            {locations.length === 0 && (
+              <tr>
+                <td colSpan={7} className="py-6 text-center text-slate-500">
+                  אין מיקומים עדיין
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </Card>

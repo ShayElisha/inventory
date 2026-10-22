@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Badge, Card, Select } from "@/components/ui";
+import { Badge, Button, Card, Select } from "@/components/ui";
 import { attributesLabel, formatDateTime } from "@/lib/utils";
-import { ChevronDown, ChevronLeft, History } from "lucide-react";
+import { ChevronDown, ChevronLeft, History, Pencil, Trash2 } from "lucide-react";
 import { unitLabel } from "@/lib/constants";
 
 type Variant = {
@@ -54,6 +55,8 @@ export function ProductsCatalog({
   const [openId, setOpenId] = useState<string | null>(products[0]?.id ?? null);
   const [history, setHistory] = useState<ChangeLog[]>([]);
   const [historyFor, setHistoryFor] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!historyFor) return;
@@ -72,8 +75,35 @@ export function ProductsCatalog({
     router.push(`/products?${sp.toString()}`);
   }
 
+  async function deleteProduct(p: Product) {
+    if (
+      !confirm(
+        `למחוק את המוצר "${p.title}" ואת כל הוריאציות שלו? פעולה זו בלתי הפיכה.`
+      )
+    ) {
+      return;
+    }
+    setBusyId(p.id);
+    setError("");
+    try {
+      const res = await fetch(`/api/products/${p.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "שגיאה במחיקה");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שגיאה במחיקה");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </div>
+      )}
       <Card className="flex flex-wrap gap-3">
         <div className="min-w-[160px] flex-1">
           <Select
@@ -124,32 +154,58 @@ export function ProductsCatalog({
           const hasLow = p.variants.some((v) => v.quantityOnHand <= v.minAlertLevel);
           return (
             <Card key={p.id} className="p-0 overflow-hidden">
-              <button
-                type="button"
-                className="flex w-full items-center gap-3 px-5 py-4 text-right hover:bg-slate-50"
-                onClick={() => setOpenId(open ? null : p.id)}
-              >
-                {open ? (
-                  <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
-                ) : (
-                  <ChevronLeft className="h-4 w-4 shrink-0 text-slate-400" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-slate-900">{p.title}</span>
-                    <Badge>{p.category.name}</Badge>
-                    {hasLow && <Badge tone="danger">מלאי נמוך</Badge>}
+              <div className="flex items-center gap-2 px-3 py-3 sm:px-5 sm:py-4">
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-3 text-right hover:opacity-90"
+                  onClick={() => setOpenId(open ? null : p.id)}
+                >
+                  {open ? (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+                  ) : (
+                    <ChevronLeft className="h-4 w-4 shrink-0 text-slate-400" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-slate-900">{p.title}</span>
+                      <Badge>{p.category.name}</Badge>
+                      {hasLow && <Badge tone="danger">מלאי נמוך</Badge>}
+                    </div>
+                    <div className="mt-1 text-xs text-slate-500">
+                      מק״ט בסיס: {p.baseSku} · {p.variants.length} וריאציות · סה״כ{" "}
+                      {totalQty} {unitLabel(p.unitOfMeasure || "UNIT")}
+                      {p.supplier ? ` · ${p.supplier.name}` : ""}
+                    </div>
                   </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    מק״ט בסיס: {p.baseSku} · {p.variants.length} וריאציות · סה״כ{" "}
-                    {totalQty} {unitLabel(p.unitOfMeasure || "UNIT")}
-                    {p.supplier ? ` · ${p.supplier.name}` : ""}
+                  <div className="hidden text-sm text-slate-600 sm:block">
+                    ₪{p.sellingPrice}
                   </div>
+                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Link
+                    href={`/products/${p.id}/edit`}
+                    className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50"
+                    title="עריכה"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Link>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="p-2 text-rose-600 hover:bg-rose-50"
+                    title="מחיקה"
+                    disabled={busyId === p.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteProduct(p);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="hidden text-sm text-slate-600 sm:block">
-                  ₪{p.sellingPrice}
-                </div>
-              </button>
+              </div>
 
               {open && (
                 <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-3">

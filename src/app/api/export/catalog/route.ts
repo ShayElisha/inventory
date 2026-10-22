@@ -2,9 +2,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { toCsv } from "@/lib/export";
 import { attributesLabel } from "@/lib/utils";
+import { getSession } from "@/lib/auth";
 
 export async function GET() {
+  const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
   const variants = await prisma.productVariant.findMany({
+    where: { product: { companyId: session.companyId } },
     include: {
       product: { include: { category: true, supplier: true } },
       location: true,

@@ -4,7 +4,12 @@ import { getSession } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 
 export async function GET() {
+  const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
   const sessions = await prisma.stockCountSession.findMany({
+    where: { companyId: session.companyId },
     include: { _count: { select: { lines: true } }, createdBy: true },
     orderBy: { createdAt: "desc" },
   });
@@ -13,14 +18,19 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
+  if (!session?.companyId) {
+    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+  }
   const { name, zone, shelf } = await req.json();
   if (!name) return NextResponse.json({ error: "שם חובה" }, { status: 400 });
 
   const variants = await prisma.productVariant.findMany({
     where: {
+      product: { companyId: session.companyId },
       ...(zone || shelf
         ? {
             location: {
+              companyId: session.companyId,
               ...(zone ? { zone } : {}),
               ...(shelf ? { shelf } : {}),
             },
@@ -39,10 +49,11 @@ export async function POST(req: NextRequest) {
 
   const count = await prisma.stockCountSession.create({
     data: {
+      companyId: session.companyId,
       name,
       zone: zone || null,
       shelf: shelf || null,
-      createdById: session?.id || null,
+      createdById: session.id,
       lines: {
         create: variants.map((v) => ({
           variantId: v.id,

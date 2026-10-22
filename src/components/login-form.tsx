@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Card, Input, Label } from "@/components/ui";
+import { Button, Input, Label } from "@/components/ui";
 
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const [email, setEmail] = useState("admin@inventory.local");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +24,12 @@ export function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
-      router.push(params.get("next") || "/");
+      const next = params.get("next");
+      if (data.user?.isSuperAdmin || data.user?.role === "SUPER_ADMIN") {
+        router.push(next?.startsWith("/admin") ? next : "/admin");
+      } else {
+        router.push(next || "/dashboard");
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
@@ -34,42 +39,40 @@ export function LoginForm() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-md items-center px-4">
-      <Card className="w-full space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold">התחברות</h1>
-          <p className="mt-1 text-sm text-slate-500">מנהל / מחסנאי / צופה</p>
-        </div>
-        <form onSubmit={onSubmit} className="space-y-3">
-          <div>
-            <Label>אימייל</Label>
-            <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              type="email"
-              required
-            />
-          </div>
-          <div>
-            <Label>סיסמה</Label>
-            <Input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              required
-            />
-          </div>
-          {error && <p className="text-sm text-rose-600">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "מתחבר..." : "כניסה"}
-          </Button>
-        </form>
-        <div className="space-y-1 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
-          <div>admin@inventory.local / admin123</div>
-          <div>warehouse@inventory.local / wh123</div>
-          <div>viewer@inventory.local / view123</div>
-        </div>
-      </Card>
-    </div>
+    <form
+      onSubmit={onSubmit}
+      className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur"
+    >
+      <div>
+        <Label>אימייל</Label>
+        <Input
+          className="border-white/20 bg-white/10 text-white"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          type="email"
+          required
+          autoComplete="email"
+        />
+      </div>
+      <div>
+        <Label>סיסמה</Label>
+        <Input
+          className="border-white/20 bg-white/10 text-white"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          type="password"
+          required
+          autoComplete="current-password"
+        />
+      </div>
+      {error && <p className="text-sm text-rose-300">{error}</p>}
+      <Button
+        type="submit"
+        className="w-full bg-[#b8e06a] text-[#0b1613] hover:bg-[#c8eb84]"
+        disabled={loading}
+      >
+        {loading ? "מתחבר..." : "כניסה"}
+      </Button>
+    </form>
   );
 }

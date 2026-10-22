@@ -3,10 +3,11 @@ import { prisma } from "@/lib/db";
 import {
   createSession,
   ensureDefaultUsers,
+  isSuperAdmin,
   verifyPassword,
 } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
-import { Role } from "@/lib/constants";
+import { Role, ROLES } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
   await ensureDefaultUsers();
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { email: String(email).trim().toLowerCase() },
+    include: { company: true },
   });
   if (!user || !user.active) {
     return NextResponse.json({ error: "פרטי התחברות שגויים" }, { status: 401 });
@@ -26,11 +28,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "פרטי התחברות שגויים" }, { status: 401 });
   }
 
+  if (
+    user.role !== ROLES.SUPER_ADMIN &&
+    user.company &&
+    !user.company.active
+  ) {
+    return NextResponse.json(
+      { error: "החברה מושעית. פנו למנהל הפלטפורמה." },
+      { status: 403 }
+    );
+  }
+
   await createSession({
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role as Role,
+    companyId: user.companyId,
+    companyName: user.company.name,
   });
 
   const ip =
@@ -43,10 +58,18 @@ export async function POST(req: NextRequest) {
     entityId: user.id,
     ip,
     userId: user.id,
-    details: { email: user.email },
+    details: { email: user.email, companyId: user.companyId },
   });
 
   return NextResponse.json({
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      companyId: user.companyId,
+      companyName: user.company.name,
+      isSuperAdmin: isSuperAdmin(user.role),
+    },
   });
 }
