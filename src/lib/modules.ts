@@ -6,7 +6,7 @@ export const SELLABLE_MODULES = [
     label: "קליטה",
     description: "קליטת סחורה למלאי",
     navHrefs: ["/inbound", "/purchases"],
-    apiPrefixes: ["/api/stock/inbound", "/api/purchase-orders", "/api/stock/rma"],
+    apiPrefixes: ["/api/stock/inbound", "/api/purchase-orders"],
     pagePrefixes: ["/inbound", "/purchases"],
   },
   {
@@ -26,11 +26,24 @@ export const SELLABLE_MODULES = [
     label: "ליקוט",
     description: "רשימות ליקוט ותבניות ליקוט",
     navHrefs: ["/picks"],
-    apiPrefixes: [
-      "/api/picks",
-      "/api/pick-templates",
-    ],
+    apiPrefixes: ["/api/picks", "/api/pick-templates"],
     pagePrefixes: ["/picks"],
+  },
+  {
+    id: "commerce" as const,
+    label: "לקוחות ומחירונים",
+    description: "כרטיסי לקוח, מחירונים ומחירי לקוח",
+    navHrefs: ["/customers", "/price-lists"],
+    apiPrefixes: ["/api/customers", "/api/price-lists"],
+    pagePrefixes: ["/customers", "/price-lists"],
+  },
+  {
+    id: "returns" as const,
+    label: "החזרות",
+    description: "החזרות לקוח (RMA) והחזרה לספק",
+    navHrefs: ["/returns"],
+    apiPrefixes: ["/api/returns", "/api/stock/rma"],
+    pagePrefixes: ["/returns"],
   },
 ] as const;
 
@@ -42,17 +55,23 @@ export const DEFAULT_MODULES: CompanyModules = {
   inbound: true,
   sales: true,
   pick: true,
+  commerce: false,
+  returns: false,
 };
 
 export function modulesFromCompany(c: {
   modInbound?: boolean;
   modSales?: boolean;
   modPick?: boolean;
+  modCommerce?: boolean;
+  modReturns?: boolean;
 }): CompanyModules {
   return {
     inbound: c.modInbound !== false,
     sales: c.modSales !== false,
     pick: c.modPick !== false,
+    commerce: Boolean(c.modCommerce),
+    returns: Boolean(c.modReturns),
   };
 }
 

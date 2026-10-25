@@ -34,6 +34,8 @@ type Company = {
   modInbound: boolean;
   modSales: boolean;
   modPick: boolean;
+  modCommerce: boolean;
+  modReturns: boolean;
   createdAt: string;
   users: UserRow[];
   _count: {
@@ -56,6 +58,8 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
   const [modInbound, setModInbound] = useState(company.modInbound !== false);
   const [modSales, setModSales] = useState(company.modSales !== false);
   const [modPick, setModPick] = useState(company.modPick !== false);
+  const [modCommerce, setModCommerce] = useState(Boolean(company.modCommerce));
+  const [modReturns, setModReturns] = useState(Boolean(company.modReturns));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -82,6 +86,8 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
           modInbound,
           modSales,
           modPick,
+          modCommerce,
+          modReturns,
         }),
       });
       const data = await res.json();
@@ -91,6 +97,8 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
       if (data.modInbound != null) setModInbound(data.modInbound);
       if (data.modSales != null) setModSales(data.modSales);
       if (data.modPick != null) setModPick(data.modPick);
+      if (data.modCommerce != null) setModCommerce(data.modCommerce);
+      if (data.modReturns != null) setModReturns(data.modReturns);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
@@ -244,14 +252,21 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
         <p className="mb-4 text-sm text-[var(--muted)]">
           מדליקים לפי מה שהלקוח רכש. ליבה (מוצרים, מלאי, הגדרות) תמיד פעילה.
         </p>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(
             [
-              ["קליטה", modInbound, setModInbound],
-              ["מכירה", modSales, setModSales],
-              ["ליקוט", modPick, setModPick],
+              ["קליטה", "מסך קליטה למלאי", modInbound, setModInbound],
+              ["מכירה", "ניפוק ותבניות ניפוק", modSales, setModSales],
+              ["ליקוט", "רשימות ותבניות ליקוט", modPick, setModPick],
+              [
+                "לקוחות ומחירונים",
+                "כרטיסי לקוח ומחירונים",
+                modCommerce,
+                setModCommerce,
+              ],
+              ["החזרות", "RMA לקוח והחזרה לספק", modReturns, setModReturns],
             ] as const
-          ).map(([label, value, setValue]) => (
+          ).map(([label, hint, value, setValue]) => (
             <label
               key={label}
               className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3"
@@ -264,11 +279,7 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
               />
               <span>
                 <span className="block font-medium">{label}</span>
-                <span className="text-xs text-[var(--muted)]">
-                  {label === "קליטה" && "מסך קליטה למלאי"}
-                  {label === "מכירה" && "ניפוק ותבניות ניפוק"}
-                  {label === "ליקוט" && "רשימות ותבניות ליקוט"}
-                </span>
+                <span className="text-xs text-[var(--muted)]">{hint}</span>
               </span>
             </label>
           ))}

@@ -71,6 +71,8 @@ export async function PATCH(
       modInbound?: boolean;
       modSales?: boolean;
       modPick?: boolean;
+      modCommerce?: boolean;
+      modReturns?: boolean;
     } = {};
 
     if (body.name != null) {
@@ -95,6 +97,10 @@ export async function PATCH(
     if (body.modInbound !== undefined) data.modInbound = Boolean(body.modInbound);
     if (body.modSales !== undefined) data.modSales = Boolean(body.modSales);
     if (body.modPick !== undefined) data.modPick = Boolean(body.modPick);
+    if (body.modCommerce !== undefined)
+      data.modCommerce = Boolean(body.modCommerce);
+    if (body.modReturns !== undefined)
+      data.modReturns = Boolean(body.modReturns);
     if (body.slug != null) {
       let slug = slugifyCompany(String(body.slug));
       if (slug === "platform") {

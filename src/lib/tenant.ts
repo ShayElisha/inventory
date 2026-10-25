@@ -32,7 +32,13 @@ export async function getCompanyModules(
 ): Promise<CompanyModules> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { modInbound: true, modSales: true, modPick: true },
+    select: {
+      modInbound: true,
+      modSales: true,
+      modPick: true,
+      modCommerce: true,
+      modReturns: true,
+    },
   });
   return modulesFromCompany(company || {});
 }

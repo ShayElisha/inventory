@@ -31,6 +31,9 @@ import {
   SlidersHorizontal,
   ShoppingCart,
   FileSpreadsheet,
+  Contact,
+  Tags,
+  Undo2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -72,6 +75,9 @@ const groups: NavGroup[] = [
     items: [
       { href: "/pick", label: "ניפוק", icon: PackageMinus },
       { href: "/orders", label: "הזמנות לקוח", icon: ShoppingCart },
+      { href: "/customers", label: "לקוחות", icon: Contact },
+      { href: "/price-lists", label: "מחירונים", icon: Tags },
+      { href: "/returns", label: "החזרות", icon: Undo2 },
       { href: "/inbound", label: "קליטה מלאה", icon: PackagePlus },
       { href: "/purchases", label: "רכש / PO", icon: FileSpreadsheet },
       { href: "/scan", label: "סריקה", icon: ScanBarcode },

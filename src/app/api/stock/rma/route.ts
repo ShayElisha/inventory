@@ -8,7 +8,7 @@ import { applyStockChange, StockError } from "@/lib/stock";
 /** החזרה לספק (RMA יוצא) — מנפק מהמלאי ומפיק מסמך RMA */
 export async function POST(req: NextRequest) {
   try {
-    const gate = await assertModuleApi("inbound");
+    const gate = await assertModuleApi("returns");
     if (gate.error) return gate.error;
     const session = gate.session!;
     if (!canWrite(session.role)) {

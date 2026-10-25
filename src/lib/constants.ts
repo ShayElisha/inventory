@@ -53,6 +53,29 @@ export const SO_STATUSES = [
   { code: "CANCELLED", label: "בוטל" },
 ] as const;
 
+export const RMA_STATUSES = [
+  { code: "OPEN", label: "פתוח" },
+  { code: "RECEIVED", label: "התקבל" },
+  { code: "INSPECTED", label: "נבדק" },
+  { code: "CREDITED", label: "זוכה" },
+  { code: "REJECTED", label: "נדחה" },
+  { code: "CANCELLED", label: "בוטל" },
+] as const;
+
+export const RMA_REASONS = [
+  { code: "DAMAGE", label: "נזק" },
+  { code: "WRONG_ITEM", label: "פריט שגוי" },
+  { code: "CUSTOMER_CHANGE", label: "שינוי דעת לקוח" },
+  { code: "OTHER", label: "אחר" },
+] as const;
+
+export const RMA_CONDITIONS = [
+  { code: "UNKNOWN", label: "לא ידוע" },
+  { code: "SELLABLE", label: "ניתן למכירה" },
+  { code: "DAMAGED", label: "פגום" },
+  { code: "REFURBISH", label: "לשיפוץ" },
+] as const;
+
 export function unitLabel(code: string) {
   return UNIT_OF_MEASURE.find((u) => u.code === code)?.label ?? code;
 }
