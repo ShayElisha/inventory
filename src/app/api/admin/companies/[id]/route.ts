@@ -62,18 +62,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const data: {
-      name?: string;
-      phone?: string | null;
-      active?: boolean;
-      approved?: boolean;
-      slug?: string;
-      modInbound?: boolean;
-      modSales?: boolean;
-      modPick?: boolean;
-      modCommerce?: boolean;
-      modReturns?: boolean;
-    } = {};
+    const data: Record<string, unknown> = {};
 
     if (body.name != null) {
       const name = String(body.name).trim();
@@ -94,13 +83,23 @@ export async function PATCH(
       // הפעלה מחדש / אישור ממתינה — מאשרים גם את החברה
       if (data.active) data.approved = true;
     }
-    if (body.modInbound !== undefined) data.modInbound = Boolean(body.modInbound);
-    if (body.modSales !== undefined) data.modSales = Boolean(body.modSales);
-    if (body.modPick !== undefined) data.modPick = Boolean(body.modPick);
-    if (body.modCommerce !== undefined)
-      data.modCommerce = Boolean(body.modCommerce);
-    if (body.modReturns !== undefined)
-      data.modReturns = Boolean(body.modReturns);
+    const modFlags = [
+      "modInbound",
+      "modSales",
+      "modPick",
+      "modCommerce",
+      "modReturns",
+      "modTransfers",
+      "modShipments",
+      "modLots",
+      "modSerials",
+      "modKits",
+      "modReorder",
+      "modReportsPro",
+    ] as const;
+    for (const key of modFlags) {
+      if (body[key] !== undefined) data[key] = Boolean(body[key]);
+    }
     if (body.slug != null) {
       let slug = slugifyCompany(String(body.slug));
       if (slug === "platform") {

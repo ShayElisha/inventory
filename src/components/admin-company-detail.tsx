@@ -14,6 +14,11 @@ import { PasswordInput } from "@/components/password-input";
 import { validatePassword } from "@/lib/password";
 import { ROLE_LABELS, COMPANY_ROLES } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
+import {
+  ModuleFlag,
+  modulesFromCompany,
+  SELLABLE_MODULES,
+} from "@/lib/modules";
 
 type UserRow = {
   id: string;
@@ -31,11 +36,18 @@ type Company = {
   phone: string | null;
   approved: boolean;
   active: boolean;
-  modInbound: boolean;
-  modSales: boolean;
-  modPick: boolean;
-  modCommerce: boolean;
-  modReturns: boolean;
+  modInbound?: boolean;
+  modSales?: boolean;
+  modPick?: boolean;
+  modCommerce?: boolean;
+  modReturns?: boolean;
+  modTransfers?: boolean;
+  modShipments?: boolean;
+  modLots?: boolean;
+  modSerials?: boolean;
+  modKits?: boolean;
+  modReorder?: boolean;
+  modReportsPro?: boolean;
   createdAt: string;
   users: UserRow[];
   _count: {
@@ -48,6 +60,14 @@ type Company = {
   };
 };
 
+function flagsFromModules(
+  mods: ReturnType<typeof modulesFromCompany>
+): Record<ModuleFlag, boolean> {
+  return Object.fromEntries(
+    SELLABLE_MODULES.map((m) => [m.flag, mods[m.id]])
+  ) as Record<ModuleFlag, boolean>;
+}
+
 export function AdminCompanyDetail({ company }: { company: Company }) {
   const router = useRouter();
   const [name, setName] = useState(company.name);
@@ -55,11 +75,9 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
   const [phone, setPhone] = useState(company.phone || "");
   const [approved, setApproved] = useState(company.approved);
   const [active, setActive] = useState(company.active);
-  const [modInbound, setModInbound] = useState(company.modInbound !== false);
-  const [modSales, setModSales] = useState(company.modSales !== false);
-  const [modPick, setModPick] = useState(company.modPick !== false);
-  const [modCommerce, setModCommerce] = useState(Boolean(company.modCommerce));
-  const [modReturns, setModReturns] = useState(Boolean(company.modReturns));
+  const [mods, setMods] = useState(() =>
+    flagsFromModules(modulesFromCompany(company))
+  );
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -83,22 +101,14 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
           phone,
           approved,
           active,
-          modInbound,
-          modSales,
-          modPick,
-          modCommerce,
-          modReturns,
+          ...mods,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
       if (data.approved != null) setApproved(data.approved);
       if (data.active != null) setActive(data.active);
-      if (data.modInbound != null) setModInbound(data.modInbound);
-      if (data.modSales != null) setModSales(data.modSales);
-      if (data.modPick != null) setModPick(data.modPick);
-      if (data.modCommerce != null) setModCommerce(data.modCommerce);
-      if (data.modReturns != null) setModReturns(data.modReturns);
+      setMods(flagsFromModules(modulesFromCompany(data)));
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
@@ -253,33 +263,24 @@ export function AdminCompanyDetail({ company }: { company: Company }) {
           מדליקים לפי מה שהלקוח רכש. ליבה (מוצרים, מלאי, הגדרות) תמיד פעילה.
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(
-            [
-              ["קליטה", "מסך קליטה למלאי", modInbound, setModInbound],
-              ["מכירה", "ניפוק ותבניות ניפוק", modSales, setModSales],
-              ["ליקוט", "רשימות ותבניות ליקוט", modPick, setModPick],
-              [
-                "לקוחות ומחירונים",
-                "כרטיסי לקוח ומחירונים",
-                modCommerce,
-                setModCommerce,
-              ],
-              ["החזרות", "RMA לקוח והחזרה לספק", modReturns, setModReturns],
-            ] as const
-          ).map(([label, hint, value, setValue]) => (
+          {SELLABLE_MODULES.map((m) => (
             <label
-              key={label}
+              key={m.id}
               className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3"
             >
               <input
                 type="checkbox"
                 className="mt-1"
-                checked={value}
-                onChange={(e) => setValue(e.target.checked)}
+                checked={mods[m.flag]}
+                onChange={(e) =>
+                  setMods((prev) => ({ ...prev, [m.flag]: e.target.checked }))
+                }
               />
               <span>
-                <span className="block font-medium">{label}</span>
-                <span className="text-xs text-[var(--muted)]">{hint}</span>
+                <span className="block font-medium">{m.label}</span>
+                <span className="text-xs text-[var(--muted)]">
+                  {m.description}
+                </span>
               </span>
             </label>
           ))}

@@ -63,7 +63,7 @@ type Report = {
   }[];
 };
 
-export function ReportsPanel() {
+export function ReportsPanel({ premium = false }: { premium?: boolean }) {
   const [period, setPeriod] = useState("today");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -152,7 +152,7 @@ export function ReportsPanel() {
                 )
               </div>
             </Card>
-            {data.inventoryValue && (
+            {premium && data.inventoryValue && (
               <Card>
                 <div className="text-sm text-[var(--muted)]">שווי מלאי (עלות)</div>
                 <div className="mt-1 text-2xl font-bold">
@@ -163,7 +163,7 @@ export function ReportsPanel() {
                 </div>
               </Card>
             )}
-            {data.grossMargin && (
+            {premium && data.grossMargin && (
               <Card>
                 <div className="text-sm text-[var(--muted)]">רווחיות גולמית (תקופה)</div>
                 <div className="mt-1 text-2xl font-bold">
@@ -177,7 +177,7 @@ export function ReportsPanel() {
             )}
           </div>
 
-          {(data.abc || data.aging) && (
+          {premium && (data.abc || data.aging) && (
             <div className="grid gap-4 lg:grid-cols-2">
               {data.abc && (
                 <Card>

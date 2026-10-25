@@ -117,6 +117,11 @@ export async function middleware(req: NextRequest) {
       "/api/customers",
       "/api/price-lists",
       "/api/returns",
+      "/api/transfers",
+      "/api/shipments",
+      "/api/lots",
+      "/api/serials",
+      "/api/reorder",
       "/api/kits",
     ];
     const isWrite =

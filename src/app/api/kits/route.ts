@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession, canWrite } from "@/lib/auth";
+import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { applyStockChange, StockError } from "@/lib/stock";
+import { assertModuleApi } from "@/lib/tenant";
 
 export async function GET() {
-  const session = await getSession();
-  if (!session?.companyId) {
-    return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
-  }
+  const gate = await assertModuleApi("kits");
+  if (gate.error) return gate.error;
+  const session = gate.session!;
   const kits = await prisma.product.findMany({
     where: { companyId: session.companyId, isKit: true },
     include: {
@@ -24,8 +24,10 @@ export async function GET() {
 
 /** הגדרת רכיבי קיט / הרכבה / פירוק */
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session?.companyId || !canWrite(session.role)) {
+  const gate = await assertModuleApi("kits");
+  if (gate.error) return gate.error;
+  const session = gate.session!;
+  if (!canWrite(session.role)) {
     return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
   }
   const body = await req.json();

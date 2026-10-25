@@ -34,6 +34,13 @@ import {
   Contact,
   Tags,
   Undo2,
+  Truck,
+  CalendarClock,
+  Hash,
+  Combine,
+  RefreshCw,
+  Sparkles,
+  Warehouse,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -78,8 +85,10 @@ const groups: NavGroup[] = [
       { href: "/customers", label: "לקוחות", icon: Contact },
       { href: "/price-lists", label: "מחירונים", icon: Tags },
       { href: "/returns", label: "החזרות", icon: Undo2 },
+      { href: "/shipments", label: "משלוחים", icon: Truck },
       { href: "/inbound", label: "קליטה מלאה", icon: PackagePlus },
       { href: "/purchases", label: "רכש / PO", icon: FileSpreadsheet },
+      { href: "/transfers", label: "העברות", icon: Warehouse },
       { href: "/scan", label: "סריקה", icon: ScanBarcode },
       { href: "/stock", label: "תנועות", icon: ArrowLeftRight },
     ],
@@ -91,6 +100,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/picks", label: "ליקוט ותבניות", icon: ClipboardList },
       { href: "/counts", label: "ספירה", icon: Calculator },
+      { href: "/kits", label: "קיטים", icon: Combine },
     ],
   },
   {
@@ -100,6 +110,9 @@ const groups: NavGroup[] = [
     items: [
       { href: "/products", label: "מוצרים", icon: Package },
       { href: "/locations", label: "מיקומים", icon: MapPin },
+      { href: "/lots", label: "אצוות", icon: CalendarClock },
+      { href: "/serials", label: "סריאליים", icon: Hash },
+      { href: "/reorder", label: "הזמנות חוזרות", icon: RefreshCw },
       { href: "/tools", label: "ייבוא", icon: Wrench },
     ],
   },
@@ -109,6 +122,7 @@ const groups: NavGroup[] = [
     icon: LineChart,
     items: [
       { href: "/reports", label: "דוחות", icon: BarChart3 },
+      { href: "/reports-pro", label: "דוחות פרימיום", icon: Sparkles },
       { href: "/export", label: "ייצוא", icon: Download },
     ],
   },

@@ -38,6 +38,13 @@ export async function getCompanyModules(
       modPick: true,
       modCommerce: true,
       modReturns: true,
+      modTransfers: true,
+      modShipments: true,
+      modLots: true,
+      modSerials: true,
+      modKits: true,
+      modReorder: true,
+      modReportsPro: true,
     },
   });
   return modulesFromCompany(company || {});
