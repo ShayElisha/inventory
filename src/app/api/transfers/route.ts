@@ -3,6 +3,12 @@ import { prisma } from "@/lib/db";
 import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
+import {
+  assertLocationsOwned,
+  assertVariantsOwned,
+  assertWarehousesOwned,
+  forbiddenTenant,
+} from "@/lib/tenant-guard";
 
 export async function GET() {
   const gate = await assertModuleApi("transfers");
@@ -39,6 +45,30 @@ export async function POST(req: NextRequest) {
   const items = Array.isArray(body.items) ? body.items : [];
   if (!items.length) {
     return NextResponse.json({ error: "הוסיפו לפחות שורה" }, { status: 400 });
+  }
+
+  const variantIds = items.map((i: { variantId?: string }) =>
+    String(i.variantId || "")
+  );
+  if (!(await assertVariantsOwned(session.companyId, variantIds))) {
+    return forbiddenTenant();
+  }
+  if (
+    !(await assertWarehousesOwned(session.companyId, [
+      body.fromWarehouseId,
+      body.toWarehouseId,
+    ]))
+  ) {
+    return forbiddenTenant("מחסן לא שייך לחברה");
+  }
+  const locationIds = items.flatMap(
+    (i: { fromLocationId?: string; toLocationId?: string }) => [
+      i.fromLocationId,
+      i.toLocationId,
+    ]
+  );
+  if (!(await assertLocationsOwned(session.companyId, locationIds))) {
+    return forbiddenTenant("מיקום לא שייך לחברה");
   }
 
   const number =

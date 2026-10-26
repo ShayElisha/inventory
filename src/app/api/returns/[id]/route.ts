@@ -129,6 +129,25 @@ export async function POST(
       locationId?: string;
     }[] = Array.isArray(body.lines) ? body.lines : [];
 
+    const locationIds = [
+      ...new Set(
+        receipts
+          .map((r) => r.locationId)
+          .filter((x): x is string => Boolean(x))
+      ),
+    ];
+    if (locationIds.length) {
+      const locCount = await prisma.warehouseLocation.count({
+        where: { id: { in: locationIds }, companyId: session.companyId },
+      });
+      if (locCount !== locationIds.length) {
+        return NextResponse.json(
+          { error: "מיקום לא שייך לחברה" },
+          { status: 403 }
+        );
+      }
+    }
+
     const results: { lineId: string; ok: boolean; error?: string }[] = [];
 
     for (const line of existing.lines) {

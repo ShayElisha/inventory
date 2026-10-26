@@ -73,7 +73,8 @@ export async function PATCH(
       quantityChanged: qty,
       reason: `ליקוט הזמנה`,
       reasonCode: "SALE",
-      userId: session?.id,
+      userId: session.id,
+      companyId: session.companyId,
     });
 
     const pickedQty = item.pickedQty + qty;

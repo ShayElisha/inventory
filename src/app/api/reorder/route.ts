@@ -3,6 +3,11 @@ import { prisma } from "@/lib/db";
 import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
+import {
+  assertSupplierOwned,
+  assertVariantsOwned,
+  forbiddenTenant,
+} from "@/lib/tenant-guard";
 
 export async function GET(req: NextRequest) {
   const gate = await assertModuleApi("reorder");
@@ -59,6 +64,17 @@ export async function POST(req: NextRequest) {
     if (!items.length) {
       return NextResponse.json({ error: "אין שורות" }, { status: 400 });
     }
+    if (
+      !(await assertVariantsOwned(
+        session.companyId,
+        items.map((i) => String(i.variantId))
+      ))
+    ) {
+      return forbiddenTenant();
+    }
+    if (!(await assertSupplierOwned(session.companyId, body.supplierId))) {
+      return forbiddenTenant("ספק לא שייך לחברה");
+    }
     const number = `PO-R-${Date.now().toString(36).toUpperCase()}`;
     const po = await prisma.purchaseOrder.create({
       data: {
@@ -96,6 +112,9 @@ export async function POST(req: NextRequest) {
   });
   if (!variant) {
     return NextResponse.json({ error: "וריאנט לא נמצא" }, { status: 404 });
+  }
+  if (!(await assertSupplierOwned(session.companyId, body.supplierId))) {
+    return forbiddenTenant("ספק לא שייך לחברה");
   }
 
   const rule = await prisma.reorderRule.upsert({

@@ -76,6 +76,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "קטגוריה לא נמצאה" }, { status: 400 });
     }
 
+    if (supplierId) {
+      const supplier = await prisma.supplier.findFirst({
+        where: { id: String(supplierId), companyId: session.companyId },
+      });
+      if (!supplier) {
+        return NextResponse.json({ error: "ספק לא שייך לחברה" }, { status: 403 });
+      }
+    }
+
     const schema = parseJsonArray(category.attributeSchema);
 
     const product = await prisma.$transaction(async (tx) => {
@@ -165,9 +174,26 @@ export async function POST(req: NextRequest) {
         ];
       }
 
+      const locIds = [
+        ...new Set(
+          rows
+            .map((r) => r.locationId)
+            .filter((x): x is string => Boolean(x))
+        ),
+      ];
+      if (locIds.length) {
+        const locCount = await tx.warehouseLocation.count({
+          where: { id: { in: locIds }, companyId: session.companyId },
+        });
+        if (locCount !== locIds.length) {
+          throw new Error("מיקום לא שייך לחברה");
+        }
+      }
+
       for (const row of rows) {
         const variant = await tx.productVariant.create({
           data: {
+            companyId: session.companyId,
             productId: created.id,
             sku: row.sku,
             barcode: row.barcode,

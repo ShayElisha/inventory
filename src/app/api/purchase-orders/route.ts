@@ -47,10 +47,18 @@ export async function POST(req: NextRequest) {
 
   const variantIds = items.map((i: { variantId: string }) => String(i.variantId));
   const owned = await prisma.productVariant.count({
-    where: { id: { in: variantIds }, product: { companyId: session.companyId } },
+    where: { id: { in: variantIds }, companyId: session.companyId },
   });
   if (owned !== variantIds.length) {
     return NextResponse.json({ error: "יש פריטים שאינם שייכים לחברה" }, { status: 400 });
+  }
+  if (supplierId) {
+    const supplier = await prisma.supplier.findFirst({
+      where: { id: String(supplierId), companyId: session.companyId },
+    });
+    if (!supplier) {
+      return NextResponse.json({ error: "ספק לא שייך לחברה" }, { status: 403 });
+    }
   }
 
   const po = await prisma.purchaseOrder.create({

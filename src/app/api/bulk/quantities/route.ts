@@ -1,14 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
-import { applyStockChange } from "@/lib/stock";
-import { getSession } from "@/lib/auth";
+import { applyStockChange, StockError } from "@/lib/stock";
 import { writeAudit } from "@/lib/audit";
+import {
+  assertVariantsOwned,
+  requireWriteSession,
+} from "@/lib/tenant-guard";
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
+  const gate = await requireWriteSession();
+  if (gate.error) return gate.error;
+  const session = gate.session;
+
   const { items, mode } = await req.json();
-  // mode: set | delta
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: "אין פריטים" }, { status: 400 });
+  }
+
+  const variantIds = items.map((i: { variantId: string }) =>
+    String(i.variantId)
+  );
+  const owned = await assertVariantsOwned(session.companyId, variantIds);
+  if (!owned) {
+    return NextResponse.json(
+      { error: "חלק מהפריטים לא שייכים לחברה" },
+      { status: 403 }
+    );
   }
 
   const results = [];
@@ -22,9 +38,14 @@ export async function POST(req: NextRequest) {
           setQuantityTo: Number(item.quantity),
           reason: item.reason || "עדכון כמותי (bulk)",
           reasonCode: "BULK",
-          userId: session?.id,
+          userId: session.id,
+          companyId: session.companyId,
         });
-        results.push({ variantId: item.variantId, ok: true, qty: r.variant.quantityOnHand });
+        results.push({
+          variantId: item.variantId,
+          ok: true,
+          qty: r.variant.quantityOnHand,
+        });
       } else {
         const delta = Number(item.quantity);
         const r = await applyStockChange({
@@ -33,15 +54,20 @@ export async function POST(req: NextRequest) {
           quantityChanged: Math.abs(delta),
           reason: item.reason || "עדכון כמותי (bulk)",
           reasonCode: "BULK",
-          userId: session?.id,
+          userId: session.id,
+          companyId: session.companyId,
         });
-        results.push({ variantId: item.variantId, ok: true, qty: r.variant.quantityOnHand });
+        results.push({
+          variantId: item.variantId,
+          ok: true,
+          qty: r.variant.quantityOnHand,
+        });
       }
     } catch (e) {
       results.push({
         variantId: item.variantId,
         ok: false,
-        error: e instanceof Error ? e.message : "שגיאה",
+        error: e instanceof StockError ? e.message : "שגיאה",
       });
     }
   }
@@ -49,6 +75,7 @@ export async function POST(req: NextRequest) {
   await writeAudit({
     action: "BULK_UPDATE",
     entityType: "ProductVariant",
+    userId: session.id,
     details: { mode, count: items.length, results },
   });
 

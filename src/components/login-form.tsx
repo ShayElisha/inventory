@@ -37,6 +37,8 @@ export function LoginForm() {
       const next = params.get("next");
       if (data.user?.isSuperAdmin || data.user?.role === "SUPER_ADMIN") {
         router.push(next?.startsWith("/admin") ? next : "/admin");
+      } else if (data.user?.role === "WAREHOUSE" && !next) {
+        router.push("/floor");
       } else {
         router.push(next || "/dashboard");
       }

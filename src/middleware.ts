@@ -13,12 +13,14 @@ const PUBLIC_EXACT = [
   "/contact",
 ];
 const PUBLIC_PREFIX = ["/api/auth/login", "/api/auth/register"];
+const PUBLIC_API = ["/api/health"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (
     PUBLIC_EXACT.includes(pathname) ||
+    PUBLIC_API.includes(pathname) ||
     PUBLIC_PREFIX.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon")
@@ -38,8 +40,15 @@ export async function middleware(req: NextRequest) {
   }
 
   try {
+    const secretRaw = process.env.AUTH_SECRET?.trim();
+    if (!secretRaw && process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Server misconfigured: AUTH_SECRET missing" },
+        { status: 500 }
+      );
+    }
     const secret = new TextEncoder().encode(
-      process.env.AUTH_SECRET || "inventory-dev-secret-change-me"
+      secretRaw || "inventory-dev-secret-change-me"
     );
     const { payload } = await jwtVerify(token, secret);
     const role = String(payload.role || "VIEWER");

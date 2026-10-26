@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     const owned = await prisma.productVariant.count({
       where: {
         id: { in: variantIds },
-        product: { companyId: session.companyId },
+        companyId: session.companyId,
       },
     });
     if (owned !== variantIds.length) {
@@ -84,6 +84,25 @@ export async function POST(req: NextRequest) {
         { error: "יש פריטים שאינם שייכים לחברה" },
         { status: 400 }
       );
+    }
+
+    const locationIds = [
+      ...new Set(
+        lines
+          .map((l) => l.locationId)
+          .filter((x): x is string => Boolean(x))
+      ),
+    ];
+    if (locationIds.length) {
+      const locCount = await prisma.warehouseLocation.count({
+        where: { id: { in: locationIds }, companyId: session.companyId },
+      });
+      if (locCount !== locationIds.length) {
+        return NextResponse.json(
+          { error: "מיקום לא שייך לחברה" },
+          { status: 403 }
+        );
+      }
     }
 
     const results: {

@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db";
 import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
+import {
+  assertPriceListOwned,
+  forbiddenTenant,
+} from "@/lib/tenant-guard";
 
 async function findOwned(id: string, companyId: string) {
   return prisma.customer.findFirst({ where: { id, companyId } });
@@ -83,6 +87,9 @@ export async function PATCH(
         : null;
   }
   if (body.priceListId !== undefined) {
+    if (!(await assertPriceListOwned(session.companyId, body.priceListId))) {
+      return forbiddenTenant("מחירון לא שייך לחברה");
+    }
     data.priceListId = body.priceListId || null;
   }
   if (body.active !== undefined) data.active = Boolean(body.active);

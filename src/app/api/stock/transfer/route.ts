@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     const owned = await prisma.productVariant.findFirst({
-      where: { id: variantId, product: { companyId: session.companyId } },
+      where: { id: variantId, companyId: session.companyId },
       select: { id: true },
     });
     if (!owned) {
@@ -29,9 +29,16 @@ export async function POST(req: NextRequest) {
           variantId,
           String(locationCode),
           reason,
-          session.companyId
+          session.companyId,
+          session.id
         )
-      : await transferLocation(variantId, String(toLocationId), reason);
+      : await transferLocation(
+          variantId,
+          String(toLocationId),
+          reason,
+          session.companyId,
+          session.id
+        );
 
     return NextResponse.json(result);
   } catch (e) {

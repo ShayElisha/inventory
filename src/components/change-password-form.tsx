@@ -47,7 +47,13 @@ export function ChangePasswordForm({
       setConfirmPassword("");
       if (forced) {
         const role = data.user?.role;
-        router.push(role === "SUPER_ADMIN" ? "/admin" : "/dashboard");
+        router.push(
+          role === "SUPER_ADMIN"
+            ? "/admin"
+            : role === "WAREHOUSE"
+              ? "/floor"
+              : "/dashboard"
+        );
         router.refresh();
       } else {
         router.refresh();

@@ -117,13 +117,16 @@ export async function POST(
   if (action === "simulate") {
     const lines = (body.lines as { lineId: string; quantity: number }[]) || [];
     const sim = await simulateOutbound(
-      lines.map((l) => {
-        const line = order.lines.find((x) => x.id === l.lineId);
-        return {
-          variantId: line?.variantId || "",
-          quantity: Number(l.quantity) || 0,
-        };
-      }).filter((l) => l.variantId)
+      session.companyId,
+      lines
+        .map((l) => {
+          const line = order.lines.find((x) => x.id === l.lineId);
+          return {
+            variantId: line?.variantId || "",
+            quantity: Number(l.quantity) || 0,
+          };
+        })
+        .filter((l) => l.variantId)
     );
     return NextResponse.json(sim);
   }
@@ -270,13 +273,16 @@ export async function POST(
 
   if (body.simulateFirst) {
     const sim = await simulateOutbound(
-      fulfillLines.map((l) => {
-        const line = order.lines.find((x) => x.id === l.lineId);
-        return {
-          variantId: line?.variantId || "",
-          quantity: Number(l.quantity) || 0,
-        };
-      }).filter((l) => l.variantId)
+      session.companyId,
+      fulfillLines
+        .map((l) => {
+          const line = order.lines.find((x) => x.id === l.lineId);
+          return {
+            variantId: line?.variantId || "",
+            quantity: Number(l.quantity) || 0,
+          };
+        })
+        .filter((l) => l.variantId)
     );
     if (!sim.ok) {
       return NextResponse.json(

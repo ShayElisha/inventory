@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db";
 import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
+import {
+  assertVariantsOwned,
+  forbiddenTenant,
+} from "@/lib/tenant-guard";
 
 async function findOwned(id: string, companyId: string) {
   return prisma.priceList.findFirst({ where: { id, companyId } });
@@ -69,6 +73,15 @@ export async function PATCH(
   }
 
   if (Array.isArray(body.items)) {
+    const variantIds = body.items
+      .filter((i: { variantId?: string }) => i.variantId)
+      .map((i: { variantId: string }) => String(i.variantId));
+    if (
+      variantIds.length &&
+      !(await assertVariantsOwned(session.companyId, variantIds))
+    ) {
+      return forbiddenTenant();
+    }
     await prisma.$transaction([
       prisma.priceListItem.deleteMany({ where: { priceListId: id } }),
       prisma.priceList.update({

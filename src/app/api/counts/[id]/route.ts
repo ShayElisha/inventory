@@ -81,7 +81,8 @@ export async function PATCH(
         setQuantityTo: line.countedQty,
         reason: `ספירה: ${session.name}`,
         reasonCode: "COUNT",
-        userId: user?.id,
+        userId: user.id,
+        companyId: user.companyId,
       });
     }
 

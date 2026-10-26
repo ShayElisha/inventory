@@ -76,7 +76,10 @@ export async function POST(req: NextRequest) {
       }
 
       const existing = await prisma.productVariant.findFirst({
-        where: { OR: [{ sku }, { barcode }] },
+        where: {
+          companyId: session.companyId,
+          OR: [{ sku }, { barcode }],
+        },
       });
       if (existing) {
         errors.push(`שורה ${i + 1}: SKU/ברקוד קיים`);
@@ -85,6 +88,7 @@ export async function POST(req: NextRequest) {
 
       const variant = await prisma.productVariant.create({
         data: {
+          companyId: session.companyId,
           productId: product.id,
           sku,
           barcode,

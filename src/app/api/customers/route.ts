@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db";
 import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
+import {
+  assertPriceListOwned,
+  forbiddenTenant,
+} from "@/lib/tenant-guard";
 
 export async function GET() {
   const gate = await assertModuleApi("commerce");
@@ -32,6 +36,10 @@ export async function POST(req: NextRequest) {
   const name = String(body.name || "").trim();
   if (!name) {
     return NextResponse.json({ error: "שם לקוח חובה" }, { status: 400 });
+  }
+
+  if (!(await assertPriceListOwned(session.companyId, body.priceListId))) {
+    return forbiddenTenant("מחירון לא שייך לחברה");
   }
 
   const customer = await prisma.customer.create({

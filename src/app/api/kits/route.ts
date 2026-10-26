@@ -4,6 +4,10 @@ import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { applyStockChange, StockError } from "@/lib/stock";
 import { assertModuleApi } from "@/lib/tenant";
+import {
+  assertVariantsOwned,
+  forbiddenTenant,
+} from "@/lib/tenant-guard";
 
 export async function GET() {
   const gate = await assertModuleApi("kits");
@@ -52,6 +56,10 @@ export async function POST(req: NextRequest) {
     });
     await prisma.kitComponent.deleteMany({ where: { kitProductId } });
     if (components.length) {
+      const variantIds = components.map((c) => String(c.variantId));
+      if (!(await assertVariantsOwned(session.companyId, variantIds))) {
+        return forbiddenTenant();
+      }
       await prisma.kitComponent.createMany({
         data: components.map((c) => ({
           kitProductId,

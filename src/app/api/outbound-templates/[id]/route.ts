@@ -91,6 +91,7 @@ export async function POST(
         reason: `תבנית ניפוק: ${template.name}`,
         reasonCode,
         userId: session.id,
+        companyId: session.companyId,
       });
       results.push({
         variantId: item.variantId,

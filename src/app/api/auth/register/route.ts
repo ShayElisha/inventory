@@ -10,8 +10,36 @@ import {
   normalizeEmail,
   normalizePhone,
 } from "@/lib/contact";
+import { rateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  if (process.env.DISABLE_PUBLIC_REGISTER === "true") {
+    return NextResponse.json(
+      { error: "הרשמה ציבורית כבויה. פנו למנהל הפלטפורמה." },
+      { status: 403 }
+    );
+  }
+
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown";
+
+  const rl = await rateLimit({
+    key: `register:${ip}`,
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      {
+        error: "יותר מדי ניסיונות הרשמה. נסו שוב מאוחר יותר.",
+        code: "RATE_LIMIT",
+      },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+  }
+
   try {
     const body = await req.json();
     const companyName = String(body.companyName || "").trim();
@@ -52,7 +80,10 @@ export async function POST(req: NextRequest) {
     if (email) {
       const existingEmail = await prisma.user.findUnique({ where: { email } });
       if (existingEmail) {
-        return NextResponse.json({ error: "האימייל כבר רשום במערכת" }, { status: 400 });
+        return NextResponse.json(
+          { error: "האימייל כבר רשום במערכת" },
+          { status: 400 }
+        );
       }
     }
     if (adminPhone) {
@@ -60,7 +91,10 @@ export async function POST(req: NextRequest) {
         where: { phone: adminPhone },
       });
       if (existingPhone) {
-        return NextResponse.json({ error: "הטלפון כבר רשום במערכת" }, { status: 400 });
+        return NextResponse.json(
+          { error: "הטלפון כבר רשום במערכת" },
+          { status: 400 }
+        );
       }
     }
 
@@ -95,11 +129,6 @@ export async function POST(req: NextRequest) {
       });
       return { company, user };
     });
-
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("x-real-ip") ||
-      null;
 
     await writeAudit({
       action: "REGISTER_COMPANY",

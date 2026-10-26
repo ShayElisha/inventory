@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { applyStockChange, StockError } from "@/lib/stock";
+import {
+  applyBulkOutbound,
+  applyStockChange,
+  StockError,
+} from "@/lib/stock";
 import { OUTBOUND_REASONS } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
-import { prisma } from "@/lib/db";
+import {
+  assertVariantsOwned,
+  requireWriteSession,
+} from "@/lib/tenant-guard";
 
 type OutboundLine = {
   variantId: string;
@@ -13,20 +20,24 @@ type OutboundLine = {
 };
 
 /**
- * ניפוק בודד או מרוכז (רב־שורות)
- * body: { variantId, quantity, reasonCode?, reason?, releaseReserved? }
- * או: { lines: OutboundLine[], reasonCode?, reason?, notes?, preferFefo? }
+ * ניפוק בודד או מרוכז אטומי (הכל או כלום)
  */
 export async function POST(req: NextRequest) {
   try {
-    const gate = await assertModuleApi("sales");
+    const mod = await assertModuleApi("sales");
+    if (mod.error) return mod.error;
+
+    const gate = await requireWriteSession();
     if (gate.error) return gate.error;
-    const session = gate.session!;
+    const session = gate.session;
+
     const body = await req.json();
 
     const code = String(body.reasonCode || "SALE");
     const label =
-      OUTBOUND_REASONS.find((r) => r.code === code)?.label || body.reason || code;
+      OUTBOUND_REASONS.find((r) => r.code === code)?.label ||
+      body.reason ||
+      code;
     const notes = body.notes ? String(body.notes).trim() : "";
     const reason = String(
       body.reason || (notes ? `${label} · ${notes}` : label)
@@ -57,14 +68,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "חסרים שדות חובה" }, { status: 400 });
     }
 
-    const variantIds = [...new Set(lines.map((l) => l.variantId))];
-    const owned = await prisma.productVariant.count({
-      where: {
-        id: { in: variantIds },
-        product: { companyId: session.companyId },
-      },
-    });
-    if (owned !== variantIds.length) {
+    const owned = await assertVariantsOwned(
+      session.companyId,
+      lines.map((l) => l.variantId)
+    );
+    if (!owned) {
       return NextResponse.json({ error: "פריט לא שייך לחברה" }, { status: 403 });
     }
 
@@ -90,6 +98,7 @@ export async function POST(req: NextRequest) {
         action: "OUTBOUND",
         entityType: "ProductVariant",
         entityId: line.variantId,
+        userId: session.id,
         details: { qty, reasonCode: code },
         ip: req.headers.get("x-forwarded-for")?.split(",")[0] || null,
       });
@@ -97,75 +106,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
-    const results: {
-      variantId: string;
-      sku: string;
-      title: string;
-      quantity: number;
-      ok: boolean;
-      error?: string;
-      newQuantity?: number;
-    }[] = [];
-
-    for (const line of lines) {
-      const variant = await prisma.productVariant.findUnique({
-        where: { id: line.variantId },
-        include: { product: true },
-      });
-      try {
-        const r = await applyStockChange({
-          variantId: line.variantId,
-          type: "OUTBOUND",
-          quantityChanged: line.quantity,
-          reason,
-          reasonCode: code,
-          userId: session.id,
-          companyId: session.companyId,
-          lotCode: line.lotCode,
-          serial: line.serial,
-          preferFefo: preferFefo && !line.lotCode,
-        });
-        results.push({
-          variantId: line.variantId,
-          sku: variant?.sku || "?",
-          title: variant?.product.title || "?",
-          quantity: line.quantity,
-          ok: true,
-          newQuantity: r.variant.quantityOnHand,
-        });
-      } catch (e) {
-        results.push({
-          variantId: line.variantId,
-          sku: variant?.sku || "?",
-          title: variant?.product.title || "?",
-          quantity: line.quantity,
-          ok: false,
-          error: e instanceof StockError ? e.message : "שגיאה",
-        });
-      }
-    }
-
-    const okCount = results.filter((r) => r.ok).length;
-    const failCount = results.length - okCount;
+    // מרוכז — טרנזקציה אחת (אטומי)
+    const bulk = await applyBulkOutbound({
+      companyId: session.companyId,
+      userId: session.id,
+      reason,
+      reasonCode: code,
+      preferFefo,
+      lines,
+    });
 
     await writeAudit({
       action: "BULK_OUTBOUND",
       entityType: "StockTransaction",
+      userId: session.id,
       details: {
         reasonCode: code,
-        okCount,
-        failCount,
-        lines: results.length,
+        okCount: bulk.okCount,
+        lines: bulk.results.length,
+        atomic: true,
       },
       ip: req.headers.get("x-forwarded-for")?.split(",")[0] || null,
     });
 
-    return NextResponse.json({
-      ok: failCount === 0,
-      okCount,
-      failCount,
-      results,
-    });
+    return NextResponse.json(bulk);
   } catch (e) {
     const message = e instanceof StockError ? e.message : "שגיאה בעדכון מלאי";
     return NextResponse.json({ error: message }, { status: 400 });

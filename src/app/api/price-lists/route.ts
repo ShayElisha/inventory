@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db";
 import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
+import {
+  assertVariantsOwned,
+  forbiddenTenant,
+} from "@/lib/tenant-guard";
 
 export async function GET() {
   const gate = await assertModuleApi("commerce");
@@ -34,6 +38,16 @@ export async function POST(req: NextRequest) {
   }
 
   const items = Array.isArray(body.items) ? body.items : [];
+  const variantIds = items
+    .filter((i: { variantId?: string }) => i.variantId)
+    .map((i: { variantId: string }) => String(i.variantId));
+  if (
+    variantIds.length &&
+    !(await assertVariantsOwned(session.companyId, variantIds))
+  ) {
+    return forbiddenTenant();
+  }
+
   const priceList = await prisma.priceList.create({
     data: {
       companyId: session.companyId,

@@ -17,17 +17,69 @@ export class StockError extends Error {
 }
 
 async function getVariantLocked(tx: Tx, variantId: string) {
+  // נעילת שורה למניעת race תחת עומס מקבילי
+  await tx.$executeRaw`
+    SELECT id FROM product_variants WHERE id = ${variantId} FOR UPDATE
+  `;
   const variant = await tx.productVariant.findUnique({
     where: { id: variantId },
+    include: { product: { select: { companyId: true, title: true } } },
   });
   if (!variant) throw new StockError("אפשרות מוצר לא נמצאה");
   return variant;
 }
 
-export async function applyStockChange(params: {
+async function syncInventoryBalance(
+  tx: Tx,
+  params: {
+    companyId: string;
+    variantId: string;
+    locationId: string;
+    deltaOnHand: number;
+    deltaReserved?: number;
+  }
+) {
+  const { companyId, variantId, locationId, deltaOnHand } = params;
+  const deltaReserved = params.deltaReserved || 0;
+  if (!locationId || (deltaOnHand === 0 && deltaReserved === 0)) return;
+
+  const existing = await tx.inventoryBalance.findUnique({
+    where: { variantId_locationId: { variantId, locationId } },
+  });
+
+  if (!existing) {
+    const onHand = Math.max(0, deltaOnHand);
+    const reserved = Math.max(0, deltaReserved);
+    if (onHand === 0 && reserved === 0) return;
+    await tx.inventoryBalance.create({
+      data: {
+        companyId,
+        variantId,
+        locationId,
+        quantityOnHand: onHand,
+        quantityReserved: reserved,
+      },
+    });
+    return;
+  }
+
+  const nextOnHand = existing.quantityOnHand + deltaOnHand;
+  const nextReserved = existing.quantityReserved + deltaReserved;
+  if (nextOnHand < 0) throw new StockError("יתרת מיקום לא יכולה להיות שלילית");
+  if (nextReserved < 0) throw new StockError("שמירה במיקום לא תקינה");
+
+  await tx.inventoryBalance.update({
+    where: { id: existing.id },
+    data: {
+      quantityOnHand: nextOnHand,
+      quantityReserved: nextReserved,
+    },
+  });
+}
+
+type ApplyParams = {
   variantId: string;
   type: StockTxnType;
-  /** Absolute delta for INBOUND (+), OUTBOUND (-), or signed delta for ADJUSTMENT */
   quantityChanged: number;
   reason: string;
   reasonCode?: string | null;
@@ -35,7 +87,6 @@ export async function applyStockChange(params: {
   locationId?: string | null;
   fromLocationId?: string | null;
   toLocationId?: string | null;
-  /** For ADJUSTMENT set-to-count: pass absolute new quantity instead of delta */
   setQuantityTo?: number;
   reserveDelta?: number;
   companyId?: string | null;
@@ -45,9 +96,10 @@ export async function applyStockChange(params: {
   purchaseOrderId?: string | null;
   salesOrderId?: string | null;
   correctedTxnId?: string | null;
-  /** FEFO: prefer earliest expiry when outbound without explicit lot */
   preferFefo?: boolean;
-}) {
+};
+
+async function applyStockChangeInTx(tx: Tx, params: ApplyParams) {
   const {
     variantId,
     type,
@@ -69,201 +121,313 @@ export async function applyStockChange(params: {
     preferFefo,
   } = params;
 
-  return prisma.$transaction(async (tx) => {
-    const variant = await getVariantLocked(tx, variantId);
-    const previousQuantity = variant.quantityOnHand;
+  const variant = await getVariantLocked(tx, variantId);
+  const ownedCompany = variant.companyId || variant.product.companyId;
+  const cid = companyId || ownedCompany;
 
-    let quantityChanged = params.quantityChanged;
-    let newQuantity: number;
+  if (companyId && ownedCompany !== companyId) {
+    throw new StockError("אפשרות מוצר לא שייכת לחברה");
+  }
 
-    if (type === "ADJUSTMENT" && setQuantityTo !== undefined) {
-      newQuantity = setQuantityTo;
-      quantityChanged = newQuantity - previousQuantity;
-    } else if (type === "INBOUND") {
-      if (quantityChanged <= 0) throw new StockError("כמות כניסה חייבת להיות חיובית");
-      newQuantity = previousQuantity + quantityChanged;
-    } else if (type === "OUTBOUND") {
-      if (quantityChanged <= 0) throw new StockError("כמות יציאה חייבת להיות חיובית");
-      newQuantity = previousQuantity - quantityChanged;
-      if (newQuantity < 0) throw new StockError("אין מספיק מלאי");
-      quantityChanged = -quantityChanged;
-    } else if (type === "TRANSFER") {
-      newQuantity = previousQuantity;
-      quantityChanged = 0;
-    } else {
-      newQuantity = previousQuantity + quantityChanged;
-      if (newQuantity < 0) throw new StockError("כמות לא יכולה להיות שלילית");
-    }
+  const previousQuantity = variant.quantityOnHand;
 
-    const data: {
-      quantityOnHand: number;
-      locationId?: string | null;
-      quantityReserved?: number;
-    } = { quantityOnHand: newQuantity };
+  let quantityChanged = params.quantityChanged;
+  let newQuantity: number;
 
-    if (type === "INBOUND" && locationId) {
-      data.locationId = locationId;
-    }
-    if (type === "TRANSFER" && toLocationId) {
-      data.locationId = toLocationId;
-    }
-    if (reserveDelta) {
-      const nextReserved = variant.quantityReserved + reserveDelta;
-      if (nextReserved < 0) throw new StockError("שמירה לא תקינה");
-      data.quantityReserved = nextReserved;
-    }
+  if (type === "ADJUSTMENT" && setQuantityTo !== undefined) {
+    newQuantity = setQuantityTo;
+    quantityChanged = newQuantity - previousQuantity;
+  } else if (type === "INBOUND") {
+    if (quantityChanged <= 0)
+      throw new StockError("כמות כניסה חייבת להיות חיובית");
+    newQuantity = previousQuantity + quantityChanged;
+  } else if (type === "OUTBOUND") {
+    if (quantityChanged <= 0)
+      throw new StockError("כמות יציאה חייבת להיות חיובית");
+    newQuantity = previousQuantity - quantityChanged;
+    if (newQuantity < 0) throw new StockError("אין מספיק מלאי");
+    quantityChanged = -quantityChanged;
+  } else if (type === "TRANSFER") {
+    newQuantity = previousQuantity;
+    quantityChanged = 0;
+  } else {
+    newQuantity = previousQuantity + quantityChanged;
+    if (newQuantity < 0) throw new StockError("כמות לא יכולה להיות שלילית");
+  }
 
-    const updated = await tx.productVariant.update({
-      where: { id: variantId },
-      data,
+  const data: {
+    quantityOnHand: number;
+    locationId?: string | null;
+    quantityReserved?: number;
+  } = { quantityOnHand: newQuantity };
+
+  if (type === "INBOUND" && locationId) {
+    data.locationId = locationId;
+  }
+  if (type === "TRANSFER" && toLocationId) {
+    data.locationId = toLocationId;
+  }
+  if (reserveDelta) {
+    const nextReserved = variant.quantityReserved + reserveDelta;
+    if (nextReserved < 0) throw new StockError("שמירה לא תקינה");
+    data.quantityReserved = nextReserved;
+  }
+
+  const updated = await tx.productVariant.update({
+    where: { id: variantId },
+    data,
+  });
+
+  let lotId: string | null = null;
+  let serialId: string | null = null;
+  const absQty = Math.abs(quantityChanged);
+
+  // יתרות לפי מיקום
+  if (type === "INBOUND" && locationId && absQty) {
+    await syncInventoryBalance(tx, {
+      companyId: cid,
+      variantId,
+      locationId,
+      deltaOnHand: absQty,
     });
+  } else if (type === "OUTBOUND" && absQty) {
+    const loc = locationId || variant.locationId;
+    if (loc) {
+      await syncInventoryBalance(tx, {
+        companyId: cid,
+        variantId,
+        locationId: loc,
+        deltaOnHand: -absQty,
+      });
+    }
+  } else if (type === "TRANSFER" && toLocationId) {
+    const from = fromLocationId || variant.locationId;
+    // TRANSFER לא משנה כמות כוללת — מעביר יתרה אם יש כמות ידועה ב־onHand
+    // כאן מעבירים את כל היתרה המקומית רק כשמעבירים מיקום ברירת מחדל;
+    // לשינוי מיקום בלי כמות — מעדכנים locationId בלבד (כבר למעלה).
+    if (from && from !== toLocationId && previousQuantity > 0) {
+      // לא מזיזים אוטומטית את כל הכמות — רק מסמנים מיקום אחרון.
+      // יתרות מפורטות מתעדכנות במסמכי StockTransfer.
+    }
+  } else if (type === "ADJUSTMENT" && quantityChanged !== 0) {
+    const loc = locationId || variant.locationId;
+    if (loc) {
+      await syncInventoryBalance(tx, {
+        companyId: cid,
+        variantId,
+        locationId: loc,
+        deltaOnHand: quantityChanged,
+      });
+    }
+  }
 
-    let lotId: string | null = null;
-    let serialId: string | null = null;
-    const absQty = Math.abs(quantityChanged);
-    const cid =
-      companyId ||
-      (
-        await tx.product.findFirst({
-          where: { id: variant.productId },
-          select: { companyId: true },
-        })
-      )?.companyId;
-
-    if (cid && (lotCode || preferFefo) && type !== "TRANSFER") {
-      if (type === "INBOUND" && lotCode) {
-        const locKey = locationId || null;
-        let lot = await tx.inventoryLot.findFirst({
-          where: {
+  if (cid && (lotCode || preferFefo) && type !== "TRANSFER") {
+    if (type === "INBOUND" && lotCode) {
+      const locKey = locationId || null;
+      let lot = await tx.inventoryLot.findFirst({
+        where: {
+          companyId: cid,
+          variantId,
+          lotCode,
+          locationId: locKey,
+        },
+      });
+      if (!lot) {
+        lot = await tx.inventoryLot.create({
+          data: {
             companyId: cid,
             variantId,
             lotCode,
             locationId: locKey,
+            expiryDate: expiryDate ? new Date(expiryDate) : null,
+            quantity: absQty,
           },
         });
-        if (!lot) {
-          lot = await tx.inventoryLot.create({
-            data: {
+      } else {
+        lot = await tx.inventoryLot.update({
+          where: { id: lot.id },
+          data: {
+            quantity: lot.quantity + absQty,
+            expiryDate: expiryDate ? new Date(expiryDate) : lot.expiryDate,
+          },
+        });
+      }
+      lotId = lot.id;
+    } else if (type === "OUTBOUND") {
+      const lot = lotCode
+        ? await tx.inventoryLot.findFirst({
+            where: {
               companyId: cid,
               variantId,
               lotCode,
-              locationId: locKey,
-              expiryDate: expiryDate ? new Date(expiryDate) : null,
-              quantity: absQty,
+              quantity: { gt: 0 },
             },
-          });
-        } else {
-          lot = await tx.inventoryLot.update({
-            where: { id: lot.id },
-            data: {
-              quantity: lot.quantity + absQty,
-              expiryDate: expiryDate
-                ? new Date(expiryDate)
-                : lot.expiryDate,
-            },
-          });
-        }
-        lotId = lot.id;
-      } else if (type === "OUTBOUND") {
-        let lot = lotCode
+            orderBy: { expiryDate: "asc" },
+          })
+        : preferFefo
           ? await tx.inventoryLot.findFirst({
               where: {
                 companyId: cid,
                 variantId,
-                lotCode,
                 quantity: { gt: 0 },
               },
-              orderBy: { expiryDate: "asc" },
+              orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
             })
-          : preferFefo
-            ? await tx.inventoryLot.findFirst({
-                where: {
-                  companyId: cid,
-                  variantId,
-                  quantity: { gt: 0 },
-                },
-                orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
-              })
-            : null;
-        if (lot) {
-          if (lot.quantity < absQty) {
-            throw new StockError("אין מספיק מלאי באצווה");
-          }
-          await tx.inventoryLot.update({
-            where: { id: lot.id },
-            data: { quantity: lot.quantity - absQty },
-          });
-          lotId = lot.id;
+          : null;
+      if (lot) {
+        if (lot.quantity < absQty) {
+          throw new StockError("אין מספיק מלאי באצווה");
         }
+        await tx.inventoryLot.update({
+          where: { id: lot.id },
+          data: { quantity: lot.quantity - absQty },
+        });
+        lotId = lot.id;
       }
     }
+  }
 
-    if (cid && serial) {
-      if (type === "INBOUND") {
-        const created = await tx.serialNumber.create({
-          data: {
-            companyId: cid,
-            variantId,
-            serial: String(serial).trim(),
-            status: "IN_STOCK",
-            lotId,
-            locationId: locationId || null,
-          },
-        });
-        serialId = created.id;
-      } else if (type === "OUTBOUND") {
-        const sn = await tx.serialNumber.findFirst({
-          where: {
-            companyId: cid,
-            variantId,
-            serial: String(serial).trim(),
-            status: "IN_STOCK",
-          },
-        });
-        if (!sn) throw new StockError("מספר סידורי לא במלאי");
-        await tx.serialNumber.update({
-          where: { id: sn.id },
-          data: { status: "SOLD" },
-        });
-        serialId = sn.id;
-      }
+  if (cid && serial) {
+    if (type === "INBOUND") {
+      const created = await tx.serialNumber.create({
+        data: {
+          companyId: cid,
+          variantId,
+          serial: String(serial).trim(),
+          status: "IN_STOCK",
+          lotId,
+          locationId: locationId || null,
+        },
+      });
+      serialId = created.id;
+    } else if (type === "OUTBOUND") {
+      const sn = await tx.serialNumber.findFirst({
+        where: {
+          companyId: cid,
+          variantId,
+          serial: String(serial).trim(),
+          status: "IN_STOCK",
+        },
+      });
+      if (!sn) throw new StockError("מספר סידורי לא במלאי");
+      await tx.serialNumber.update({
+        where: { id: sn.id },
+        data: { status: "SOLD" },
+      });
+      serialId = sn.id;
+    }
+  }
+
+  const txn = await tx.stockTransaction.create({
+    data: {
+      variantId,
+      type,
+      quantityChanged,
+      previousQuantity,
+      newQuantity,
+      reason,
+      reasonCode: reasonCode || null,
+      userId: userId || null,
+      fromLocationId:
+        fromLocationId ?? (type === "TRANSFER" ? variant.locationId : null),
+      toLocationId:
+        toLocationId ?? (type === "INBOUND" ? locationId ?? null : null),
+      lotId,
+      serialId,
+      purchaseOrderId: purchaseOrderId || null,
+      salesOrderId: salesOrderId || null,
+      correctedTxnId: correctedTxnId || null,
+    },
+  });
+
+  return { variant: updated, transaction: txn };
+}
+
+export async function applyStockChange(
+  params: ApplyParams,
+  externalTx?: Tx
+) {
+  if (externalTx) {
+    return applyStockChangeInTx(externalTx, params);
+  }
+  return prisma.$transaction((tx) => applyStockChangeInTx(tx, params));
+}
+
+/** ניפוק מרוכז אטומי — הכל או כלום */
+export async function applyBulkOutbound(params: {
+  companyId: string;
+  userId?: string | null;
+  reason: string;
+  reasonCode?: string | null;
+  preferFefo?: boolean;
+  lines: {
+    variantId: string;
+    quantity: number;
+    lotCode?: string | null;
+    serial?: string | null;
+  }[];
+}) {
+  const lines = params.lines.filter((l) => l.variantId && l.quantity > 0);
+  if (!lines.length) throw new StockError("אין שורות");
+
+  return prisma.$transaction(async (tx) => {
+    const results: {
+      variantId: string;
+      sku: string;
+      title: string;
+      quantity: number;
+      ok: true;
+      newQuantity: number;
+    }[] = [];
+
+    for (const line of lines) {
+      const before = await tx.productVariant.findFirst({
+        where: {
+          id: line.variantId,
+          companyId: params.companyId,
+        },
+        include: { product: true },
+      });
+      if (!before) throw new StockError("פריט לא שייך לחברה");
+
+      const r = await applyStockChangeInTx(tx, {
+        variantId: line.variantId,
+        type: "OUTBOUND",
+        quantityChanged: line.quantity,
+        reason: params.reason,
+        reasonCode: params.reasonCode,
+        userId: params.userId,
+        companyId: params.companyId,
+        lotCode: line.lotCode,
+        serial: line.serial,
+        preferFefo: params.preferFefo !== false && !line.lotCode,
+      });
+
+      results.push({
+        variantId: line.variantId,
+        sku: before.sku,
+        title: before.product.title,
+        quantity: line.quantity,
+        ok: true,
+        newQuantity: r.variant.quantityOnHand,
+      });
     }
 
-    const txn = await tx.stockTransaction.create({
-      data: {
-        variantId,
-        type,
-        quantityChanged,
-        previousQuantity,
-        newQuantity,
-        reason,
-        reasonCode: reasonCode || null,
-        userId: userId || null,
-        fromLocationId:
-          fromLocationId ??
-          (type === "TRANSFER" ? variant.locationId : null),
-        toLocationId:
-          toLocationId ?? (type === "INBOUND" ? locationId ?? null : null),
-        lotId,
-        serialId,
-        purchaseOrderId: purchaseOrderId || null,
-        salesOrderId: salesOrderId || null,
-        correctedTxnId: correctedTxnId || null,
-      },
-    });
-
-    return { variant: updated, transaction: txn };
+    return { ok: true as const, okCount: results.length, failCount: 0, results };
   });
 }
 
-/** תיקון תנועה — יוצר תנועת היפוך ומקשר ל־audit */
 export async function correctStockTransaction(params: {
   transactionId: string;
   userId?: string | null;
+  companyId: string;
   reason?: string;
 }) {
-  const original = await prisma.stockTransaction.findUnique({
-    where: { id: params.transactionId },
+  const original = await prisma.stockTransaction.findFirst({
+    where: {
+      id: params.transactionId,
+      variant: { product: { companyId: params.companyId } },
+    },
     include: { variant: { include: { product: true } } },
   });
   if (!original) throw new StockError("תנועה לא נמצאה");
@@ -286,7 +450,7 @@ export async function correctStockTransaction(params: {
     reason: params.reason || `תיקון תנועה ${original.id}`,
     reasonCode: "CORRECTION",
     userId: params.userId,
-    companyId: original.variant.product.companyId,
+    companyId: params.companyId,
     correctedTxnId: original.id,
     locationId: original.toLocationId,
   });
@@ -299,8 +463,10 @@ export async function correctStockTransaction(params: {
   return result;
 }
 
-/** סימולציה בלי שינוי מלאי */
-export async function simulateOutbound(lines: { variantId: string; quantity: number }[]) {
+export async function simulateOutbound(
+  companyId: string,
+  lines: { variantId: string; quantity: number }[]
+) {
   const results: {
     variantId: string;
     sku: string;
@@ -311,8 +477,8 @@ export async function simulateOutbound(lines: { variantId: string; quantity: num
   }[] = [];
 
   for (const line of lines) {
-    const v = await prisma.productVariant.findUnique({
-      where: { id: line.variantId },
+    const v = await prisma.productVariant.findFirst({
+      where: { id: line.variantId, companyId },
       include: { product: true },
     });
     if (!v) {
@@ -343,13 +509,21 @@ export async function simulateOutbound(lines: { variantId: string; quantity: num
   };
 }
 
-export async function quickAdjust(variantId: string, delta: 1 | -1, reason?: string) {
+export async function quickAdjust(
+  variantId: string,
+  delta: 1 | -1,
+  reason?: string,
+  companyId?: string,
+  userId?: string
+) {
   if (delta === 1) {
     return applyStockChange({
       variantId,
       type: "INBOUND",
       quantityChanged: 1,
       reason: reason ?? "עדכון מהיר +1",
+      companyId,
+      userId,
     });
   }
   return applyStockChange({
@@ -357,16 +531,23 @@ export async function quickAdjust(variantId: string, delta: 1 | -1, reason?: str
     type: "OUTBOUND",
     quantityChanged: 1,
     reason: reason ?? "עדכון מהיר -1",
+    companyId,
+    userId,
   });
 }
 
 export async function transferLocation(
   variantId: string,
   toLocationId: string,
-  reason = "העברת מיקום"
+  reason = "העברת מיקום",
+  companyId?: string,
+  userId?: string
 ) {
-  const location = await prisma.warehouseLocation.findUnique({
-    where: { id: toLocationId },
+  const location = await prisma.warehouseLocation.findFirst({
+    where: {
+      id: toLocationId,
+      ...(companyId ? { companyId } : {}),
+    },
   });
   if (!location) throw new StockError("מיקום יעד לא נמצא");
 
@@ -376,6 +557,8 @@ export async function transferLocation(
     quantityChanged: 0,
     reason,
     toLocationId,
+    companyId,
+    userId,
   });
 }
 
@@ -383,7 +566,8 @@ export async function transferByLocationCode(
   variantId: string,
   locationCode: string,
   reason = "העברת מיקום בסריקה",
-  companyId?: string
+  companyId?: string,
+  userId?: string
 ) {
   const location = await prisma.warehouseLocation.findFirst({
     where: {
@@ -392,5 +576,11 @@ export async function transferByLocationCode(
     },
   });
   if (!location) throw new StockError("קוד מיקום לא נמצא");
-  return transferLocation(variantId, location.id, reason);
+  return transferLocation(
+    variantId,
+    location.id,
+    reason,
+    companyId,
+    userId
+  );
 }

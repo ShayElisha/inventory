@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   const exact = await prisma.productVariant.findFirst({
     where: {
-      product: { companyId },
+      companyId,
       OR: [
         { barcode: q },
         { sku: q },
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
   const variants = await prisma.productVariant.findMany({
     where: {
-      product: { companyId },
+      companyId,
       OR: [
         { sku: { contains: q } },
         { barcode: { contains: q } },

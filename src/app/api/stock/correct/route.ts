@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, canWrite, canAdmin } from "@/lib/auth";
+import { canAdmin } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { correctStockTransaction, StockError } from "@/lib/stock";
+import { requireWriteSession } from "@/lib/tenant-guard";
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.companyId || !canWrite(session.role)) {
-      return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
-    }
-    // תיקון תנועה — מנהל או מחסנאי; audit תמיד
+    const gate = await requireWriteSession();
+    if (gate.error) return gate.error;
+    const session = gate.session;
+
     const body = await req.json();
     const transactionId = String(body.transactionId || "");
     if (!transactionId) {
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     const result = await correctStockTransaction({
       transactionId,
       userId: session.id,
+      companyId: session.companyId,
       reason: body.reason ? String(body.reason) : undefined,
     });
 
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
       action: "CORRECT_STOCK_TXN",
       entityType: "StockTransaction",
       entityId: transactionId,
+      userId: session.id,
       details: {
         reverseTxnId: result.transaction.id,
         reason: body.reason || null,

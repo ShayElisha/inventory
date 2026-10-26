@@ -1,18 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { applyStockChange, quickAdjust, StockError } from "@/lib/stock";
+import {
+  assertVariantsOwned,
+  requireWriteSession,
+} from "@/lib/tenant-guard";
 
 export async function POST(req: NextRequest) {
   try {
+    const gate = await requireWriteSession();
+    if (gate.error) return gate.error;
+    const session = gate.session;
+
     const body = await req.json();
     const { variantId, mode, quantity, countedQuantity, reason, delta } = body;
 
     if (!variantId) {
-      return NextResponse.json({ error: "חסר מזהה אפשרות מוצר" }, { status: 400 });
+      return NextResponse.json(
+        { error: "חסר מזהה אפשרות מוצר" },
+        { status: 400 }
+      );
+    }
+
+    const owned = await assertVariantsOwned(session.companyId, [variantId]);
+    if (!owned) {
+      return NextResponse.json({ error: "מוצר לא נמצא" }, { status: 404 });
     }
 
     if (mode === "quick") {
       const d = Number(delta) === -1 ? -1 : 1;
-      const result = await quickAdjust(variantId, d as 1 | -1, reason);
+      const result = await quickAdjust(
+        variantId,
+        d as 1 | -1,
+        reason,
+        session.companyId,
+        session.id
+      );
       return NextResponse.json(result);
     }
 
@@ -23,6 +45,8 @@ export async function POST(req: NextRequest) {
         quantityChanged: 0,
         setQuantityTo: Number(countedQuantity ?? quantity),
         reason: reason || "ספירת מלאי",
+        companyId: session.companyId,
+        userId: session.id,
       });
       return NextResponse.json(result);
     }
@@ -32,6 +56,8 @@ export async function POST(req: NextRequest) {
       type: "ADJUSTMENT",
       quantityChanged: Number(quantity),
       reason: reason || "התאמת מלאי",
+      companyId: session.companyId,
+      userId: session.id,
     });
 
     return NextResponse.json(result);

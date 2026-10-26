@@ -26,6 +26,7 @@ import { DashboardPeriod } from "@/components/dashboard-period";
 import { getCompanyModules, requireTenant } from "@/lib/tenant";
 import { canAdmin, canWrite } from "@/lib/auth";
 import { ROLE_LABELS, Role, ROLES } from "@/lib/constants";
+import { redirect } from "next/navigation";
 import { attributesLabel, formatCurrency, formatDateTime, cn } from "@/lib/utils";
 import { startOfDay, startOfWeek, startOfMonth, subDays } from "date-fns";
 
@@ -155,6 +156,10 @@ export default async function DashboardPage({
 }) {
   noStore();
   const session = await requireTenant();
+  // מחסנאים נכנסים ישירות למצב רצפה (3 מסכים)
+  if (session.role === ROLES.WAREHOUSE) {
+    redirect("/floor");
+  }
   const modules = await getCompanyModules(session.companyId);
   const { period = "today" } = await searchParams;
   const now = new Date();

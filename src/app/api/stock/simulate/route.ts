@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const lines = Array.isArray(body.lines) ? body.lines : [];
   const result = await simulateOutbound(
+    session.companyId,
     lines.map((l: { variantId: string; quantity: number }) => ({
       variantId: String(l.variantId),
       quantity: Math.max(0, Number(l.quantity) || 0),

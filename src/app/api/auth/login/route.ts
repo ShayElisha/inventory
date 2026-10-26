@@ -9,17 +9,59 @@ import {
 } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { ROLES } from "@/lib/constants";
+import { rateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
-  await ensureDefaultUsers();
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown";
+
+  const rl = await rateLimit({
+    key: `login:${ip}`,
+    limit: 20,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "יותר מדי ניסיונות. נסו שוב בעוד כמה דקות.", code: "RATE_LIMIT" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rl.retryAfterSec) },
+      }
+    );
+  }
+
+  try {
+    await ensureDefaultUsers();
+  } catch (e) {
+    logger.error("ensureDefaultUsers failed", { err: e });
+  }
+
   const body = await req.json();
-  const identifier = String(body.identifier || body.email || body.phone || "").trim();
+  const identifier = String(
+    body.identifier || body.email || body.phone || ""
+  ).trim();
   const password = String(body.password || "");
 
   if (!identifier || !password) {
     return NextResponse.json(
       { error: "נא להזין אימייל או טלפון וסיסמה" },
       { status: 400 }
+    );
+  }
+
+  // rate limit גם לפי מזהה התחברות
+  const rlId = await rateLimit({
+    key: `login-id:${identifier.toLowerCase()}`,
+    limit: 10,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!rlId.ok) {
+    return NextResponse.json(
+      { error: "יותר מדי ניסיונות למזהה זה", code: "RATE_LIMIT" },
+      { status: 429, headers: { "Retry-After": String(rlId.retryAfterSec) } }
     );
   }
 
@@ -53,10 +95,6 @@ export async function POST(req: NextRequest) {
   const sessionUser = sessionFromUser(user);
   await createSession(sessionUser);
 
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    null;
   await writeAudit({
     action: "LOGIN",
     entityType: "User",

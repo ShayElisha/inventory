@@ -59,7 +59,17 @@ export async function PATCH(
     data.notes = body.notes ? String(body.notes).trim() : null;
   }
   if (body.status !== undefined) data.status = String(body.status);
-  if (body.supplierId !== undefined) data.supplierId = body.supplierId || null;
+  if (body.supplierId !== undefined) {
+    if (body.supplierId) {
+      const supplier = await prisma.supplier.findFirst({
+        where: { id: String(body.supplierId), companyId: session.companyId },
+      });
+      if (!supplier) {
+        return NextResponse.json({ error: "ספק לא שייך לחברה" }, { status: 403 });
+      }
+    }
+    data.supplierId = body.supplierId || null;
+  }
 
   const updated = await prisma.purchaseOrder.update({
     where: { id },
@@ -105,6 +115,16 @@ export async function POST(
 
   if (!receipts.length) {
     return NextResponse.json({ error: "אין שורות קליטה" }, { status: 400 });
+  }
+
+  const locationIds = receipts.map((r) => r.locationId).filter(Boolean) as string[];
+  if (locationIds.length) {
+    const locCount = await prisma.warehouseLocation.count({
+      where: { id: { in: locationIds }, companyId: session.companyId },
+    });
+    if (locCount !== [...new Set(locationIds)].length) {
+      return NextResponse.json({ error: "מיקום לא שייך לחברה" }, { status: 403 });
+    }
   }
 
   const results: { lineId: string; ok: boolean; error?: string }[] = [];

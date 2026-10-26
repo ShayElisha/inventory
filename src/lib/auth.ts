@@ -8,12 +8,10 @@ import {
   normalizeEmail,
   normalizePhone,
 } from "@/lib/contact";
+import { allowDemoSeed, getAuthSecret } from "@/lib/secrets";
 
 const COOKIE = "inventory_session";
-const secret = () =>
-  new TextEncoder().encode(
-    process.env.AUTH_SECRET || "inventory-dev-secret-change-me"
-  );
+const secret = () => new TextEncoder().encode(getAuthSecret());
 
 export type SessionUser = {
   id: string;
@@ -46,7 +44,7 @@ export async function createSession(user: SessionUser) {
     mustChangePassword: Boolean(user.mustChangePassword),
   })
     .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("14d")
+    .setExpirationTime(sessionTtl())
     .sign(secret());
 
   const jar = await cookies();
@@ -55,8 +53,21 @@ export async function createSession(user: SessionUser) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 14,
+    maxAge: sessionMaxAgeSec(),
   });
+}
+
+function sessionDays() {
+  const n = Number(process.env.SESSION_DAYS || "7");
+  return Number.isFinite(n) && n > 0 && n <= 30 ? n : 7;
+}
+
+function sessionTtl() {
+  return `${sessionDays()}d`;
+}
+
+function sessionMaxAgeSec() {
+  return sessionDays() * 60 * 60 * 24;
 }
 
 export async function destroySession() {
@@ -202,6 +213,7 @@ export async function ensureSuperAdmin() {
 }
 
 export async function ensureDefaultUsers() {
+  if (!allowDemoSeed()) return;
   await ensureSuperAdmin();
 
   let company = await prisma.company.findUnique({ where: { slug: "demo" } });
