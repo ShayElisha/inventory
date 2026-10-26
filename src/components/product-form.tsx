@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
 import { buildVariantSku, generateMatrixCombinations } from "@/lib/sku";
-import { parseJsonArray } from "@/lib/json";
+import { parseJsonArray, parseJsonObject } from "@/lib/json";
 import { UNIT_OF_MEASURE } from "@/lib/constants";
 import { attributesLabel } from "@/lib/utils";
 import { parseCustomData, parseFieldOptions } from "@/lib/custom-fields";
+import { Plus, Trash2 } from "lucide-react";
 
 type Category = {
   id: string;
@@ -122,7 +123,9 @@ export function ProductForm({
   const [simpleBarcode, setSimpleBarcode] = useState(
     product?.variants[0]?.barcode || ""
   );
-  const [simpleQty, setSimpleQty] = useState("0");
+  const [simpleQty, setSimpleQty] = useState(
+    String(product?.variants[0]?.quantityOnHand ?? 0)
+  );
   const [simpleLocationId, setSimpleLocationId] = useState(
     product?.variants[0]?.locationId || ""
   );
@@ -132,6 +135,8 @@ export function ProductForm({
   const [editVariants, setEditVariants] = useState(
     (product?.variants || []).map((v) => ({
       id: v.id,
+      isNew: false,
+      remove: false,
       sku: v.sku,
       barcode: v.barcode,
       attributes: v.attributes,
@@ -140,9 +145,12 @@ export function ProductForm({
       locationId: v.locationId || "",
     }))
   );
+  const [newSizeValue, setNewSizeValue] = useState("");
+  const [newSizeQty, setNewSizeQty] = useState("");
   const [attrOptions, setAttrOptions] = useState<Record<string, string>>({});
   const [matrixRows, setMatrixRows] = useState<VariantRow[]>([]);
   const [multiSizes, setMultiSizes] = useState(false);
+  const [defaultVariantQty, setDefaultVariantQty] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -179,6 +187,13 @@ export function ProductForm({
     );
   }
 
+  function attrKey(attrs: Record<string, string>) {
+    return Object.entries(attrs)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${k}=${v}`)
+      .join("|");
+  }
+
   function generateMatrix() {
     if (!category || !baseSku) {
       setError("נא למלא מק״ט בסיס וקטגוריה");
@@ -195,14 +210,25 @@ export function ProductForm({
       setError("הזינו לפחות ערך אחד (למשל מידות: S, M, L)");
       return;
     }
+    const prevByAttr = new Map(
+      matrixRows.map((r) => [attrKey(r.attributes), r] as const)
+    );
+    const fallbackQty = Math.max(0, Math.floor(Number(defaultVariantQty) || 0));
     const combos = generateMatrixCombinations(schema, optionsByAttr);
-    const rows: VariantRow[] = combos.map((attrs, i) => ({
-      attributes: attrs,
-      sku: buildVariantSku(baseSku.toUpperCase(), attrs, schema),
-      barcode: `${baseSku.toUpperCase()}${String(i + 1).padStart(4, "0")}`,
-      quantityOnHand: 0,
-      locationId: "",
-    }));
+    const rows: VariantRow[] = combos.map((attrs, i) => {
+      const prev = prevByAttr.get(attrKey(attrs));
+      return {
+        attributes: attrs,
+        sku:
+          prev?.sku ||
+          buildVariantSku(baseSku.toUpperCase(), attrs, schema),
+        barcode:
+          prev?.barcode ||
+          `${baseSku.toUpperCase()}${String(i + 1).padStart(4, "0")}`,
+        quantityOnHand: prev?.quantityOnHand ?? fallbackQty,
+        locationId: prev?.locationId || "",
+      };
+    });
     setMatrixRows(rows);
     setError("");
   }
@@ -274,23 +300,36 @@ export function ProductForm({
           customData,
         };
 
-        if (editVariants.length === 1 && !category?.hasVariants) {
-          payload.variants = [
-            {
-              id: editVariants[0].id,
-              barcode: simpleBarcode || editVariants[0].barcode,
-              locationId: simpleLocationId || null,
-              minAlertLevel: Number(simpleMinAlert) || 0,
-            },
-          ];
-        } else if (editVariants.length > 0) {
-          payload.variants = editVariants.map((v) => ({
-            id: v.id,
-            barcode: v.barcode,
-            locationId: v.locationId || null,
-            minAlertLevel: v.minAlertLevel,
-          }));
+        const kept = editVariants.filter((v) => !v.remove);
+        if (kept.length === 0) {
+          setError("חייבת להישאר לפחות אפשרות אחת");
+          setLoading(false);
+          return;
         }
+        payload.variants = editVariants
+          .filter((v) => !(v.isNew && v.remove))
+          .map((v) => {
+            if (v.remove) {
+              return { id: v.id, remove: true };
+            }
+            const attrs = parseJsonObject(
+              typeof v.attributes === "string"
+                ? v.attributes
+                : JSON.stringify(v.attributes || {})
+            );
+            return {
+              id: v.isNew ? undefined : v.id,
+              sku: v.sku,
+              barcode: v.barcode,
+              attributes: attrs,
+              quantityOnHand: Math.max(
+                0,
+                Math.floor(Number(v.quantityOnHand) || 0)
+              ),
+              locationId: v.locationId || null,
+              minAlertLevel: Number(v.minAlertLevel) || 0,
+            };
+          });
 
         const res = await fetch(`/api/products/${product.id}`, {
           method: "PATCH",
@@ -328,7 +367,16 @@ export function ProductForm({
           setLoading(false);
           return;
         }
-        payload.variants = matrixRows;
+        payload.variants = matrixRows.map((r) => ({
+          attributes: r.attributes,
+          sku: r.sku,
+          barcode: r.barcode,
+          quantityOnHand: Math.max(
+            0,
+            Math.floor(Number(r.quantityOnHand) || 0)
+          ),
+          locationId: r.locationId || null,
+        }));
       } else {
         payload.simpleBarcode = simpleBarcode || `${baseSku.toUpperCase()}-1`;
         payload.simpleQty = simpleQty;
@@ -570,86 +618,113 @@ export function ProductForm({
       {isEdit ? (
         <Card className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold">אפשרויות מוצר קיימות</h2>
+            <h2 className="text-lg font-semibold">מלאי ואפשרויות</h2>
             <p className="text-sm text-[var(--muted)]">
-              ניתן לעדכן ברקוד, מיקום וסף התראה. כמות משתנה דרך קליטה/ניפוק.
+              עדכנו כמויות, ברקודים ומיקומים. אפשר גם להוסיף מידה חדשה לאותו
+              דגם.
             </p>
           </div>
-          {editVariants.length === 1 && !category?.hasVariants ? (
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <Label>ברקוד</Label>
-                <Input
-                  value={simpleBarcode}
-                  onChange={(e) => setSimpleBarcode(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>סף התראה</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={simpleMinAlert}
-                  onChange={(e) => setSimpleMinAlert(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label>מיקום</Label>
-                <Select
-                  value={simpleLocationId}
-                  onChange={(e) => setSimpleLocationId(e.target.value)}
-                >
-                  <option value="">ללא</option>
-                  {locations.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.code}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead>
-                  <tr className="text-right text-[var(--muted)]">
-                    <th className="pb-2">SKU</th>
-                    <th className="pb-2">מאפיינים</th>
-                    <th className="pb-2">ברקוד</th>
-                    <th className="pb-2">מלאי</th>
-                    <th className="pb-2">סף</th>
-                    <th className="pb-2">מיקום</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {editVariants.map((row, idx) => (
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px] text-sm">
+              <thead>
+                <tr className="text-right text-[var(--muted)]">
+                  <th className="pb-2">SKU</th>
+                  <th className="pb-2">מאפיינים</th>
+                  <th className="pb-2">ברקוד</th>
+                  <th className="pb-2">כמות במלאי</th>
+                  <th className="pb-2">סף</th>
+                  <th className="pb-2">מיקום</th>
+                  <th className="pb-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {editVariants
+                  .map((row, idx) => ({ row, idx }))
+                  .filter(({ row }) => !row.remove)
+                  .map(({ row, idx }) => (
                     <tr key={row.id} className="border-t border-[var(--border)]">
-                      <td className="py-2 font-mono text-xs">{row.sku}</td>
-                      <td className="py-2">{attributesLabel(row.attributes)}</td>
+                      <td className="py-2">
+                        <Input
+                          className="font-mono text-xs"
+                          value={row.sku}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setEditVariants((prev) => {
+                              const next = [...prev];
+                              next[idx] = { ...next[idx], sku: value };
+                              return next;
+                            });
+                          }}
+                        />
+                      </td>
+                      <td className="py-2 text-xs">
+                        {attributesLabel(row.attributes)}
+                      </td>
                       <td className="py-2">
                         <Input
                           className="font-mono text-xs"
                           value={row.barcode}
                           onChange={(e) => {
-                            const next = [...editVariants];
-                            next[idx] = { ...row, barcode: e.target.value };
-                            setEditVariants(next);
+                            const value = e.target.value;
+                            setEditVariants((prev) => {
+                              const next = [...prev];
+                              next[idx] = { ...next[idx], barcode: value };
+                              return next;
+                            });
                           }}
                         />
                       </td>
-                      <td className="py-2">{row.quantityOnHand}</td>
+                      <td className="py-2 w-28">
+                        <Input
+                          type="number"
+                          min="0"
+                          step="1"
+                          inputMode="numeric"
+                          className="font-semibold"
+                          value={
+                            row.quantityOnHand === 0 ? "" : row.quantityOnHand
+                          }
+                          placeholder="0"
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            const qty =
+                              raw === ""
+                                ? 0
+                                : Math.max(0, Math.floor(Number(raw) || 0));
+                            setEditVariants((prev) => {
+                              const next = [...prev];
+                              next[idx] = {
+                                ...next[idx],
+                                quantityOnHand: qty,
+                              };
+                              return next;
+                            });
+                            if (
+                              editVariants.filter((x) => !x.remove).length ===
+                                1 &&
+                              !row.isNew
+                            ) {
+                              setSimpleQty(String(qty));
+                            }
+                          }}
+                        />
+                      </td>
                       <td className="py-2 w-20">
                         <Input
                           type="number"
                           min="0"
                           value={row.minAlertLevel}
                           onChange={(e) => {
-                            const next = [...editVariants];
-                            next[idx] = {
-                              ...row,
-                              minAlertLevel: Number(e.target.value) || 0,
-                            };
-                            setEditVariants(next);
+                            const value = Number(e.target.value) || 0;
+                            setEditVariants((prev) => {
+                              const next = [...prev];
+                              next[idx] = {
+                                ...next[idx],
+                                minAlertLevel: value,
+                              };
+                              return next;
+                            });
                           }}
                         />
                       </td>
@@ -657,9 +732,15 @@ export function ProductForm({
                         <Select
                           value={row.locationId}
                           onChange={(e) => {
-                            const next = [...editVariants];
-                            next[idx] = { ...row, locationId: e.target.value };
-                            setEditVariants(next);
+                            const value = e.target.value;
+                            setEditVariants((prev) => {
+                              const next = [...prev];
+                              next[idx] = {
+                                ...next[idx],
+                                locationId: value,
+                              };
+                              return next;
+                            });
                           }}
                         >
                           <option value="">ללא</option>
@@ -670,12 +751,102 @@ export function ProductForm({
                           ))}
                         </Select>
                       </td>
+                      <td className="py-2">
+                        <button
+                          type="button"
+                          className="rounded-lg p-1.5 text-[var(--danger)] hover:bg-[var(--danger-soft)] disabled:opacity-40"
+                          title="הסר אפשרות"
+                          disabled={
+                            editVariants.filter((x) => !x.remove).length <= 1
+                          }
+                          onClick={() => {
+                            setEditVariants((prev) => {
+                              const next = [...prev];
+                              if (next[idx].isNew) {
+                                return prev.filter((_, i) => i !== idx);
+                              }
+                              next[idx] = { ...next[idx], remove: true };
+                              return next;
+                            });
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-2)] p-3">
+            <p className="mb-2 text-sm font-medium">הוספת מידה / אפשרות</p>
+            <div className="grid gap-3 sm:grid-cols-[1fr_100px_auto]">
+              <div>
+                <Label>מידה (או ערך מאפיין)</Label>
+                <Input
+                  value={newSizeValue}
+                  onChange={(e) => setNewSizeValue(e.target.value)}
+                  placeholder="למשל XL"
+                />
+              </div>
+              <div>
+                <Label>כמות</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={newSizeQty}
+                  onChange={(e) => setNewSizeQty(e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    const size = newSizeValue.trim();
+                    if (!size) {
+                      setError("הזינו ערך מידה לפני הוספה");
+                      return;
+                    }
+                    const attrName =
+                      schema[0] ||
+                      (categorySchema[0] ? categorySchema[0] : "מידה");
+                    const attrs = { [attrName]: size };
+                    const sku = buildVariantSku(
+                      baseSku.toUpperCase() || "SKU",
+                      attrs,
+                      [attrName]
+                    );
+                    setEditVariants((prev) => [
+                      ...prev,
+                      {
+                        id: `new-${Date.now()}`,
+                        isNew: true,
+                        remove: false,
+                        sku,
+                        barcode: `${sku}-${prev.length + 1}`,
+                        attributes: JSON.stringify(attrs),
+                        quantityOnHand: Math.max(
+                          0,
+                          Math.floor(Number(newSizeQty) || 0)
+                        ),
+                        minAlertLevel: 5,
+                        locationId: "",
+                      },
+                    ]);
+                    setNewSizeValue("");
+                    setNewSizeQty("");
+                    setError("");
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                  הוסף
+                </Button>
+              </div>
             </div>
-          )}
+          </div>
         </Card>
       ) : (
         <Card className="space-y-4">
@@ -733,99 +904,145 @@ export function ProductForm({
                     />
                   </div>
                 ))}
+                <div>
+                  <Label>כמות התחלתית לכולן (אופציונלי)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputMode="numeric"
+                    placeholder="למשל 10"
+                    value={defaultVariantQty}
+                    onChange={(e) => setDefaultVariantQty(e.target.value)}
+                  />
+                </div>
               </div>
               <Button type="button" variant="secondary" onClick={generateMatrix}>
                 צור אפשרויות ({schema.join(" × ") || "מידה"})
               </Button>
 
               {matrixRows.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px] text-sm">
-                    <thead>
-                      <tr className="text-right text-[var(--muted)]">
-                        <th className="pb-2">מאפיינים</th>
-                        <th className="pb-2">SKU</th>
-                        <th className="pb-2">ברקוד</th>
-                        <th className="pb-2">כמות</th>
-                        <th className="pb-2">מיקום</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {matrixRows.map((row, idx) => (
-                        <tr
-                          key={idx}
-                          className="border-t border-[var(--border)]"
-                        >
-                          <td className="py-2">
-                            {Object.entries(row.attributes)
-                              .map(([k, v]) => `${k}:${v}`)
-                              .join(" · ")}
-                          </td>
-                          <td className="py-2">
-                            <Input
-                              className="font-mono text-xs"
-                              value={row.sku}
-                              onChange={(e) => {
-                                const next = [...matrixRows];
-                                next[idx] = { ...row, sku: e.target.value };
-                                setMatrixRows(next);
-                              }}
-                            />
-                          </td>
-                          <td className="py-2">
-                            <Input
-                              className="font-mono text-xs"
-                              value={row.barcode}
-                              onChange={(e) => {
-                                const next = [...matrixRows];
-                                next[idx] = {
-                                  ...row,
-                                  barcode: e.target.value,
-                                };
-                                setMatrixRows(next);
-                              }}
-                              required
-                            />
-                          </td>
-                          <td className="py-2 w-24">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={row.quantityOnHand}
-                              onChange={(e) => {
-                                const next = [...matrixRows];
-                                next[idx] = {
-                                  ...row,
-                                  quantityOnHand: Number(e.target.value) || 0,
-                                };
-                                setMatrixRows(next);
-                              }}
-                            />
-                          </td>
-                          <td className="py-2">
-                            <Select
-                              value={row.locationId}
-                              onChange={(e) => {
-                                const next = [...matrixRows];
-                                next[idx] = {
-                                  ...row,
-                                  locationId: e.target.value,
-                                };
-                                setMatrixRows(next);
-                              }}
-                            >
-                              <option value="">ללא</option>
-                              {locations.map((l) => (
-                                <option key={l.id} value={l.id}>
-                                  {l.code}
-                                </option>
-                              ))}
-                            </Select>
-                          </td>
+                <div className="space-y-2">
+                  <p className="text-sm text-[var(--muted)]">
+                    הזינו כמות לכל שורה (או עדכנו), ואז לחצו שמור מוצר —{" "}
+                    {matrixRows.reduce((s, r) => s + (r.quantityOnHand || 0), 0)}{" "}
+                    יח׳ בסך הכל
+                  </p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-sm">
+                      <thead>
+                        <tr className="text-right text-[var(--muted)]">
+                          <th className="pb-2">מאפיינים</th>
+                          <th className="pb-2">SKU</th>
+                          <th className="pb-2">ברקוד</th>
+                          <th className="pb-2">כמות במלאי</th>
+                          <th className="pb-2">מיקום</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {matrixRows.map((row, idx) => (
+                          <tr
+                            key={idx}
+                            className="border-t border-[var(--border)]"
+                          >
+                            <td className="py-2">
+                              {Object.entries(row.attributes)
+                                .map(([k, v]) => `${k}:${v}`)
+                                .join(" · ")}
+                            </td>
+                            <td className="py-2">
+                              <Input
+                                className="font-mono text-xs"
+                                value={row.sku}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setMatrixRows((prev) => {
+                                    const next = [...prev];
+                                    next[idx] = { ...next[idx], sku: value };
+                                    return next;
+                                  });
+                                }}
+                              />
+                            </td>
+                            <td className="py-2">
+                              <Input
+                                className="font-mono text-xs"
+                                value={row.barcode}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setMatrixRows((prev) => {
+                                    const next = [...prev];
+                                    next[idx] = {
+                                      ...next[idx],
+                                      barcode: value,
+                                    };
+                                    return next;
+                                  });
+                                }}
+                                required
+                              />
+                            </td>
+                            <td className="py-2 w-28">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                inputMode="numeric"
+                                className="font-semibold"
+                                value={
+                                  row.quantityOnHand === 0
+                                    ? ""
+                                    : row.quantityOnHand
+                                }
+                                placeholder="0"
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  const qty =
+                                    raw === ""
+                                      ? 0
+                                      : Math.max(
+                                          0,
+                                          Math.floor(Number(raw) || 0)
+                                        );
+                                  setMatrixRows((prev) => {
+                                    const next = [...prev];
+                                    next[idx] = {
+                                      ...next[idx],
+                                      quantityOnHand: qty,
+                                    };
+                                    return next;
+                                  });
+                                }}
+                              />
+                            </td>
+                            <td className="py-2">
+                              <Select
+                                value={row.locationId}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  setMatrixRows((prev) => {
+                                    const next = [...prev];
+                                    next[idx] = {
+                                      ...next[idx],
+                                      locationId: value,
+                                    };
+                                    return next;
+                                  });
+                                }}
+                              >
+                                <option value="">ללא</option>
+                                {locations.map((l) => (
+                                  <option key={l.id} value={l.id}>
+                                    {l.code}
+                                  </option>
+                                ))}
+                              </Select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </>

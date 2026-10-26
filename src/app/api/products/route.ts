@@ -4,6 +4,7 @@ import { buildVariantSku, generateMatrixCombinations } from "@/lib/sku";
 import { parseJsonArray, stringifyJson } from "@/lib/json";
 import { logProductChange, writeAudit } from "@/lib/audit";
 import { getSession, requireSession } from "@/lib/auth";
+import { applyStockChange, StockError } from "@/lib/stock";
 
 export async function GET(req: NextRequest) {
   const session = await requireSession();
@@ -89,7 +90,9 @@ export async function POST(req: NextRequest) {
     let schema = parseJsonArray(category.attributeSchema);
     const wantsMulti =
       (Array.isArray(variants) && variants.length > 0) ||
-      (matrixOptions && typeof matrixOptions === "object");
+      (matrixOptions &&
+        typeof matrixOptions === "object" &&
+        Object.keys(matrixOptions).length > 0);
 
     // אם שלחו כמה אפשרויות — מעדכנים את הקטגוריה אוטומטית (מידות וכו׳)
     if (wantsMulti) {
@@ -167,21 +170,32 @@ export async function POST(req: NextRequest) {
         minAlertLevel?: number;
       }[] = [];
 
+      const parseQty = (raw: unknown) => {
+        const n = Math.floor(Number(raw));
+        return Number.isFinite(n) && n > 0 ? n : 0;
+      };
+
       if (wantsMulti) {
         if (variants?.length) {
           rows = variants.map(
             (v: {
               attributes: Record<string, string>;
               barcode: string;
-              quantityOnHand?: number;
+              quantityOnHand?: number | string;
+              qty?: number | string;
+              quantity?: number | string;
               locationId?: string;
               minAlertLevel?: number;
               sku?: string;
             }) => ({
-              sku: v.sku || buildVariantSku(created.baseSku, v.attributes, schema),
+              sku:
+                v.sku ||
+                buildVariantSku(created.baseSku, v.attributes || {}, schema),
               barcode: v.barcode,
               attributes: v.attributes || {},
-              quantityOnHand: Number(v.quantityOnHand) || 0,
+              quantityOnHand: parseQty(
+                v.quantityOnHand ?? v.qty ?? v.quantity
+              ),
               locationId: v.locationId || null,
               minAlertLevel: v.minAlertLevel ?? 5,
             })
@@ -203,7 +217,7 @@ export async function POST(req: NextRequest) {
             sku: created.baseSku,
             barcode: simpleBarcode || `${created.baseSku}-1`,
             attributes: {},
-            quantityOnHand: Number(simpleQty) || 0,
+            quantityOnHand: parseQty(simpleQty),
             locationId: simpleLocationId || null,
             minAlertLevel: 5,
           },
@@ -227,6 +241,7 @@ export async function POST(req: NextRequest) {
       }
 
       for (const row of rows) {
+        const initialQty = row.quantityOnHand;
         const variant = await tx.productVariant.create({
           data: {
             companyId: session.companyId,
@@ -234,24 +249,27 @@ export async function POST(req: NextRequest) {
             sku: row.sku,
             barcode: row.barcode,
             attributes: stringifyJson(row.attributes),
-            quantityOnHand: row.quantityOnHand,
-            locationId: row.locationId,
+            quantityOnHand: 0,
+            locationId: row.locationId || null,
             minAlertLevel: row.minAlertLevel ?? 5,
           },
         });
 
-        if (row.quantityOnHand > 0) {
-          await tx.stockTransaction.create({
-            data: {
+        if (initialQty > 0) {
+          await applyStockChange(
+            {
               variantId: variant.id,
               type: "INBOUND",
-              quantityChanged: row.quantityOnHand,
-              previousQuantity: 0,
-              newQuantity: row.quantityOnHand,
+              quantityChanged: initialQty,
               reason: "מלאי התחלתי בהקמה",
+              reasonCode: "SETUP",
+              userId: session.id,
+              companyId: session.companyId,
+              locationId: row.locationId || null,
               toLocationId: row.locationId || null,
             },
-          });
+            tx
+          );
         }
       }
 
@@ -281,9 +299,13 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     console.error(e);
     const message =
-      e instanceof Error && e.message.includes("Unique")
-        ? "מק״ט או ברקוד כבר קיימים"
-        : "שגיאה ביצירת מוצר";
+      e instanceof StockError
+        ? e.message
+        : e instanceof Error && e.message.includes("Unique")
+          ? "מק״ט או ברקוד כבר קיימים"
+          : e instanceof Error && e.message.includes("מיקום")
+            ? e.message
+            : "שגיאה ביצירת מוצר";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
