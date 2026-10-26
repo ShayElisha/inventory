@@ -142,14 +142,21 @@ export function ProductForm({
   );
   const [attrOptions, setAttrOptions] = useState<Record<string, string>>({});
   const [matrixRows, setMatrixRows] = useState<VariantRow[]>([]);
+  const [multiSizes, setMultiSizes] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const category = categories.find((c) => c.id === categoryId);
-  const schema = useMemo(
+  const categorySchema = useMemo(
     () => (category ? parseJsonArray(category.attributeSchema) : []),
     [category]
   );
+  const useMulti = Boolean(category?.hasVariants || multiSizes);
+  const schema = useMemo(() => {
+    if (category?.hasVariants && categorySchema.length > 0) return categorySchema;
+    if (useMulti) return categorySchema.length > 0 ? categorySchema : ["מידה"];
+    return [];
+  }, [category?.hasVariants, categorySchema, useMulti]);
   const visibleCustomFields = useMemo(
     () =>
       customFields.filter(
@@ -183,6 +190,10 @@ export function ProductForm({
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
+    }
+    if (!Object.values(optionsByAttr).some((arr) => arr.length > 0)) {
+      setError("הזינו לפחות ערך אחד (למשל מידות: S, M, L)");
+      return;
     }
     const combos = generateMatrixCombinations(schema, optionsByAttr);
     const rows: VariantRow[] = combos.map((attrs, i) => ({
@@ -311,9 +322,9 @@ export function ProductForm({
         customData,
       };
 
-      if (category?.hasVariants) {
+      if (useMulti) {
         if (matrixRows.length === 0) {
-          setError("יש ליצור טבלת אפשרויות מוצר לפני השמירה");
+          setError("לחצו «צור אפשרויות» אחרי הזנת המידות, ואז שמרו");
           setLoading(false);
           return;
         }
@@ -362,7 +373,10 @@ export function ProductForm({
             value={categoryId}
             onChange={(e) => {
               setCategoryId(e.target.value);
-              if (!isEdit) setMatrixRows([]);
+              if (!isEdit) {
+                setMatrixRows([]);
+                setMultiSizes(false);
+              }
             }}
           >
             {categories.map((c) => (
@@ -663,179 +677,193 @@ export function ProductForm({
             </div>
           )}
         </Card>
-      ) : category?.hasVariants ? (
-        <Card className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">מחולל אפשרויות מוצר</h2>
-            <p className="text-sm text-[var(--muted)]">
-              הזינו ערכים מופרדים בפסיק (למשל S, M, L), לחצו «צור אפשרויות» —
-              ואז שמרו. כל שורה = מידה/שילוב נפרד.
-            </p>
-          </div>
-          {schema.length === 0 ? (
-            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-              לקטגוריה מסומנות אפשרויות מוצר אבל לא נבחרו מאפיינים. עברו ל־
-              <a href="/setup" className="font-medium underline">
-                הגדרות
-              </a>
-              , ערכו את הקטגוריה והוסיפו למשל «מידה».
-            </p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-3">
-              {schema.map((attr) => (
-                <div key={attr}>
-                  <Label>{attr}</Label>
-                  <Input
-                    placeholder={
-                      attr === "מידה" || attr === "Size"
-                        ? "S, M, L, XL"
-                        : attr === "צבע" || attr === "Color"
-                          ? "שחור, לבן, כחול"
-                          : "ערך1, ערך2, ערך3"
-                    }
-                    value={attrOptions[attr] || ""}
-                    onChange={(e) =>
-                      setAttrOptions((prev) => ({
-                        ...prev,
-                        [attr]: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-          {schema.length > 0 && (
-          <Button type="button" variant="secondary" onClick={generateMatrix}>
-            צור אפשרויות מוצר ({schema.join(" × ")})
-          </Button>
-          )}
-
-          {matrixRows.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead>
-                  <tr className="text-right text-[var(--muted)]">
-                    <th className="pb-2">מאפיינים</th>
-                    <th className="pb-2">SKU</th>
-                    <th className="pb-2">ברקוד</th>
-                    <th className="pb-2">כמות</th>
-                    <th className="pb-2">מיקום</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {matrixRows.map((row, idx) => (
-                    <tr key={idx} className="border-t border-[var(--border)]">
-                      <td className="py-2">
-                        {Object.entries(row.attributes)
-                          .map(([k, v]) => `${k}:${v}`)
-                          .join(" · ")}
-                      </td>
-                      <td className="py-2">
-                        <Input
-                          className="font-mono text-xs"
-                          value={row.sku}
-                          onChange={(e) => {
-                            const next = [...matrixRows];
-                            next[idx] = { ...row, sku: e.target.value };
-                            setMatrixRows(next);
-                          }}
-                        />
-                      </td>
-                      <td className="py-2">
-                        <Input
-                          className="font-mono text-xs"
-                          value={row.barcode}
-                          onChange={(e) => {
-                            const next = [...matrixRows];
-                            next[idx] = { ...row, barcode: e.target.value };
-                            setMatrixRows(next);
-                          }}
-                          required
-                        />
-                      </td>
-                      <td className="py-2 w-24">
-                        <Input
-                          type="number"
-                          min="0"
-                          value={row.quantityOnHand}
-                          onChange={(e) => {
-                            const next = [...matrixRows];
-                            next[idx] = {
-                              ...row,
-                              quantityOnHand: Number(e.target.value) || 0,
-                            };
-                            setMatrixRows(next);
-                          }}
-                        />
-                      </td>
-                      <td className="py-2">
-                        <Select
-                          value={row.locationId}
-                          onChange={(e) => {
-                            const next = [...matrixRows];
-                            next[idx] = { ...row, locationId: e.target.value };
-                            setMatrixRows(next);
-                          }}
-                        >
-                          <option value="">ללא</option>
-                          {locations.map((l) => (
-                            <option key={l.id} value={l.id}>
-                              {l.code}
-                            </option>
-                          ))}
-                        </Select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
       ) : (
         <Card className="space-y-4">
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--muted)]">
-            הקטגוריה הזו היא מוצר בודד (בלי מידות). כדי ליצור כמה מידות במוצר
-            אחד — בהגדרות סמנו «אפשרויות מוצר» והוסיפו מאפיין «מידה», ואז חזרו
-            לכאן.{" "}
-            <a href="/setup" className="font-medium text-[var(--accent)] underline">
-              פתיחת הגדרות
-            </a>
+          <div>
+            <h2 className="text-lg font-semibold">מלאי ואפשרויות</h2>
+            <p className="text-sm text-[var(--muted)]">
+              אותו דגם עם כמה מידות = מוצר אחד. סמנו למטה והזינו את כל המידות.
+            </p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <Label>ברקוד</Label>
-              <Input
-                value={simpleBarcode}
-                onChange={(e) => setSimpleBarcode(e.target.value)}
-                placeholder="יווצר אוטומטית אם ריק"
+
+          {!category?.hasVariants && (
+            <label className="flex items-start gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={multiSizes}
+                onChange={(e) => {
+                  setMultiSizes(e.target.checked);
+                  setMatrixRows([]);
+                  if (e.target.checked && !attrOptions["מידה"]) {
+                    setAttrOptions((prev) => ({ ...prev, מידה: "" }));
+                  }
+                }}
               />
-            </div>
-            <div>
-              <Label>כמות התחלתית</Label>
-              <Input
-                type="number"
-                min="0"
-                value={simpleQty}
-                onChange={(e) => setSimpleQty(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>מיקום</Label>
-              <Select
-                value={simpleLocationId}
-                onChange={(e) => setSimpleLocationId(e.target.value)}
-              >
-                <option value="">ללא</option>
-                {locations.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.code}
-                  </option>
+              <span>
+                <span className="font-medium">יש כמה מידות לאותו דגם</span>
+                <span className="mt-0.5 block text-[var(--muted)]">
+                  למשל S / M / L — נוצרות כמה אפשרויות בתוך אותו מוצר
+                </span>
+              </span>
+            </label>
+          )}
+
+          {useMulti ? (
+            <>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {schema.map((attr) => (
+                  <div key={attr}>
+                    <Label>{attr}</Label>
+                    <Input
+                      placeholder={
+                        attr === "מידה" || attr === "Size"
+                          ? "S, M, L, XL"
+                          : attr === "צבע" || attr === "Color"
+                            ? "שחור, לבן, כחול"
+                            : "ערך1, ערך2, ערך3"
+                      }
+                      value={attrOptions[attr] || ""}
+                      onChange={(e) =>
+                        setAttrOptions((prev) => ({
+                          ...prev,
+                          [attr]: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
                 ))}
-              </Select>
+              </div>
+              <Button type="button" variant="secondary" onClick={generateMatrix}>
+                צור אפשרויות ({schema.join(" × ") || "מידה"})
+              </Button>
+
+              {matrixRows.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-sm">
+                    <thead>
+                      <tr className="text-right text-[var(--muted)]">
+                        <th className="pb-2">מאפיינים</th>
+                        <th className="pb-2">SKU</th>
+                        <th className="pb-2">ברקוד</th>
+                        <th className="pb-2">כמות</th>
+                        <th className="pb-2">מיקום</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {matrixRows.map((row, idx) => (
+                        <tr
+                          key={idx}
+                          className="border-t border-[var(--border)]"
+                        >
+                          <td className="py-2">
+                            {Object.entries(row.attributes)
+                              .map(([k, v]) => `${k}:${v}`)
+                              .join(" · ")}
+                          </td>
+                          <td className="py-2">
+                            <Input
+                              className="font-mono text-xs"
+                              value={row.sku}
+                              onChange={(e) => {
+                                const next = [...matrixRows];
+                                next[idx] = { ...row, sku: e.target.value };
+                                setMatrixRows(next);
+                              }}
+                            />
+                          </td>
+                          <td className="py-2">
+                            <Input
+                              className="font-mono text-xs"
+                              value={row.barcode}
+                              onChange={(e) => {
+                                const next = [...matrixRows];
+                                next[idx] = {
+                                  ...row,
+                                  barcode: e.target.value,
+                                };
+                                setMatrixRows(next);
+                              }}
+                              required
+                            />
+                          </td>
+                          <td className="py-2 w-24">
+                            <Input
+                              type="number"
+                              min="0"
+                              value={row.quantityOnHand}
+                              onChange={(e) => {
+                                const next = [...matrixRows];
+                                next[idx] = {
+                                  ...row,
+                                  quantityOnHand: Number(e.target.value) || 0,
+                                };
+                                setMatrixRows(next);
+                              }}
+                            />
+                          </td>
+                          <td className="py-2">
+                            <Select
+                              value={row.locationId}
+                              onChange={(e) => {
+                                const next = [...matrixRows];
+                                next[idx] = {
+                                  ...row,
+                                  locationId: e.target.value,
+                                };
+                                setMatrixRows(next);
+                              }}
+                            >
+                              <option value="">ללא</option>
+                              {locations.map((l) => (
+                                <option key={l.id} value={l.id}>
+                                  {l.code}
+                                </option>
+                              ))}
+                            </Select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <Label>ברקוד</Label>
+                <Input
+                  value={simpleBarcode}
+                  onChange={(e) => setSimpleBarcode(e.target.value)}
+                  placeholder="יווצר אוטומטית אם ריק"
+                />
+              </div>
+              <div>
+                <Label>כמות התחלתית</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={simpleQty}
+                  onChange={(e) => setSimpleQty(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>מיקום</Label>
+                <Select
+                  value={simpleLocationId}
+                  onChange={(e) => setSimpleLocationId(e.target.value)}
+                >
+                  <option value="">ללא</option>
+                  {locations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.code}
+                    </option>
+                  ))}
+                </Select>
+              </div>
             </div>
-          </div>
+          )}
         </Card>
       )}
 

@@ -69,12 +69,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "חסרים שדות חובה" }, { status: 400 });
     }
 
-    const category = await prisma.category.findFirst({
+    const categoryRow = await prisma.category.findFirst({
       where: { id: categoryId, companyId: session.companyId },
     });
-    if (!category) {
+    if (!categoryRow) {
       return NextResponse.json({ error: "קטגוריה לא נמצאה" }, { status: 400 });
     }
+    let category = categoryRow;
 
     if (supplierId) {
       const supplier = await prisma.supplier.findFirst({
@@ -85,7 +86,42 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const schema = parseJsonArray(category.attributeSchema);
+    let schema = parseJsonArray(category.attributeSchema);
+    const wantsMulti =
+      (Array.isArray(variants) && variants.length > 0) ||
+      (matrixOptions && typeof matrixOptions === "object");
+
+    // אם שלחו כמה אפשרויות — מעדכנים את הקטגוריה אוטומטית (מידות וכו׳)
+    if (wantsMulti) {
+      const attrKeys = new Set(schema);
+      if (Array.isArray(variants)) {
+        for (const v of variants) {
+          if (v?.attributes && typeof v.attributes === "object") {
+            for (const k of Object.keys(v.attributes)) {
+              if (k.trim()) attrKeys.add(k.trim());
+            }
+          }
+        }
+      }
+      if (matrixOptions && typeof matrixOptions === "object") {
+        for (const k of Object.keys(matrixOptions)) {
+          if (k.trim()) attrKeys.add(k.trim());
+        }
+      }
+      if (!attrKeys.size) attrKeys.add("מידה");
+      schema = [...attrKeys];
+      if (!category.hasVariants || schema.join() !== parseJsonArray(category.attributeSchema).join()) {
+        await prisma.category.update({
+          where: { id: category.id },
+          data: {
+            hasVariants: true,
+            attributeSchema: stringifyJson(schema),
+          },
+        });
+        category.hasVariants = true;
+        category.attributeSchema = stringifyJson(schema);
+      }
+    }
 
     const product = await prisma.$transaction(async (tx) => {
       const created = await tx.product.create({
@@ -131,7 +167,7 @@ export async function POST(req: NextRequest) {
         minAlertLevel?: number;
       }[] = [];
 
-      if (category.hasVariants && (variants?.length || matrixOptions)) {
+      if (wantsMulti) {
         if (variants?.length) {
           rows = variants.map(
             (v: {
@@ -144,7 +180,7 @@ export async function POST(req: NextRequest) {
             }) => ({
               sku: v.sku || buildVariantSku(created.baseSku, v.attributes, schema),
               barcode: v.barcode,
-              attributes: v.attributes,
+              attributes: v.attributes || {},
               quantityOnHand: Number(v.quantityOnHand) || 0,
               locationId: v.locationId || null,
               minAlertLevel: v.minAlertLevel ?? 5,
