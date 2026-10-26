@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Input, Label } from "@/components/ui";
+import { CategoryAttributesPicker } from "@/components/category-attributes-picker";
 import { parseJsonArray } from "@/lib/json";
 import { Pencil, Trash2, Check, X } from "lucide-react";
 
@@ -12,6 +13,26 @@ type Category = {
   hasVariants: boolean;
   attributeSchema: string;
 };
+
+function attrsFromSchema(raw: string): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => {
+        if (typeof item === "string") return item.trim();
+        if (item && typeof item === "object") {
+          const o = item as { label?: string; key?: string };
+          return String(o.label || o.key || "").trim();
+        }
+        return "";
+      })
+      .filter(Boolean);
+  } catch {
+    return parseJsonArray(raw);
+  }
+}
 
 export function SetupPanel({
   categories,
@@ -23,7 +44,7 @@ export function SetupPanel({
   const router = useRouter();
   const [catName, setCatName] = useState("");
   const [hasVariants, setHasVariants] = useState(false);
-  const [attrs, setAttrs] = useState("");
+  const [attrs, setAttrs] = useState<string[]>([]);
   const [supName, setSupName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -31,7 +52,7 @@ export function SetupPanel({
   const [editCatId, setEditCatId] = useState<string | null>(null);
   const [editCatName, setEditCatName] = useState("");
   const [editCatHasVariants, setEditCatHasVariants] = useState(false);
-  const [editCatAttrs, setEditCatAttrs] = useState("");
+  const [editCatAttrs, setEditCatAttrs] = useState<string[]>([]);
 
   const [editSupId, setEditSupId] = useState<string | null>(null);
   const [editSupName, setEditSupName] = useState("");
@@ -53,7 +74,7 @@ export function SetupPanel({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setCatName("");
-      setAttrs("");
+      setAttrs([]);
       setHasVariants(false);
       router.refresh();
     } catch (err) {
@@ -88,7 +109,7 @@ export function SetupPanel({
     setEditCatId(c.id);
     setEditCatName(c.name);
     setEditCatHasVariants(c.hasVariants);
-    setEditCatAttrs(parseJsonArray(c.attributeSchema).join(", "));
+    setEditCatAttrs(attrsFromSchema(c.attributeSchema));
   }
 
   async function saveCategory(id: string) {
@@ -203,14 +224,11 @@ export function SetupPanel({
               מוצרים בקטגוריה זו מתפצלים לאפשרויות מוצר
             </label>
             {hasVariants && (
-              <div>
-                <Label>מאפיינים (מופרדים בפסיק)</Label>
-                <Input
-                  value={attrs}
-                  onChange={(e) => setAttrs(e.target.value)}
-                  placeholder="Size, Color, Fit"
-                />
-              </div>
+              <CategoryAttributesPicker
+                value={attrs}
+                onChange={setAttrs}
+                idPrefix="new-cat"
+              />
             )}
             <Button type="submit" disabled={loading}>
               הוסף קטגוריה
@@ -238,10 +256,10 @@ export function SetupPanel({
                       אפשרויות מוצר
                     </label>
                     {editCatHasVariants && (
-                      <Input
+                      <CategoryAttributesPicker
                         value={editCatAttrs}
-                        onChange={(e) => setEditCatAttrs(e.target.value)}
-                        placeholder="Size, Color"
+                        onChange={setEditCatAttrs}
+                        idPrefix={`edit-${c.id}`}
                       />
                     )}
                     <div className="flex gap-2">
@@ -267,15 +285,25 @@ export function SetupPanel({
                   </div>
                 ) : (
                   <div className="flex items-start justify-between gap-2">
-                    <div className="text-sm">
+                    <div className="min-w-0 text-sm">
                       <span className="font-medium">{c.name}</span>
                       {c.hasVariants && (
-                        <span className="text-[var(--muted)]">
-                          {" "}
-                          ·{" "}
-                          {parseJsonArray(c.attributeSchema).join(", ") ||
-                            "אפשרויות מוצר"}
-                        </span>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {attrsFromSchema(c.attributeSchema).length ? (
+                            attrsFromSchema(c.attributeSchema).map((a) => (
+                              <span
+                                key={a}
+                                className="rounded-full bg-[var(--surface-2)] px-2.5 py-0.5 text-xs text-[var(--muted)] ring-1 ring-[var(--border)]"
+                              >
+                                {a}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[var(--muted)]">
+                              אפשרויות מוצר
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                     <div className="flex shrink-0 gap-1">

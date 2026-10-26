@@ -1,8 +1,6 @@
 import Link from "next/link";
-import { PackagePlus, MapPin, PackageMinus, Sparkles } from "lucide-react";
+import { PackagePlus, MapPin, PackageMinus } from "lucide-react";
 import { requireTenant } from "@/lib/tenant";
-import { prisma } from "@/lib/db";
-import { getIndustryPreset } from "@/lib/industry-presets";
 
 const steps = [
   {
@@ -35,13 +33,6 @@ export default async function FloorHomePage({
 }) {
   const session = await requireTenant();
   const { module: moduleOff } = await searchParams;
-  const company = await prisma.company.findUnique({
-    where: { id: session.companyId },
-    select: { industryProfile: true },
-  });
-  const industry = company?.industryProfile
-    ? getIndustryPreset(company.industryProfile)
-    : null;
 
   return (
     <div className="space-y-6">
@@ -59,16 +50,6 @@ export default async function FloorHomePage({
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
           המודול הזה כבוי לחברה. פנו למנהל להפעלה.
         </p>
-      )}
-
-      {industry && (
-        <div className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-[var(--accent)]" />
-          <div>
-            <p className="font-semibold">תבנית: {industry.name}</p>
-            <p className="text-sm text-[var(--muted)]">{industry.tagline}</p>
-          </div>
-        </div>
       )}
 
       <div className="grid gap-3">

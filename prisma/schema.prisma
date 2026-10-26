@@ -28,9 +28,7 @@ model Company {
   modKits       Boolean @default(false) @map("mod_kits") // קיטים והרכבה
   modReorder    Boolean @default(false) @map("mod_reorder") // הזמנות חוזרות
   modReportsPro Boolean @default(false) @map("mod_reports_pro") // דוחות פרימיום
-  // תבנית ענף: fashion | food | auto_parts | garage
-  industryProfile String?  @map("industry_profile")
-  createdAt       DateTime @default(now()) @map("created_at")
+  createdAt     DateTime @default(now()) @map("created_at")
 
   users                User[]
   categories           Category[]
