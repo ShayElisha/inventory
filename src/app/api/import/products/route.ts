@@ -131,10 +131,11 @@ function parseCsvText(text: string): ImportProductRow[] {
     .filter(Boolean);
   if (lines.length < 2) return [];
 
-  const headers = mapHeaders(splitCsv(lines[0]));
+  const rawHeaders = splitCsv(lines[0]);
+  const headers = mapHeaders(rawHeaders);
   const rows: ImportProductRow[] = [];
   for (let i = 1; i < lines.length; i++) {
-    const parsed = rowFromValues(headers, splitCsv(lines[i]), i + 1);
+    const parsed = rowFromValues(headers, rawHeaders, splitCsv(lines[i]), i + 1);
     if ("error" in parsed) continue;
     rows.push(parsed);
   }
@@ -175,7 +176,7 @@ async function parseExcelBuffer(buffer: ArrayBuffer): Promise<ImportProductRow[]
     const values = matrix[i];
     // skip fully empty rows
     if (values.every((v) => String(v ?? "").trim() === "")) continue;
-    const parsed = rowFromValues(headers, values, i + 1);
+    const parsed = rowFromValues(headers, headerCells, values, i + 1);
     if ("error" in parsed) continue;
     rows.push(parsed);
   }

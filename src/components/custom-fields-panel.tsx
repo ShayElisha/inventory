@@ -13,13 +13,17 @@ type Field = {
   fieldType: string;
   options: string;
   required: boolean;
+  categoryId?: string | null;
+  category?: { id: string; name: string } | null;
 };
 
 export function CustomFieldsPanel({
   fields,
+  categories,
   canManage,
 }: {
   fields: Field[];
+  categories: { id: string; name: string }[];
   canManage: boolean;
 }) {
   const router = useRouter();
@@ -27,6 +31,7 @@ export function CustomFieldsPanel({
   const [fieldType, setFieldType] = useState("TEXT");
   const [optionsText, setOptionsText] = useState("");
   const [required, setRequired] = useState(false);
+  const [categoryId, setCategoryId] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -43,6 +48,7 @@ export function CustomFieldsPanel({
           fieldType,
           optionsText,
           required,
+          categoryId: categoryId || null,
         }),
       });
       const data = await res.json();
@@ -51,6 +57,7 @@ export function CustomFieldsPanel({
       setOptionsText("");
       setRequired(false);
       setFieldType("TEXT");
+      setCategoryId("");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
@@ -78,6 +85,9 @@ export function CustomFieldsPanel({
   const typeLabel = (code: string) =>
     CUSTOM_FIELD_TYPES.find((t) => t.code === code)?.label || code;
 
+  const scopeLabel = (f: Field) =>
+    f.category?.name || (f.categoryId ? "קטגוריה" : "כל הקטגוריות");
+
   return (
     <Card>
       <h2 className="mb-1 flex items-center gap-2 font-display text-lg font-semibold">
@@ -85,8 +95,8 @@ export function CustomFieldsPanel({
         שדות מותאמים למוצרים
       </h2>
       <p className="mb-4 text-sm text-[var(--muted)]">
-        הוסיפו שדות כמו «מותג», «ארץ ייצור» או «מס׳ קטלוג ספק» — יופיעו בטופס
-        המוצר.
+        שדה גלובלי מופיע בכל מוצר; שדה לפי קטגוריה — רק במוצרים של אותה
+        קטגוריה (למשל «תוקף» למוצרי חלב, «מידה» לחולצות).
       </p>
 
       {error && (
@@ -106,8 +116,22 @@ export function CustomFieldsPanel({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               required
-              placeholder="למשל: מותג"
+              placeholder="למשל: מותג / תוקף / מספר OEM"
             />
+          </div>
+          <div>
+            <Label>קטגוריה</Label>
+            <Select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+            >
+              <option value="">כל הקטגוריות</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
           </div>
           <div>
             <Label>סוג</Label>
@@ -166,7 +190,7 @@ export function CustomFieldsPanel({
                   )}
                 </div>
                 <div className="text-xs text-[var(--muted)]">
-                  {typeLabel(f.fieldType)} · מפתח: {f.key}
+                  {typeLabel(f.fieldType)} · {scopeLabel(f)} · מפתח: {f.key}
                 </div>
               </div>
               {canManage && (

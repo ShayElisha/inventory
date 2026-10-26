@@ -91,13 +91,14 @@ model User {
 }
 
 model Category {
-  id              String    @id @default(cuid())
-  companyId       String    @map("company_id")
+  id              String        @id @default(cuid())
+  companyId       String        @map("company_id")
   name            String
-  hasVariants     Boolean   @default(false) @map("has_variants")
-  attributeSchema String    @default("[]") @map("attribute_schema")
+  hasVariants     Boolean       @default(false) @map("has_variants")
+  attributeSchema String        @default("[]") @map("attribute_schema")
   products        Product[]
-  createdAt       DateTime  @default(now()) @map("created_at")
+  customFields    CustomField[]
+  createdAt       DateTime      @default(now()) @map("created_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -157,22 +158,26 @@ model Product {
 }
 
 model CustomField {
-  id         String   @id @default(cuid())
-  companyId  String   @map("company_id")
-  entityType String   @default("PRODUCT") @map("entity_type") // PRODUCT
+  id         String  @id @default(cuid())
+  companyId  String  @map("company_id")
+  // null = לכל הקטגוריות; מוגדר = רק לקטגוריה זו
+  categoryId String? @map("category_id")
+  entityType String  @default("PRODUCT") @map("entity_type") // PRODUCT
   key        String
   label      String
-  fieldType  String   @default("TEXT") @map("field_type") // TEXT | NUMBER | DATE | SELECT | BOOLEAN
-  options    String   @default("[]") // JSON string array for SELECT
-  required   Boolean  @default(false)
-  sortOrder  Int      @default(0) @map("sort_order")
-  active     Boolean  @default(true)
+  fieldType  String  @default("TEXT") @map("field_type") // TEXT | NUMBER | DATE | SELECT | BOOLEAN
+  options    String  @default("[]") // JSON string array for SELECT
+  required   Boolean @default(false)
+  sortOrder  Int     @default(0) @map("sort_order")
+  active     Boolean @default(true)
   createdAt  DateTime @default(now()) @map("created_at")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, entityType, key])
   @@index([companyId, entityType, active])
+  @@index([categoryId])
   @@map("custom_fields")
 }
 

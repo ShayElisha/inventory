@@ -24,6 +24,7 @@ export default async function SetupPage() {
         entityType: "PRODUCT",
         active: true,
       },
+      include: { category: { select: { id: true, name: true } } },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),
   ]);
@@ -32,11 +33,12 @@ export default async function SetupPage() {
     <div className="space-y-6">
       <PageHeader
         title="הגדרות בסיס"
-        description="קטגוריות, ספקים ושדות מותאמים למוצרים"
+        description="קטגוריות, ספקים ושדות מותאמים (גלובליים או לפי קטגוריה)"
       />
       <SetupPanel categories={categories} suppliers={suppliers} />
       <CustomFieldsPanel
         fields={JSON.parse(JSON.stringify(customFields))}
+        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
         canManage={canAdmin(session.role)}
       />
     </div>

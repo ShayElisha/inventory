@@ -23,6 +23,7 @@ type CustomFieldDef = {
   fieldType: string;
   options: string;
   required: boolean;
+  categoryId?: string | null;
 };
 
 type VariantRow = {
@@ -149,6 +150,13 @@ export function ProductForm({
     () => (category ? parseJsonArray(category.attributeSchema) : []),
     [category]
   );
+  const visibleCustomFields = useMemo(
+    () =>
+      customFields.filter(
+        (f) => !f.categoryId || f.categoryId === categoryId
+      ),
+    [customFields, categoryId]
+  );
 
   if (categories.length === 0) {
     return (
@@ -189,8 +197,9 @@ export function ProductForm({
   }
 
   function buildCustomDataPayload(): Record<string, unknown> | null {
-    const out: Record<string, unknown> = {};
-    for (const f of customFields) {
+    // שומרים ערכים של שדות מקטגוריות אחרות (אם עברו קטגוריה)
+    const out: Record<string, unknown> = { ...initialCustom };
+    for (const f of visibleCustomFields) {
       const raw = customValues[f.key] ?? "";
       if (f.required) {
         if (f.fieldType === "BOOLEAN") {
@@ -472,15 +481,15 @@ export function ProductForm({
         </div>
       </Card>
 
-      {customFields.length > 0 && (
+      {visibleCustomFields.length > 0 && (
         <Card className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <h2 className="text-lg font-semibold">שדות מותאמים</h2>
             <p className="text-sm text-[var(--muted)]">
-              מוגדרים בהגדרות הבסיס של החברה
+              שדות גלובליים + שדות לקטגוריה הנבחרת (מוגדרים בהגדרות)
             </p>
           </div>
-          {customFields.map((f) => {
+          {visibleCustomFields.map((f) => {
             const opts = parseFieldOptions(f.options);
             return (
               <div key={f.id}>

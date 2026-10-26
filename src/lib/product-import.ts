@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { stringifyJson } from "@/lib/json";
 import { UNIT_OF_MEASURE } from "@/lib/constants";
+import { GLOBAL_CATEGORY_ATTRIBUTES } from "@/lib/category-attributes";
 
 export type ImportProductRow = {
   title: string;
@@ -15,6 +16,8 @@ export type ImportProductRow = {
   supplierName?: string;
   locationCode?: string;
   minAlertLevel?: number;
+  /** עמודות נוספות מהאקסל — מאפייני קטגוריה / שדות מותאמים */
+  extras?: Record<string, string>;
 };
 
 const UNIT_CODES = new Set(UNIT_OF_MEASURE.map((u) => u.code));
@@ -75,7 +78,9 @@ export function normalizeHeader(h: string): string {
     .replace(/\s+/g, " ");
 }
 
-export function mapHeaders(headers: string[]): (keyof ImportProductRow | null)[] {
+export function mapHeaders(
+  headers: string[]
+): (keyof ImportProductRow | null)[] {
   return headers.map((h) => {
     const key = HEADER_ALIASES[normalizeHeader(h)];
     if (!key || key === "skip") return null;
@@ -93,6 +98,7 @@ export function normalizeUnit(raw: string): string {
 
 export function rowFromValues(
   headers: (keyof ImportProductRow | null)[],
+  rawHeaders: string[],
   values: unknown[],
   rowIndex: number
 ): ImportProductRow | { error: string } {
@@ -114,6 +120,15 @@ export function rowFromValues(
   const sku = (skuRaw || baseSku).toUpperCase();
   const barcode = get("barcode") || `${sku}-1`;
 
+  const extras: Record<string, string> = {};
+  headers.forEach((mapped, i) => {
+    if (mapped) return;
+    const name = String(rawHeaders[i] || "").trim();
+    if (!name) return;
+    const val = values[i] == null ? "" : String(values[i]).trim();
+    if (val) extras[name] = val;
+  });
+
   return {
     title,
     baseSku,
@@ -130,7 +145,27 @@ export function rowFromValues(
       get("minAlertLevel") !== ""
         ? Math.max(0, Number(get("minAlertLevel")) || 0)
         : undefined,
+    extras: Object.keys(extras).length ? extras : undefined,
   };
+}
+
+function parseAttrSchema(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => {
+        if (typeof item === "string") return item.trim();
+        if (item && typeof item === "object") {
+          const o = item as { label?: string; key?: string };
+          return String(o.label || o.key || "").trim();
+        }
+        return "";
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 export async function importProductRows(
@@ -143,9 +178,13 @@ export async function importProductRows(
   let categoriesCreated = 0;
   const errors: string[] = [];
 
+  const customFields = await prisma.customField.findMany({
+    where: { companyId, entityType: "PRODUCT", active: true },
+  });
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
-    const lineNo = i + 2; // + header
+    const lineNo = i + 2;
     try {
       let category = await prisma.category.findFirst({
         where: { companyId, name: row.categoryName },
@@ -187,6 +226,64 @@ export async function importProductRows(
         }
       }
 
+      const schemaAttrs = parseAttrSchema(category.attributeSchema);
+      const attributes: Record<string, string> = {};
+      const customData: Record<string, string> = {};
+      const newSchemaAttrs = [...schemaAttrs];
+
+      const relevantFields = customFields.filter(
+        (f) => !f.categoryId || f.categoryId === category!.id
+      );
+
+      for (const [col, val] of Object.entries(row.extras || {})) {
+        const colNorm = col.trim();
+        if (!colNorm || !val) continue;
+
+        const field = relevantFields.find(
+          (f) =>
+            f.label === colNorm ||
+            f.key === colNorm ||
+            f.label.toLowerCase() === colNorm.toLowerCase() ||
+            f.key.toLowerCase() === colNorm.toLowerCase()
+        );
+        if (field) {
+          customData[field.key] = val;
+          continue;
+        }
+
+        // עמודה לא ממופה = מאפיין וריאנט (מידה/צבע וכו׳) — מתעדכנת בסכמת הקטגוריה
+        const attrName = colNorm
+          .replace(/^מאפיין:\s*/i, "")
+          .replace(/^attr:\s*/i, "")
+          .trim();
+        if (!attrName) continue;
+        attributes[attrName] = val;
+        if (
+          !newSchemaAttrs.some(
+            (a) => a.toLowerCase() === attrName.toLowerCase()
+          )
+        ) {
+          const known = GLOBAL_CATEGORY_ATTRIBUTES.find(
+            (a) => a.toLowerCase() === attrName.toLowerCase()
+          );
+          newSchemaAttrs.push(known || attrName);
+        }
+      }
+
+      if (
+        newSchemaAttrs.length !== schemaAttrs.length ||
+        (Object.keys(attributes).length > 0 && !category.hasVariants)
+      ) {
+        category = await prisma.category.update({
+          where: { id: category.id },
+          data: {
+            hasVariants:
+              category.hasVariants || Object.keys(attributes).length > 0,
+            attributeSchema: stringifyJson(newSchemaAttrs),
+          },
+        });
+      }
+
       let product = await prisma.product.findFirst({
         where: { companyId, baseSku: row.baseSku },
       });
@@ -201,10 +298,20 @@ export async function importProductRows(
             costPrice: row.costPrice,
             sellingPrice: row.sellingPrice,
             unitOfMeasure: row.unitOfMeasure,
+            customData: stringifyJson(customData),
           },
         });
       } else {
-        // עדכון מחירים/קטגוריה אם כבר קיים מוצר
+        const prevCustom = (() => {
+          try {
+            return JSON.parse(product!.customData || "{}") as Record<
+              string,
+              string
+            >;
+          } catch {
+            return {};
+          }
+        })();
         await prisma.product.update({
           where: { id: product.id },
           data: {
@@ -214,6 +321,7 @@ export async function importProductRows(
             costPrice: row.costPrice,
             sellingPrice: row.sellingPrice,
             unitOfMeasure: row.unitOfMeasure,
+            customData: stringifyJson({ ...prevCustom, ...customData }),
           },
         });
       }
@@ -235,7 +343,7 @@ export async function importProductRows(
           productId: product.id,
           sku: row.sku,
           barcode: row.barcode,
-          attributes: stringifyJson({}),
+          attributes: stringifyJson(attributes),
           quantityOnHand: row.qty,
           locationId,
           minAlertLevel: row.minAlertLevel ?? 5,
@@ -281,6 +389,9 @@ export const IMPORT_TEMPLATE_HEADERS_HE = [
   "ספק",
   "מיקום",
   "מינימום התראה",
+  "מידה",
+  "צבע",
+  "מותג",
 ] as const;
 
 export const IMPORT_TEMPLATE_SAMPLE: (string | number)[][] = [
@@ -289,7 +400,7 @@ export const IMPORT_TEMPLATE_SAMPLE: (string | number)[][] = [
     "SHIRT-001",
     "חולצות",
     "7290001234567",
-    "SHIRT-001",
+    "SHIRT-001-M-BLU",
     40,
     89,
     10,
@@ -297,6 +408,9 @@ export const IMPORT_TEMPLATE_SAMPLE: (string | number)[][] = [
     "ספק דוגמה",
     "",
     5,
+    "M",
+    "כחול",
+    "BrandX",
   ],
   [
     "חלב 3%",
@@ -311,6 +425,9 @@ export const IMPORT_TEMPLATE_SAMPLE: (string | number)[][] = [
     "",
     "",
     6,
+    "",
+    "",
+    "טרה",
   ],
   [
     "פילטר שמן",
@@ -325,6 +442,9 @@ export const IMPORT_TEMPLATE_SAMPLE: (string | number)[][] = [
     "חלפים בע״מ",
     "",
     3,
+    "",
+    "",
+    "",
   ],
 ];
 
