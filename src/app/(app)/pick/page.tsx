@@ -1,8 +1,7 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
-import { QuickPick } from "@/components/quick-pick";
-import { OutboundTemplatesPanel } from "@/components/outbound-templates-panel";
+import { PickWorkspace } from "@/components/pick-workspace";
 import { requireModule } from "@/lib/tenant";
 
 export default async function PickPage() {
@@ -29,13 +28,12 @@ export default async function PickPage() {
     <div className="space-y-6">
       <PageHeader
         title="ניפוק"
-        description="ניפוק מהיר לפי חיפוש, או הרצת תבנית ניפוק חוזרת בלחיצה"
+        description="ניפוק מרוכז לרשימה · ניפוק מהיר לפריט בודד · תבניות חוזרות בלחיצה"
       />
-      <OutboundTemplatesPanel
+      <PickWorkspace
         templates={JSON.parse(JSON.stringify(templates))}
         variants={JSON.parse(JSON.stringify(variants))}
       />
-      <QuickPick />
     </div>
   );
 }
