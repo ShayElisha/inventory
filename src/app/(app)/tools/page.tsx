@@ -18,7 +18,7 @@ export default async function ToolsPage() {
     <div>
       <PageHeader
         title="ייבוא ועדכון כמותי"
-        description="ייבוא CSV ועדכון כמויות בכמות (bulk)"
+        description="ייבוא מוצרים מאקסל/CSV (עם קטגוריות) ועדכון כמויות בכמות"
       />
       <BulkAndImport variants={JSON.parse(JSON.stringify(variants))} />
     </div>

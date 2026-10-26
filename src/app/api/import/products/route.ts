@@ -1,129 +1,210 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { stringifyJson } from "@/lib/json";
+import ExcelJS from "exceljs";
 import { writeAudit } from "@/lib/audit";
-import { getSession } from "@/lib/auth";
+import { getSession, canWrite } from "@/lib/auth";
+import {
+  importProductRows,
+  mapHeaders,
+  rowFromValues,
+  type ImportProductRow,
+} from "@/lib/product-import";
 
-/** CSV: title,baseSku,categoryName,barcode,sku,costPrice,sellingPrice,qty,unitOfMeasure */
+export const maxDuration = 60;
+
+/** ייבוא מוצרים מ־CSV או Excel (.xlsx) */
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session?.companyId) {
     return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
   }
-  const text = await req.text();
+  if (!canWrite(session.role)) {
+    return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
+  }
+
+  try {
+    const contentType = req.headers.get("content-type") || "";
+    let rows: ImportProductRow[] = [];
+    let sourceLabel = "ייבוא CSV";
+
+    if (
+      contentType.includes(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ) ||
+      contentType.includes("application/octet-stream") ||
+      contentType.includes("multipart/form-data")
+    ) {
+      sourceLabel = "ייבוא Excel";
+      let buffer: ArrayBuffer;
+
+      if (contentType.includes("multipart/form-data")) {
+        const form = await req.formData();
+        const file = form.get("file");
+        if (!(file instanceof File)) {
+          return NextResponse.json(
+            { error: "חסר קובץ Excel (שדה file)" },
+            { status: 400 }
+          );
+        }
+        const name = file.name.toLowerCase();
+        if (!name.endsWith(".xlsx") && !name.endsWith(".xls") && !name.endsWith(".csv")) {
+          return NextResponse.json(
+            { error: "יש להעלות קובץ Excel (.xlsx) או CSV" },
+            { status: 400 }
+          );
+        }
+        if (name.endsWith(".csv")) {
+          sourceLabel = "ייבוא CSV";
+          const text = await file.text();
+          rows = parseCsvText(text);
+        } else {
+          buffer = await file.arrayBuffer();
+          rows = await parseExcelBuffer(buffer);
+        }
+      } else {
+        buffer = await req.arrayBuffer();
+        rows = await parseExcelBuffer(buffer);
+      }
+    } else {
+      // text/csv או JSON
+      if (contentType.includes("application/json")) {
+        const body = await req.json();
+        if (!Array.isArray(body.rows)) {
+          return NextResponse.json({ error: "חסרות שורות" }, { status: 400 });
+        }
+        rows = body.rows as ImportProductRow[];
+        sourceLabel = "ייבוא JSON";
+      } else {
+        const text = await req.text();
+        rows = parseCsvText(text);
+      }
+    }
+
+    if (!rows.length) {
+      return NextResponse.json(
+        { error: "לא נמצאו שורות לייבוא (בדקו כותרות וגיליון מוצרים)" },
+        { status: 400 }
+      );
+    }
+
+    if (rows.length > 2000) {
+      return NextResponse.json(
+        { error: "מקסימום 2,000 שורות לייבוא אחד" },
+        { status: 400 }
+      );
+    }
+
+    const result = await importProductRows(
+      session.companyId,
+      session.id,
+      rows,
+      sourceLabel
+    );
+
+    await writeAudit({
+      action: "IMPORT_PRODUCTS",
+      entityType: "Product",
+      userId: session.id,
+      details: {
+        source: sourceLabel,
+        created: result.created,
+        errors: result.errors.length,
+        categoriesCreated: result.categoriesCreated,
+      },
+    });
+
+    return NextResponse.json(result);
+  } catch (e) {
+    return NextResponse.json(
+      {
+        error: e instanceof Error ? e.message : "שגיאה בייבוא",
+      },
+      { status: 400 }
+    );
+  }
+}
+
+function parseCsvText(text: string): ImportProductRow[] {
   const lines = text
     .replace(/^\uFEFF/, "")
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
-  if (lines.length < 2) {
-    return NextResponse.json({ error: "קובץ ריק" }, { status: 400 });
-  }
+  if (lines.length < 2) return [];
 
-  const headers = splitCsv(lines[0]).map((h) => h.toLowerCase());
-  const idx = (name: string) => headers.indexOf(name);
-
-  let created = 0;
-  const errors: string[] = [];
-
+  const headers = mapHeaders(splitCsv(lines[0]));
+  const rows: ImportProductRow[] = [];
   for (let i = 1; i < lines.length; i++) {
-    const cols = splitCsv(lines[i]);
-    try {
-      const title = cols[idx("title")] || cols[idx("שם")];
-      const baseSku = (cols[idx("basesku")] || cols[idx("מקט")] || "").toUpperCase();
-      const categoryName = cols[idx("categoryname")] || cols[idx("קטגוריה")] || "כללי";
-      const barcode = cols[idx("barcode")] || cols[idx("ברקוד")] || `${baseSku}-${i}`;
-      const sku = (cols[idx("sku")] || baseSku).toUpperCase();
-      const costPrice = Number(cols[idx("costprice")] || cols[idx("עלות")] || 0);
-      const sellingPrice = Number(cols[idx("sellingprice")] || cols[idx("מכירה")] || 0);
-      const qty = Number(cols[idx("qty")] || cols[idx("כמות")] || 0);
-      const unit = (cols[idx("unitofmeasure")] || cols[idx("יחידה")] || "UNIT").toUpperCase();
-
-      if (!title || !baseSku) {
-        errors.push(`שורה ${i + 1}: חסר שם או מק״ט`);
-        continue;
-      }
-
-      let category = await prisma.category.findFirst({
-        where: { companyId: session.companyId, name: categoryName },
-      });
-      if (!category) {
-        category = await prisma.category.create({
-          data: {
-            companyId: session.companyId,
-            name: categoryName,
-            hasVariants: false,
-            attributeSchema: "[]",
-          },
-        });
-      }
-
-      let product = await prisma.product.findFirst({
-        where: { companyId: session.companyId, baseSku },
-      });
-      if (!product) {
-        product = await prisma.product.create({
-          data: {
-            companyId: session.companyId,
-            title,
-            baseSku,
-            categoryId: category.id,
-            costPrice,
-            sellingPrice,
-            unitOfMeasure: ["UNIT", "CARTON", "SQM"].includes(unit) ? unit : "UNIT",
-          },
-        });
-      }
-
-      const existing = await prisma.productVariant.findFirst({
-        where: {
-          companyId: session.companyId,
-          OR: [{ sku }, { barcode }],
-        },
-      });
-      if (existing) {
-        errors.push(`שורה ${i + 1}: SKU/ברקוד קיים`);
-        continue;
-      }
-
-      const variant = await prisma.productVariant.create({
-        data: {
-          companyId: session.companyId,
-          productId: product.id,
-          sku,
-          barcode,
-          attributes: stringifyJson({}),
-          quantityOnHand: qty,
-        },
-      });
-
-      if (qty > 0) {
-        await prisma.stockTransaction.create({
-          data: {
-            variantId: variant.id,
-            type: "INBOUND",
-            quantityChanged: qty,
-            previousQuantity: 0,
-            newQuantity: qty,
-            reason: "ייבוא CSV",
-            reasonCode: "IMPORT",
-            userId: session?.id,
-          },
-        });
-      }
-      created++;
-    } catch (e) {
-      errors.push(`שורה ${i + 1}: ${e instanceof Error ? e.message : "שגיאה"}`);
-    }
+    const parsed = rowFromValues(headers, splitCsv(lines[i]), i + 1);
+    if ("error" in parsed) continue;
+    rows.push(parsed);
   }
+  return rows;
+}
 
-  await writeAudit({
-    action: "IMPORT_CSV",
-    entityType: "Product",
-    details: { created, errors: errors.length },
+async function parseExcelBuffer(buffer: ArrayBuffer): Promise<ImportProductRow[]> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer);
+
+  const sheet =
+    wb.getWorksheet("מוצרים") ||
+    wb.getWorksheet("Products") ||
+    wb.worksheets[0];
+  if (!sheet) return [];
+
+  const matrix: unknown[][] = [];
+  sheet.eachRow({ includeEmpty: false }, (row) => {
+    const values: unknown[] = [];
+    row.eachCell({ includeEmpty: true }, (cell, col) => {
+      values[col - 1] = excelCellToString(cell);
+    });
+    matrix.push(values);
   });
 
-  return NextResponse.json({ created, errors });
+  if (matrix.length < 2) return [];
+
+  const headerCells = matrix[0].map((h) => String(h ?? ""));
+  const headers = mapHeaders(headerCells);
+  if (!headers.some(Boolean)) {
+    throw new Error(
+      "לא זוהו כותרות. השתמשו בתבנית (שם, מקט, קטגוריה, ברקוד…)"
+    );
+  }
+
+  const rows: ImportProductRow[] = [];
+  for (let i = 1; i < matrix.length; i++) {
+    const values = matrix[i];
+    // skip fully empty rows
+    if (values.every((v) => String(v ?? "").trim() === "")) continue;
+    const parsed = rowFromValues(headers, values, i + 1);
+    if ("error" in parsed) continue;
+    rows.push(parsed);
+  }
+  return rows;
+}
+
+function excelCellToString(cell: ExcelJS.Cell): string {
+  const v = cell.value;
+  if (v == null) return "";
+  if (typeof v === "number") {
+    // ברקודים ארוכים — בלי סימון מדעי
+    if (Number.isInteger(v) && Math.abs(v) >= 1e11) {
+      return v.toLocaleString("fullwide", { useGrouping: false });
+    }
+    return String(v);
+  }
+  if (typeof v === "boolean") return v ? "true" : "false";
+  if (typeof v === "object") {
+    if ("result" in v && v.result != null) return String(v.result);
+    if ("text" in v && (v as { text?: string }).text) {
+      return String((v as { text: string }).text);
+    }
+    if ("richText" in v && Array.isArray((v as { richText: { text: string }[] }).richText)) {
+      return (v as { richText: { text: string }[] }).richText
+        .map((t) => t.text)
+        .join("");
+    }
+  }
+  return String(cell.text || v).trim();
 }
 
 function splitCsv(line: string): string[] {
@@ -136,7 +217,7 @@ function splitCsv(line: string): string[] {
       inQ = !inQ;
       continue;
     }
-    if (c === "," && !inQ) {
+    if ((c === "," || c === "\t") && !inQ) {
       out.push(cur.trim());
       cur = "";
       continue;
