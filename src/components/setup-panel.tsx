@@ -219,14 +219,24 @@ export function SetupPanel({
               <input
                 type="checkbox"
                 checked={hasVariants}
-                onChange={(e) => setHasVariants(e.target.checked)}
+                onChange={(e) => {
+                  setHasVariants(e.target.checked);
+                  if (!e.target.checked) setAttrs([]);
+                }}
               />
-              מוצרים בקטגוריה זו מתפצלים לאפשרויות מוצר
+              אפשרויות מוצר (מידות / צבעים / דגמים…)
             </label>
+            <p className="text-xs text-[var(--muted)]">
+              סמנו כדי ליצור מוצר אחד עם כמה מידות — בלי זה הטופס מאפשר רק פריט
+              בודד.
+            </p>
             {hasVariants && (
               <CategoryAttributesPicker
                 value={attrs}
-                onChange={setAttrs}
+                onChange={(next) => {
+                  setAttrs(next);
+                  if (next.length > 0) setHasVariants(true);
+                }}
                 idPrefix="new-cat"
               />
             )}
@@ -251,9 +261,12 @@ export function SetupPanel({
                       <input
                         type="checkbox"
                         checked={editCatHasVariants}
-                        onChange={(e) => setEditCatHasVariants(e.target.checked)}
+                        onChange={(e) => {
+                          setEditCatHasVariants(e.target.checked);
+                          if (!e.target.checked) setEditCatAttrs([]);
+                        }}
                       />
-                      אפשרויות מוצר
+                      אפשרויות מוצר (מידות / צבעים…)
                     </label>
                     {editCatHasVariants && (
                       <CategoryAttributesPicker

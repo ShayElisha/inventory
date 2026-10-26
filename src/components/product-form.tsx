@@ -668,32 +668,48 @@ export function ProductForm({
           <div>
             <h2 className="text-lg font-semibold">מחולל אפשרויות מוצר</h2>
             <p className="text-sm text-[var(--muted)]">
-              הזינו ערכים מופרדים בפסיק לכל מאפיין, ואז צרו את כל השילובים
+              הזינו ערכים מופרדים בפסיק (למשל S, M, L), לחצו «צור אפשרויות» —
+              ואז שמרו. כל שורה = מידה/שילוב נפרד.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {schema.map((attr) => (
-              <div key={attr}>
-                <Label>{attr}</Label>
-                <Input
-                  placeholder={
-                    attr === "Size"
-                      ? "S, M, L, XL"
-                      : attr === "Color"
-                        ? "Black, White, Blue"
-                        : "Regular, Slim"
-                  }
-                  value={attrOptions[attr] || ""}
-                  onChange={(e) =>
-                    setAttrOptions((prev) => ({ ...prev, [attr]: e.target.value }))
-                  }
-                />
-              </div>
-            ))}
-          </div>
+          {schema.length === 0 ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+              לקטגוריה מסומנות אפשרויות מוצר אבל לא נבחרו מאפיינים. עברו ל־
+              <a href="/setup" className="font-medium underline">
+                הגדרות
+              </a>
+              , ערכו את הקטגוריה והוסיפו למשל «מידה».
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-3">
+              {schema.map((attr) => (
+                <div key={attr}>
+                  <Label>{attr}</Label>
+                  <Input
+                    placeholder={
+                      attr === "מידה" || attr === "Size"
+                        ? "S, M, L, XL"
+                        : attr === "צבע" || attr === "Color"
+                          ? "שחור, לבן, כחול"
+                          : "ערך1, ערך2, ערך3"
+                    }
+                    value={attrOptions[attr] || ""}
+                    onChange={(e) =>
+                      setAttrOptions((prev) => ({
+                        ...prev,
+                        [attr]: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          {schema.length > 0 && (
           <Button type="button" variant="secondary" onClick={generateMatrix}>
             צור אפשרויות מוצר ({schema.join(" × ")})
           </Button>
+          )}
 
           {matrixRows.length > 0 && (
             <div className="overflow-x-auto">
@@ -778,37 +794,47 @@ export function ProductForm({
           )}
         </Card>
       ) : (
-        <Card className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <Label>ברקוד</Label>
-            <Input
-              value={simpleBarcode}
-              onChange={(e) => setSimpleBarcode(e.target.value)}
-              placeholder="יווצר אוטומטית אם ריק"
-            />
+        <Card className="space-y-4">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--muted)]">
+            הקטגוריה הזו היא מוצר בודד (בלי מידות). כדי ליצור כמה מידות במוצר
+            אחד — בהגדרות סמנו «אפשרויות מוצר» והוסיפו מאפיין «מידה», ואז חזרו
+            לכאן.{" "}
+            <a href="/setup" className="font-medium text-[var(--accent)] underline">
+              פתיחת הגדרות
+            </a>
           </div>
-          <div>
-            <Label>כמות התחלתית</Label>
-            <Input
-              type="number"
-              min="0"
-              value={simpleQty}
-              onChange={(e) => setSimpleQty(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>מיקום</Label>
-            <Select
-              value={simpleLocationId}
-              onChange={(e) => setSimpleLocationId(e.target.value)}
-            >
-              <option value="">ללא</option>
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.code}
-                </option>
-              ))}
-            </Select>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <Label>ברקוד</Label>
+              <Input
+                value={simpleBarcode}
+                onChange={(e) => setSimpleBarcode(e.target.value)}
+                placeholder="יווצר אוטומטית אם ריק"
+              />
+            </div>
+            <div>
+              <Label>כמות התחלתית</Label>
+              <Input
+                type="number"
+                min="0"
+                value={simpleQty}
+                onChange={(e) => setSimpleQty(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>מיקום</Label>
+              <Select
+                value={simpleLocationId}
+                onChange={(e) => setSimpleLocationId(e.target.value)}
+              >
+                <option value="">ללא</option>
+                {locations.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.code}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
         </Card>
       )}
