@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button, Card } from "@/components/ui";
+import { readJson } from "@/lib/fetch-json";
 import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 
 type PresetCard = {
@@ -26,8 +27,15 @@ export function IndustryPresetsPanel({
 
   useEffect(() => {
     fetch("/api/setup/industry")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) return null;
+        return readJson<{
+          presets?: PresetCard[];
+          industryProfile?: string | null;
+        }>(r);
+      })
       .then((d) => {
+        if (!d) return;
         if (d.presets) setPresets(d.presets);
         if (d.industryProfile) setCurrent(d.industryProfile);
       })
@@ -45,7 +53,13 @@ export function IndustryPresetsPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ industryId: id, withSamples: true }),
       });
-      const data = await res.json();
+      const data = await readJson<{
+        error?: string;
+        name?: string;
+        categoriesCreated?: number;
+        locationsCreated?: number;
+        productsCreated?: number;
+      }>(res);
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setCurrent(id);
       setMsg(

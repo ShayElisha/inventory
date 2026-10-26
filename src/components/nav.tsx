@@ -309,7 +309,19 @@ export function AppNav() {
 
   useEffect(() => {
     fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : null))
+      .then(async (r) => {
+        if (!r.ok) return null;
+        const text = await r.text();
+        if (!text.trim()) return null;
+        try {
+          return JSON.parse(text) as {
+            user?: { name: string; role: Role; companyName?: string };
+            modules?: CompanyModules;
+          };
+        } catch {
+          return null;
+        }
+      })
       .then((d) => {
         setUser(d?.user || null);
         if (d?.modules) setModules(d.modules);

@@ -55,7 +55,10 @@ export async function requireModule(moduleId: SellableModuleId) {
   const session = await requireTenant();
   const modules = await getCompanyModules(session.companyId);
   if (!modules[moduleId]) {
-    redirect("/dashboard?module=off");
+    // מחסנאים נשארים ברצפה; מנהלים חוזרים לדשבורד
+    redirect(
+      session.role === "WAREHOUSE" ? "/floor?module=off" : "/dashboard?module=off"
+    );
   }
   return { session, modules };
 }

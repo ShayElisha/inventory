@@ -28,8 +28,13 @@ const steps = [
   },
 ];
 
-export default async function FloorHomePage() {
+export default async function FloorHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ module?: string }>;
+}) {
   const session = await requireTenant();
+  const { module: moduleOff } = await searchParams;
   const company = await prisma.company.findUnique({
     where: { id: session.companyId },
     select: { industryProfile: true },
@@ -49,6 +54,12 @@ export default async function FloorHomePage() {
           שלושה מסכים בלבד — בלי תפריטים מבלבלים.
         </p>
       </div>
+
+      {moduleOff === "off" && (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+          המודול הזה כבוי לחברה. פנו למנהל להפעלה.
+        </p>
+      )}
 
       {industry && (
         <div className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">

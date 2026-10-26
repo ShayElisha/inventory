@@ -27,8 +27,25 @@ export function LoginForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier, password }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "שגיאה");
+      const text = await res.text();
+      let data: {
+        error?: string;
+        user?: {
+          mustChangePassword?: boolean;
+          isSuperAdmin?: boolean;
+          role?: string;
+        };
+      } = {};
+      if (text.trim()) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          throw new Error(`שגיאת התחברות (${res.status})`);
+        }
+      } else if (!res.ok) {
+        throw new Error(`שגיאת התחברות (${res.status})`);
+      }
+      if (!res.ok) throw new Error(data.error || `שגיאת התחברות (${res.status})`);
       if (data.user?.mustChangePassword) {
         router.push("/account/password");
         router.refresh();

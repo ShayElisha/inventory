@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button, Input, Label, Select } from "@/components/ui";
 import { attributesLabel } from "@/lib/utils";
 import { OUTBOUND_REASONS } from "@/lib/constants";
+import { readJson } from "@/lib/fetch-json";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 type VariantPayload = {
@@ -31,9 +32,16 @@ async function lookupVariant(q: string): Promise<{
   variants: VariantPayload[];
 }> {
   const res = await fetch(`/api/variants/lookup?q=${encodeURIComponent(q)}`);
-  const data = await res.json();
+  const data = await readJson<{
+    error?: string;
+    match?: string;
+    variants?: VariantPayload[];
+  }>(res);
   if (!res.ok) throw new Error(data.error || "לא נמצא");
-  return data;
+  return {
+    match: data.match || "multi",
+    variants: data.variants || [],
+  };
 }
 
 function VariantCard({ v }: { v: VariantPayload }) {
@@ -107,7 +115,7 @@ export function FloorReceive({
           locationId: locationId || null,
         }),
       });
-      const data = await res.json();
+      const data = await readJson<{ error?: string }>(res);
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setDone(`נקלטו ${qty} יח׳ · ${variant.product.title}`);
       setVariant(null);
@@ -257,7 +265,7 @@ export function FloorShelf() {
             locationCode: q,
           }),
         });
-        const data = await res.json();
+        const data = await readJson<{ error?: string }>(res);
         if (!res.ok) throw new Error(data.error || "שגיאה");
         setDone(`הועבר ל־${q}`);
         setVariant(null);
@@ -416,7 +424,7 @@ export function FloorPick() {
           reasonCode,
         }),
       });
-      const data = await res.json();
+      const data = await readJson<{ error?: string }>(res);
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setDone(`נופקו ${quantity} יח׳ · ${variant.product.title}`);
       setVariant(null);
