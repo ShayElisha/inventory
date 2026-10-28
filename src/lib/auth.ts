@@ -98,7 +98,7 @@ export async function getSession(): Promise<SessionUser | null> {
 
 export async function requireSession() {
   const session = await getSession();
-  if (!session) throw new Error("UNAUTHORIZED");
+  if (!session) throw new Error("נדרשת התחברות");
   return session;
 }
 

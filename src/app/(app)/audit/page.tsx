@@ -17,7 +17,7 @@ export default async function AuditPage() {
   return (
     <div>
       <PageHeader
-        title="יומן Audit"
+        title="יומן פעילות"
         description="מי · מתי · מה · IP — תיעוד בלתי משתנה של פעולות"
       />
       <Card className="overflow-x-auto p-0">

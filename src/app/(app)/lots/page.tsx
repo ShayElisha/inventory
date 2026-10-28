@@ -35,7 +35,7 @@ export default async function LotsPage({
     <div className="space-y-6">
       <PageHeader
         title="אצוות ותוקף"
-        description="מלאי לפי אצווה · FEFO בקליטה/ניפוק · התראת תוקף קרוב"
+        description="מעקב תוקף ואצוות · ניפוק לפי תוקף קרוב קודם · התראות ל־30 יום"
         actions={
           <a
             href={expiring === "1" ? "/lots" : "/lots?expiring=1"}

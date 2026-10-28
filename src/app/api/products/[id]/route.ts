@@ -201,6 +201,12 @@ export async function PATCH(
           : existing.trackSerials,
       isKit:
         body.isKit !== undefined ? Boolean(body.isKit) : existing.isKit,
+      imageUrl:
+        body.imageUrl !== undefined
+          ? typeof body.imageUrl === "string" && body.imageUrl.trim() !== ""
+            ? body.imageUrl.slice(0, 400_000)
+            : null
+          : existing.imageUrl,
     };
 
     const product = await prisma.$transaction(async (tx) => {

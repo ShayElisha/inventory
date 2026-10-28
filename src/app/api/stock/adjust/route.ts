@@ -38,24 +38,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
+    const reasonText = String(reason || "").trim();
+    const reasonCode =
+      typeof body.reasonCode === "string" && body.reasonCode
+        ? String(body.reasonCode)
+        : null;
+
     if (mode === "count" || countedQuantity !== undefined) {
+      if (!reasonText && !reasonCode) {
+        return NextResponse.json(
+          { error: "חובה לבחור סיבה לתיקון המלאי" },
+          { status: 400 }
+        );
+      }
       const result = await applyStockChange({
         variantId,
         type: "ADJUSTMENT",
         quantityChanged: 0,
         setQuantityTo: Number(countedQuantity ?? quantity),
-        reason: reason || "ספירת מלאי",
+        reason: reasonText || "תיקון מלאי",
+        reasonCode: reasonCode || "COUNT",
         companyId: session.companyId,
         userId: session.id,
       });
       return NextResponse.json(result);
     }
 
+    if (!reasonText && !reasonCode) {
+      return NextResponse.json(
+        { error: "חובה לבחור סיבה לתיקון המלאי" },
+        { status: 400 }
+      );
+    }
+
     const result = await applyStockChange({
       variantId,
       type: "ADJUSTMENT",
       quantityChanged: Number(quantity),
-      reason: reason || "התאמת מלאי",
+      reason: reasonText || "התאמת מלאי",
+      reasonCode: reasonCode || "ADJUST",
       companyId: session.companyId,
       userId: session.id,
     });

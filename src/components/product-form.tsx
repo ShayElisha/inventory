@@ -1,14 +1,29 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
+import { FirstRunTip } from "@/components/first-run-tip";
+import {
+  clearProductDraft,
+  loadProductDraft,
+  saveProductDraft,
+  type ProductDraft,
+} from "@/lib/product-draft";
 import { buildVariantSku, generateMatrixCombinations } from "@/lib/sku";
 import { parseJsonArray, parseJsonObject } from "@/lib/json";
 import { UNIT_OF_MEASURE } from "@/lib/constants";
 import { attributesLabel } from "@/lib/utils";
 import { parseCustomData, parseFieldOptions } from "@/lib/custom-fields";
-import { Plus, Trash2 } from "lucide-react";
+import { Check, ImagePlus, Plus, Trash2, X } from "lucide-react";
+
+const MAX_IMAGE_DATA_URL_LENGTH = 350_000; // ~260KB
+
+const WIZARD_STEPS = [
+  { n: 1, label: "פרטי הדגם" },
+  { n: 2, label: "מידות ומלאי" },
+  { n: 3, label: "סיכום ושמירה" },
+] as const;
 
 type Category = {
   id: string;
@@ -32,6 +47,7 @@ type VariantRow = {
   sku: string;
   barcode: string;
   quantityOnHand: number;
+  minAlertLevel: number;
   locationId: string;
 };
 
@@ -47,6 +63,7 @@ type ExistingProduct = {
   unitOfMeasure: string;
   unitsPerCarton: number;
   customData?: string;
+  imageUrl?: string | null;
   variants: {
     id: string;
     sku: string;
@@ -153,6 +170,157 @@ export function ProductForm({
   const [defaultVariantQty, setDefaultVariantQty] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [imageUrl, setImageUrl] = useState<string>(product?.imageUrl || "");
+  const [step, setStep] = useState(1);
+  const [pendingDraft, setPendingDraft] = useState<ProductDraft | null>(null);
+  const [draftChecked, setDraftChecked] = useState(false);
+  const skipDraftSaveRef = useRef(false);
+
+  // טעינת טיוטה בעת כניסה (יצירה בלבד)
+  useEffect(() => {
+    if (isEdit) return;
+    const draft = loadProductDraft();
+    if (draft) setPendingDraft(draft);
+    setDraftChecked(true);
+  }, [isEdit]);
+
+  // שמירת טיוטה אוטומטית (debounce)
+  useEffect(() => {
+    if (isEdit || !draftChecked || pendingDraft) return;
+    const hasContent =
+      title.trim() !== "" ||
+      baseSku.trim() !== "" ||
+      description.trim() !== "" ||
+      imageUrl !== "";
+    if (!hasContent) return;
+    const t = setTimeout(() => {
+      if (skipDraftSaveRef.current) return;
+      saveProductDraft({
+        step,
+        title,
+        baseSku,
+        description,
+        categoryId,
+        supplierId,
+        costPrice,
+        sellingPrice,
+        unitOfMeasure,
+        unitsPerCarton,
+        weightKg,
+        volumeLiters,
+        trackLots,
+        trackSerials,
+        isKit,
+        multiSizes,
+        attrOptions,
+        defaultVariantQty,
+        simpleBarcode,
+        simpleQty,
+        simpleLocationId,
+        simpleMinAlert,
+        imageUrl,
+        customValues,
+      });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [
+    isEdit,
+    draftChecked,
+    pendingDraft,
+    step,
+    title,
+    baseSku,
+    description,
+    categoryId,
+    supplierId,
+    costPrice,
+    sellingPrice,
+    unitOfMeasure,
+    unitsPerCarton,
+    weightKg,
+    volumeLiters,
+    trackLots,
+    trackSerials,
+    isKit,
+    multiSizes,
+    attrOptions,
+    defaultVariantQty,
+    simpleBarcode,
+    simpleQty,
+    simpleLocationId,
+    simpleMinAlert,
+    imageUrl,
+    customValues,
+  ]);
+
+  function restoreDraft() {
+    const d = pendingDraft;
+    if (!d) return;
+    setTitle(d.title || "");
+    setBaseSku(d.baseSku || "");
+    setDescription(d.description || "");
+    if (d.categoryId && categories.some((c) => c.id === d.categoryId)) {
+      setCategoryId(d.categoryId);
+    }
+    setSupplierId(
+      d.supplierId && suppliers.some((s) => s.id === d.supplierId)
+        ? d.supplierId
+        : ""
+    );
+    setCostPrice(d.costPrice ?? "0");
+    setSellingPrice(d.sellingPrice ?? "0");
+    setUnitOfMeasure(d.unitOfMeasure || "UNIT");
+    setUnitsPerCarton(d.unitsPerCarton || "1");
+    setWeightKg(d.weightKg ?? "");
+    setVolumeLiters(d.volumeLiters ?? "");
+    setTrackLots(Boolean(d.trackLots));
+    setTrackSerials(Boolean(d.trackSerials));
+    setIsKit(Boolean(d.isKit));
+    setMultiSizes(Boolean(d.multiSizes));
+    setAttrOptions(d.attrOptions || {});
+    setDefaultVariantQty(d.defaultVariantQty || "");
+    setSimpleBarcode(d.simpleBarcode || "");
+    setSimpleQty(d.simpleQty || "0");
+    setSimpleLocationId(
+      d.simpleLocationId && locations.some((l) => l.id === d.simpleLocationId)
+        ? d.simpleLocationId
+        : ""
+    );
+    setSimpleMinAlert(d.simpleMinAlert || "5");
+    setImageUrl(d.imageUrl || "");
+    setCustomValues((prev) => ({ ...prev, ...(d.customValues || {}) }));
+    setMatrixRows([]);
+    // מטריצת המידות לא נשמרת בטיוטה — חוזרים לכל היותר לשלב 2
+    setStep(Math.min(Math.max(Number(d.step) || 1, 1), 2));
+    setPendingDraft(null);
+  }
+
+  function discardDraft() {
+    clearProductDraft();
+    setPendingDraft(null);
+  }
+
+  function onImageSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("נא לבחור קובץ תמונה");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (result.length > MAX_IMAGE_DATA_URL_LENGTH) {
+        setError("התמונה גדולה מדי (עד כ־260KB). נסו תמונה קטנה יותר.");
+        return;
+      }
+      setImageUrl(result);
+      setError("");
+    };
+    reader.onerror = () => setError("לא הצלחנו לקרוא את התמונה");
+    reader.readAsDataURL(file);
+  }
 
   const category = categories.find((c) => c.id === categoryId);
   const categorySchema = useMemo(
@@ -196,7 +364,7 @@ export function ProductForm({
 
   function generateMatrix() {
     if (!category || !baseSku) {
-      setError("נא למלא מק״ט בסיס וקטגוריה");
+      setError("נא למלא קוד דגם וקבוצה (בשלב הראשון)");
       return;
     }
     const optionsByAttr: Record<string, string[]> = {};
@@ -214,6 +382,7 @@ export function ProductForm({
       matrixRows.map((r) => [attrKey(r.attributes), r] as const)
     );
     const fallbackQty = Math.max(0, Math.floor(Number(defaultVariantQty) || 0));
+    const fallbackMin = Math.max(0, Math.floor(Number(simpleMinAlert) || 0));
     const combos = generateMatrixCombinations(schema, optionsByAttr);
     const rows: VariantRow[] = combos.map((attrs, i) => {
       const prev = prevByAttr.get(attrKey(attrs));
@@ -226,11 +395,23 @@ export function ProductForm({
           prev?.barcode ||
           `${baseSku.toUpperCase()}${String(i + 1).padStart(4, "0")}`,
         quantityOnHand: prev?.quantityOnHand ?? fallbackQty,
+        minAlertLevel: prev?.minAlertLevel ?? fallbackMin,
         locationId: prev?.locationId || "",
       };
     });
     setMatrixRows(rows);
     setError("");
+  }
+
+  function parsedMinAlert() {
+    return Math.max(0, Math.floor(Number(simpleMinAlert) || 0));
+  }
+
+  function applyMinToAllEditVariants() {
+    const min = parsedMinAlert();
+    setEditVariants((prev) =>
+      prev.map((v) => (v.remove ? v : { ...v, minAlertLevel: min }))
+    );
   }
 
   function buildCustomDataPayload(): Record<string, unknown> | null {
@@ -270,8 +451,55 @@ export function ProductForm({
     return out;
   }
 
+  function validateStep(s: number): boolean {
+    if (s === 1) {
+      if (!title.trim()) {
+        setError("נא למלא שם מוצר");
+        return false;
+      }
+      if (!baseSku.trim()) {
+        setError("נא למלא קוד דגם");
+        return false;
+      }
+      if (!categoryId) {
+        setError("נא לבחור קבוצה");
+        return false;
+      }
+      if (buildCustomDataPayload() === null) return false;
+    }
+    if (s === 2) {
+      if (useMulti) {
+        if (matrixRows.length === 0) {
+          setError("לחצו «צור מידות» אחרי הזנת המידות, ואז המשיכו");
+          return false;
+        }
+        if (matrixRows.some((r) => !r.barcode.trim())) {
+          setError("חסר ברקוד באחת השורות");
+          return false;
+        }
+      }
+    }
+    setError("");
+    return true;
+  }
+
+  function goNext() {
+    if (!validateStep(step)) return;
+    setStep((s) => Math.min(3, s + 1));
+  }
+
+  function goBack() {
+    setError("");
+    setStep((s) => Math.max(1, s - 1));
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isEdit && step < 3) {
+      goNext();
+      return;
+    }
+    if (!isEdit && (!validateStep(1) || !validateStep(2))) return;
     setLoading(true);
     setError("");
     try {
@@ -298,6 +526,7 @@ export function ProductForm({
           trackSerials,
           isKit,
           customData,
+          imageUrl: imageUrl || null,
         };
 
         const kept = editVariants.filter((v) => !v.remove);
@@ -359,11 +588,12 @@ export function ProductForm({
         trackSerials,
         isKit,
         customData,
+        imageUrl: imageUrl || null,
       };
 
       if (useMulti) {
         if (matrixRows.length === 0) {
-          setError("לחצו «צור אפשרויות» אחרי הזנת המידות, ואז שמרו");
+          setError("לחצו «צור מידות» אחרי הזנת המידות, ואז שמרו");
           setLoading(false);
           return;
         }
@@ -376,11 +606,18 @@ export function ProductForm({
             Math.floor(Number(r.quantityOnHand) || 0)
           ),
           locationId: r.locationId || null,
+          minAlertLevel:
+            r.minAlertLevel != null
+              ? Math.max(0, Math.floor(Number(r.minAlertLevel) || 0))
+              : parsedMinAlert(),
         }));
+        payload.defaultMinAlert = parsedMinAlert();
       } else {
         payload.simpleBarcode = simpleBarcode || `${baseSku.toUpperCase()}-1`;
         payload.simpleQty = simpleQty;
         payload.simpleLocationId = simpleLocationId || null;
+        payload.simpleMinAlert = parsedMinAlert();
+        payload.defaultMinAlert = parsedMinAlert();
       }
 
       const res = await fetch("/api/products", {
@@ -390,6 +627,8 @@ export function ProductForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
+      skipDraftSaveRef.current = true;
+      clearProductDraft();
       router.push("/products");
       router.refresh();
     } catch (err) {
@@ -399,15 +638,131 @@ export function ProductForm({
     }
   }
 
+  const imageBlock = (
+    <div className="sm:col-span-2">
+      <Label>תמונה (אופציונלי)</Label>
+      <div className="flex flex-wrap items-center gap-3">
+        {imageUrl ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageUrl}
+              alt="תצוגה מקדימה"
+              className="h-20 w-20 rounded-lg border border-[var(--border)] object-cover"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setImageUrl("")}
+            >
+              <X className="h-4 w-4" />
+              הסר תמונה
+            </Button>
+          </>
+        ) : (
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm hover:border-[var(--accent)]">
+            <ImagePlus className="h-4 w-4" />
+            בחירת תמונה
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onImageSelected}
+            />
+          </label>
+        )}
+        <span className="text-xs text-[var(--muted)]">עד כ־260KB</span>
+      </div>
+    </div>
+  );
+
+  const totalQty = useMulti
+    ? matrixRows.reduce((s, r) => s + (Number(r.quantityOnHand) || 0), 0)
+    : Math.max(0, Math.floor(Number(simpleQty) || 0));
+  const sizesCount = useMulti ? matrixRows.length : 1;
+  const showFields = isEdit || step === 1;
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      {!isEdit && (
+        <>
+          <FirstRunTip tipId="product-wizard" title="הוספת מוצר ב־3 שלבים">
+            <p>
+              <strong>1. פרטי הדגם</strong> — שם, קוד דגם, קבוצה, מחירים
+              ותמונה.
+            </p>
+            <p>
+              <strong>2. מידות ומלאי</strong> — אם יש כמה מידות (S / M / L)
+              מזינים אותן פעם אחת, וקובעים כמות לכל מידה.
+            </p>
+            <p>
+              <strong>3. סיכום ושמירה</strong> — בודקים שהכול נכון ולוחצים
+              «שמור מוצר». ההקלדה נשמרת אוטומטית כטיוטה.
+            </p>
+          </FirstRunTip>
+
+          {pendingDraft && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/5 px-4 py-3 text-sm">
+              <span>
+                נמצאה טיוטה שלא נשמרה
+                {pendingDraft.title ? ` («${pendingDraft.title}»)` : ""}. לשחזר
+                אותה?
+              </span>
+              <span className="flex gap-2">
+                <Button type="button" onClick={restoreDraft}>
+                  שחזר טיוטה
+                </Button>
+                <Button type="button" variant="secondary" onClick={discardDraft}>
+                  התחל מחדש
+                </Button>
+              </span>
+            </div>
+          )}
+
+          <ol className="flex items-center gap-2" aria-label="שלבי יצירת מוצר">
+            {WIZARD_STEPS.map((s) => {
+              const active = step === s.n;
+              const done = step > s.n;
+              return (
+                <li
+                  key={s.n}
+                  className="flex flex-1 items-center gap-2"
+                  aria-current={active ? "step" : undefined}
+                >
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
+                      active
+                        ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                        : done
+                          ? "border-[var(--accent)] text-[var(--accent)]"
+                          : "border-[var(--border)] text-[var(--muted)]"
+                    }`}
+                  >
+                    {done ? <Check className="h-4 w-4" /> : s.n}
+                  </span>
+                  <span
+                    className={`text-sm ${
+                      active ? "font-semibold" : "text-[var(--muted)]"
+                    }`}
+                  >
+                    {s.n}/3 · {s.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </>
+      )}
+
+      {showFields && (
       <Card className="grid gap-4 sm:grid-cols-2">
+        {isEdit && imageBlock}
         <div>
-          <Label>שם מוצר</Label>
+          <Label>שם המוצר</Label>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} required />
         </div>
         <div>
-          <Label>מק״ט בסיס</Label>
+          <Label>קוד דגם</Label>
           <Input
             value={baseSku}
             onChange={(e) => setBaseSku(e.target.value)}
@@ -416,7 +771,7 @@ export function ProductForm({
           />
         </div>
         <div>
-          <Label>קטגוריה</Label>
+          <Label>קבוצה</Label>
           <Select
             value={categoryId}
             onChange={(e) => {
@@ -430,7 +785,7 @@ export function ProductForm({
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
-                {c.hasVariants ? " (אפשרויות מוצר)" : ""}
+                {c.hasVariants ? " (מידות / גרסאות)" : ""}
               </option>
             ))}
           </Select>
@@ -447,7 +802,7 @@ export function ProductForm({
           </Select>
         </div>
         <div>
-          <Label>מחיר עלות</Label>
+          <Label>מחיר קנייה</Label>
           <Input
             type="number"
             min="0"
@@ -464,6 +819,14 @@ export function ProductForm({
             step="0.01"
             value={sellingPrice}
             onChange={(e) => setSellingPrice(e.target.value)}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <Label>תיאור</Label>
+          <Textarea
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
           />
         </div>
         <div>
@@ -509,14 +872,22 @@ export function ProductForm({
             onChange={(e) => setVolumeLiters(e.target.value)}
           />
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={trackLots}
-            onChange={(e) => setTrackLots(e.target.checked)}
-          />
-          מעקב אצוות / תוקף
-        </label>
+        {!isEdit && imageBlock}
+        <div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={trackLots}
+              onChange={(e) => setTrackLots(e.target.checked)}
+            />
+            יש תאריך תוקף / אצוות
+          </label>
+          {trackLots && (
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              אפשר לרשום תאריך תוקף בקליטה / במסך אצוות
+            </p>
+          )}
+        </div>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -534,16 +905,25 @@ export function ProductForm({
           מוצר קיט / BOM (הרכבה מרכיבים)
         </label>
         <div className="sm:col-span-2">
-          <Label>תיאור</Label>
-          <Textarea
-            rows={2}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+          <Label>כמות מינימום להתראה</Label>
+          <Input
+            type="number"
+            min="0"
+            step="1"
+            inputMode="numeric"
+            value={simpleMinAlert}
+            onChange={(e) => setSimpleMinAlert(e.target.value)}
+            placeholder="למשל 5"
           />
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            כשהמלאי יורד לערך הזה או מתחתיו — תופיע התראת מלאי נמוך. אפשר גם
+            לשנות לכל מידה בנפרד בהמשך.
+          </p>
         </div>
       </Card>
+      )}
 
-      {visibleCustomFields.length > 0 && (
+      {showFields && visibleCustomFields.length > 0 && (
         <Card className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <h2 className="text-lg font-semibold">שדות מותאמים</h2>
@@ -620,20 +1000,41 @@ export function ProductForm({
           <div>
             <h2 className="text-lg font-semibold">מלאי ואפשרויות</h2>
             <p className="text-sm text-[var(--muted)]">
-              עדכנו כמויות, ברקודים ומיקומים. אפשר גם להוסיף מידה חדשה לאותו
-              דגם.
+              עדכנו כמויות, מינימום להתראה, ברקודים ומיקומים. אפשר גם להוסיף
+              מידה חדשה לאותו דגם.
             </p>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+            <div className="min-w-[140px] flex-1">
+              <Label>כמות מינימום לדגם</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                inputMode="numeric"
+                value={simpleMinAlert}
+                onChange={(e) => setSimpleMinAlert(e.target.value)}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={applyMinToAllEditVariants}
+            >
+              החל על כל המידות
+            </Button>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[800px] text-sm">
               <thead>
                 <tr className="text-right text-[var(--muted)]">
-                  <th className="pb-2">SKU</th>
+                  <th className="pb-2">קוד פריט</th>
                   <th className="pb-2">מאפיינים</th>
                   <th className="pb-2">ברקוד</th>
                   <th className="pb-2">כמות במלאי</th>
-                  <th className="pb-2">סף</th>
+                  <th className="pb-2">מינימום</th>
                   <th className="pb-2">מיקום</th>
                   <th className="pb-2" />
                 </tr>
@@ -755,7 +1156,7 @@ export function ProductForm({
                         <button
                           type="button"
                           className="rounded-lg p-1.5 text-[var(--danger)] hover:bg-[var(--danger-soft)] disabled:opacity-40"
-                          title="הסר אפשרות"
+                          title="הסר מידה / גרסה"
                           disabled={
                             editVariants.filter((x) => !x.remove).length <= 1
                           }
@@ -832,7 +1233,7 @@ export function ProductForm({
                           0,
                           Math.floor(Number(newSizeQty) || 0)
                         ),
-                        minAlertLevel: 5,
+                        minAlertLevel: parsedMinAlert(),
                         locationId: "",
                       },
                     ]);
@@ -848,10 +1249,10 @@ export function ProductForm({
             </div>
           </div>
         </Card>
-      ) : (
+      ) : step === 2 ? (
         <Card className="space-y-4">
           <div>
-            <h2 className="text-lg font-semibold">מלאי ואפשרויות</h2>
+            <h2 className="text-lg font-semibold">מידות וכמויות</h2>
             <p className="text-sm text-[var(--muted)]">
               אותו דגם עם כמה מידות = מוצר אחד. סמנו למטה והזינו את כל המידות.
             </p>
@@ -874,7 +1275,7 @@ export function ProductForm({
               <span>
                 <span className="font-medium">יש כמה מידות לאותו דגם</span>
                 <span className="mt-0.5 block text-[var(--muted)]">
-                  למשל S / M / L — נוצרות כמה אפשרויות בתוך אותו מוצר
+                  למשל S / M / L — נוצרות כמה מידות / גרסאות בתוך אותו מוצר
                 </span>
               </span>
             </label>
@@ -916,26 +1317,38 @@ export function ProductForm({
                     onChange={(e) => setDefaultVariantQty(e.target.value)}
                   />
                 </div>
+                <div>
+                  <Label>כמות מינימום לכולן</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputMode="numeric"
+                    value={simpleMinAlert}
+                    onChange={(e) => setSimpleMinAlert(e.target.value)}
+                  />
+                </div>
               </div>
               <Button type="button" variant="secondary" onClick={generateMatrix}>
-                צור אפשרויות ({schema.join(" × ") || "מידה"})
+                צור מידות ({schema.join(" × ") || "מידה"})
               </Button>
 
               {matrixRows.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-sm text-[var(--muted)]">
-                    הזינו כמות לכל שורה (או עדכנו), ואז לחצו שמור מוצר —{" "}
+                    הזינו כמות ומינימום לכל שורה, ואז המשיכו לשלב הבא —{" "}
                     {matrixRows.reduce((s, r) => s + (r.quantityOnHand || 0), 0)}{" "}
                     יח׳ בסך הכל
                   </p>
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-sm">
+                    <table className="w-full min-w-[800px] text-sm">
                       <thead>
                         <tr className="text-right text-[var(--muted)]">
                           <th className="pb-2">מאפיינים</th>
-                          <th className="pb-2">SKU</th>
+                          <th className="pb-2">קוד פריט</th>
                           <th className="pb-2">ברקוד</th>
                           <th className="pb-2">כמות במלאי</th>
+                          <th className="pb-2">מינימום</th>
                           <th className="pb-2">מיקום</th>
                         </tr>
                       </thead>
@@ -1015,6 +1428,29 @@ export function ProductForm({
                                 }}
                               />
                             </td>
+                            <td className="py-2 w-24">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                inputMode="numeric"
+                                value={row.minAlertLevel}
+                                onChange={(e) => {
+                                  const min = Math.max(
+                                    0,
+                                    Math.floor(Number(e.target.value) || 0)
+                                  );
+                                  setMatrixRows((prev) => {
+                                    const next = [...prev];
+                                    next[idx] = {
+                                      ...next[idx],
+                                      minAlertLevel: min,
+                                    };
+                                    return next;
+                                  });
+                                }}
+                              />
+                            </td>
                             <td className="py-2">
                               <Select
                                 value={row.locationId}
@@ -1047,9 +1483,9 @@ export function ProductForm({
               )}
             </>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <Label>ברקוד</Label>
+                <Label>ברקוד (אופציונלי)</Label>
                 <Input
                   value={simpleBarcode}
                   onChange={(e) => setSimpleBarcode(e.target.value)}
@@ -1063,6 +1499,15 @@ export function ProductForm({
                   min="0"
                   value={simpleQty}
                   onChange={(e) => setSimpleQty(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label>כמות מינימום</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={simpleMinAlert}
+                  onChange={(e) => setSimpleMinAlert(e.target.value)}
                 />
               </div>
               <div>
@@ -1082,6 +1527,37 @@ export function ProductForm({
             </div>
           )}
         </Card>
+      ) : (
+        <Card className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">סיכום ושמירה</h2>
+            <p className="text-sm text-[var(--muted)]">
+              בדקו שהכול נכון ולחצו «שמור מוצר».
+            </p>
+          </div>
+          <div className="flex flex-wrap items-start gap-4">
+            {imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageUrl}
+                alt={title}
+                className="h-24 w-24 rounded-lg border border-[var(--border)] object-cover"
+              />
+            )}
+            <dl className="grid flex-1 grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+              <dt className="text-[var(--muted)]">שם המוצר</dt>
+              <dd className="font-semibold">{title}</dd>
+              <dt className="text-[var(--muted)]">קוד דגם</dt>
+              <dd className="font-mono">{baseSku.toUpperCase()}</dd>
+              <dt className="text-[var(--muted)]">קבוצה</dt>
+              <dd>{category?.name || "—"}</dd>
+              <dt className="text-[var(--muted)]">מספר מידות / גרסאות</dt>
+              <dd>{sizesCount}</dd>
+              <dt className="text-[var(--muted)]">סה״כ כמות</dt>
+              <dd className="font-semibold">{totalQty} יח׳</dd>
+            </dl>
+          </div>
+        </Card>
       )}
 
       {error && (
@@ -1090,14 +1566,47 @@ export function ProductForm({
         </div>
       )}
 
-      <div className="flex gap-3">
-        <Button type="submit" disabled={loading}>
-          {loading ? "שומר..." : isEdit ? "שמור שינויים" : "שמור מוצר"}
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => router.back()}>
-          ביטול
-        </Button>
-      </div>
+      {isEdit ? (
+        <div className="flex gap-3">
+          <Button key="save-edit" type="submit" disabled={loading}>
+            {loading ? "שומר..." : "שמור שינויים"}
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => router.back()}>
+            ביטול
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-3">
+          {step > 1 && (
+            <Button
+              key="wizard-back"
+              type="button"
+              variant="secondary"
+              onClick={goBack}
+              disabled={loading}
+            >
+              חזרה
+            </Button>
+          )}
+          {step < 3 ? (
+            <Button key="wizard-next" type="button" onClick={goNext}>
+              הבא
+            </Button>
+          ) : (
+            <Button key="wizard-submit" type="submit" disabled={loading}>
+              {loading ? "שומר..." : "שמור מוצר"}
+            </Button>
+          )}
+          <Button
+            key="wizard-cancel"
+            type="button"
+            variant="secondary"
+            onClick={() => router.back()}
+          >
+            ביטול
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

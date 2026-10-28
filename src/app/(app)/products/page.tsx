@@ -48,7 +48,7 @@ export default async function ProductsPage({
     <div>
       <PageHeader
         title="קטלוג מוצרים"
-        description="מוצרים אב, אפשרויות מוצר ומחולל שילובי מידה/צבע"
+        description="דגמים, מידות וכמויות — אפשר להוסיף תמונה ותאריך תוקף"
         actions={
           <Link
             href="/products/new"

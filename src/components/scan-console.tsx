@@ -39,14 +39,16 @@ export function ScanConsole() {
     setBusy(true);
     try {
       const res = await fetch(
-        `/api/variants/by-barcode?barcode=${encodeURIComponent(trimmed)}`
+        `/api/variants/lookup?q=${encodeURIComponent(trimmed)}`
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "לא נמצא");
-      setVariant(data);
+      const list = (data.variants || []) as VariantPayload[];
+      if (!list.length) throw new Error("לא נמצא מוצר");
+      setVariant(list[0]);
       setBarcode("");
       if (mode === "relocate") {
-        setToast("סרוק עכשיו את קוד המדף החדש");
+        setToast("עכשיו הזינו את קוד המדף החדש");
       }
     } catch (e) {
       setVariant(null);
@@ -137,7 +139,7 @@ export function ScanConsole() {
             mode === "product" ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)] border border-[var(--border)]"
           }`}
         >
-          סריקת מוצר
+          חיפוש מוצר
         </button>
         <button
           type="button"
@@ -154,8 +156,8 @@ export function ScanConsole() {
         <form onSubmit={onScanSubmit} className="space-y-3">
           <Label>
             {mode === "relocate" && variant
-              ? "סרוק קוד מיקום יעד"
-              : "סרוק ברקוד מוצר"}
+              ? "קוד מדף יעד"
+              : "חיפוש מוצר (שם / קוד / ברקוד)"}
           </Label>
           <Input
             ref={inputRef}
@@ -166,11 +168,12 @@ export function ScanConsole() {
                 : setBarcode(e.target.value)
             }
             placeholder={
-              mode === "relocate" && variant ? "למשל A-01-03-12" : "הקלד או סרוק ברקוד"
+              mode === "relocate" && variant
+                ? "למשל A-01-03-12"
+                : "הקלידו קוד או שם מוצר"
             }
-            className="text-center text-lg font-mono tracking-wide"
+            className="text-center text-lg tracking-wide"
             autoComplete="off"
-            inputMode="none"
           />
           <Button type="submit" className="w-full" size="lg" disabled={busy}>
             {busy ? "טוען..." : "אשר"}

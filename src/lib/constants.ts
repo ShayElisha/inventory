@@ -25,6 +25,39 @@ export const OUTBOUND_REASONS = [
   { code: "OTHER", label: "אחר" },
 ] as const;
 
+/** סיבות חובה לתיקון / התאמת מלאי */
+export const ADJUSTMENT_REASONS = [
+  { code: "COUNT", label: "ספירה תקופתית" },
+  { code: "WASTE", label: "פחת / תוקף שעבר" },
+  { code: "DAMAGE", label: "נזק / שבירה" },
+  { code: "FOUND", label: "נמצא במחסן" },
+  { code: "CORRECTION", label: "תיקון טעות הזנה" },
+  { code: "OTHER", label: "אחר" },
+] as const;
+
+export const SYSTEM_REASON_LABELS: Record<string, string> = {
+  SALE: "מכירה",
+  WASTE: "פחת",
+  DAMAGE: "נזק",
+  RETURN: "החזרה לספק",
+  TRANSFER_OUT: "העברה החוצה",
+  TRANSFER_IN: "העברה פנימה",
+  OTHER: "אחר",
+  COUNT: "ספירה",
+  ADJUST: "התאמת מלאי",
+  SETUP: "הקמה",
+  BULK: "עדכון כמותי",
+  IMPORT: "ייבוא",
+  RESERVE: "שמירה",
+  INBOUND: "קליטה",
+  PO_RECEIVE: "קליטת הזמנת רכש",
+  CUSTOMER_RETURN: "החזרת לקוח",
+  CORRECTION: "תיקון",
+  FOUND: "נמצא במחסן",
+  KIT_ASSEMBLE: "הרכבת קיט",
+  KIT_DISASSEMBLE: "פירוק קיט",
+};
+
 export const UNIT_OF_MEASURE = [
   { code: "UNIT", label: "יח׳" },
   { code: "CARTON", label: "קרטון" },
@@ -82,5 +115,10 @@ export function unitLabel(code: string) {
 
 export function reasonLabel(code: string | null | undefined) {
   if (!code) return "";
-  return OUTBOUND_REASONS.find((r) => r.code === code)?.label ?? code;
+  return (
+    SYSTEM_REASON_LABELS[code] ||
+    OUTBOUND_REASONS.find((r) => r.code === code)?.label ||
+    ADJUSTMENT_REASONS.find((r) => r.code === code)?.label ||
+    code
+  );
 }

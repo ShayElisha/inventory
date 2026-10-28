@@ -26,6 +26,7 @@ type Product = {
   costPrice: number;
   sellingPrice: number;
   unitOfMeasure?: string;
+  imageUrl?: string | null;
   category: { id: string; name: string; hasVariants: boolean };
   supplier: { id: string; name: string } | null;
   variants: Variant[];
@@ -165,6 +166,14 @@ export function ProductsCatalog({
                   ) : (
                     <ChevronLeft className="h-4 w-4 shrink-0 text-[var(--muted)]" />
                   )}
+                  {p.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.imageUrl}
+                      alt=""
+                      className="h-12 w-12 shrink-0 rounded-lg object-cover ring-1 ring-[var(--border)]"
+                    />
+                  ) : null}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-[var(--foreground)]">{p.title}</span>
@@ -172,8 +181,11 @@ export function ProductsCatalog({
                       {hasLow && <Badge tone="danger">מלאי נמוך</Badge>}
                     </div>
                     <div className="mt-1 text-xs text-[var(--muted)]">
-                      מק״ט בסיס: {p.baseSku} · {p.variants.length} אפשרויות מוצר · סה״כ{" "}
+                      קוד דגם: {p.baseSku} · {p.variants.length} מידות/גרסאות · סה״כ{" "}
                       {totalQty} {unitLabel(p.unitOfMeasure || "UNIT")}
+                      {p.variants[0]
+                        ? ` · מינ׳ ${Math.min(...p.variants.map((v) => v.minAlertLevel))}`
+                        : ""}
                       {p.supplier ? ` · ${p.supplier.name}` : ""}
                     </div>
                   </div>

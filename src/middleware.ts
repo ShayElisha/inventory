@@ -43,7 +43,7 @@ export async function middleware(req: NextRequest) {
     const secretRaw = process.env.AUTH_SECRET?.trim();
     if (!secretRaw && process.env.NODE_ENV === "production") {
       return NextResponse.json(
-        { error: "Server misconfigured: AUTH_SECRET missing" },
+        { error: "השרת לא מוגדר כראוי: חסר מפתח אבטחה" },
         { status: 500 }
       );
     }

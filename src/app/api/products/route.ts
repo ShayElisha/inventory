@@ -57,6 +57,8 @@ export async function POST(req: NextRequest) {
       simpleBarcode,
       simpleQty,
       simpleLocationId,
+      simpleMinAlert,
+      defaultMinAlert,
       matrixOptions,
       customData,
       weightKg,
@@ -64,6 +66,7 @@ export async function POST(req: NextRequest) {
       trackLots,
       trackSerials,
       isKit,
+      imageUrl,
     } = body;
 
     if (!title || !baseSku || !categoryId) {
@@ -152,6 +155,10 @@ export async function POST(req: NextRequest) {
           trackLots: Boolean(trackLots),
           trackSerials: Boolean(trackSerials),
           isKit: Boolean(isKit),
+          imageUrl:
+            typeof imageUrl === "string" && imageUrl.trim() !== ""
+              ? imageUrl.slice(0, 400_000)
+              : null,
           customData:
             customData && typeof customData === "object"
               ? JSON.stringify(customData)
@@ -174,6 +181,15 @@ export async function POST(req: NextRequest) {
         const n = Math.floor(Number(raw));
         return Number.isFinite(n) && n > 0 ? n : 0;
       };
+      const parseMin = (raw: unknown, fallback = 5) => {
+        if (raw === undefined || raw === null || raw === "") return fallback;
+        const n = Math.floor(Number(raw));
+        return Number.isFinite(n) && n >= 0 ? n : fallback;
+      };
+      const productMin = parseMin(
+        defaultMinAlert ?? simpleMinAlert,
+        5
+      );
 
       if (wantsMulti) {
         if (variants?.length) {
@@ -197,7 +213,7 @@ export async function POST(req: NextRequest) {
                 v.quantityOnHand ?? v.qty ?? v.quantity
               ),
               locationId: v.locationId || null,
-              minAlertLevel: v.minAlertLevel ?? 5,
+              minAlertLevel: parseMin(v.minAlertLevel, productMin),
             })
           );
         } else {
@@ -208,7 +224,7 @@ export async function POST(req: NextRequest) {
             attributes: attrs,
             quantityOnHand: 0,
             locationId: null,
-            minAlertLevel: 5,
+            minAlertLevel: productMin,
           }));
         }
       } else {
@@ -219,7 +235,7 @@ export async function POST(req: NextRequest) {
             attributes: {},
             quantityOnHand: parseQty(simpleQty),
             locationId: simpleLocationId || null,
-            minAlertLevel: 5,
+            minAlertLevel: productMin,
           },
         ];
       }

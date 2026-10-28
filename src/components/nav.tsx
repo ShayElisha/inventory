@@ -90,7 +90,7 @@ const groups: NavGroup[] = [
       { href: "/inbound", label: "קליטה מלאה", icon: PackagePlus },
       { href: "/purchases", label: "רכש / PO", icon: FileSpreadsheet },
       { href: "/transfers", label: "העברות", icon: Warehouse },
-      { href: "/scan", label: "סריקה", icon: ScanBarcode },
+      { href: "/scan", label: "חיפוש מהיר", icon: ScanBarcode },
       { href: "/stock", label: "תנועות", icon: ArrowLeftRight },
     ],
   },
@@ -134,7 +134,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/setup", label: "הגדרות", icon: Settings2 },
       { href: "/team", label: "עובדים", icon: Users, adminOnly: true },
-      { href: "/audit", label: "Audit", icon: Shield, adminOnly: true },
+      { href: "/audit", label: "יומן פעילות", icon: Shield, adminOnly: true },
       { href: "/help", label: "מרכז עזרה", icon: CircleHelp },
     ],
   },

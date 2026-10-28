@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Input, Label, Select } from "@/components/ui";
 import { attributesLabel } from "@/lib/utils";
+import { ADJUSTMENT_REASONS, OUTBOUND_REASONS } from "@/lib/constants";
 
 type Variant = {
   id: string;
@@ -20,7 +21,7 @@ const TABS = [
   { id: "inbound", label: "קליטה" },
   { id: "outbound", label: "ניפוק" },
   { id: "transfer", label: "העברה" },
-  { id: "count", label: "ספירה" },
+  { id: "count", label: "תיקון מלאי" },
   { id: "reserve", label: "שמירה" },
 ] as const;
 
@@ -37,8 +38,11 @@ export function StockOperations({
   const [quantity, setQuantity] = useState("1");
   const [counted, setCounted] = useState("");
   const [reason, setReason] = useState("");
+  const [reasonCode, setReasonCode] = useState("");
   const [locationId, setLocationId] = useState(locations[0]?.id || "");
   const [releaseReserved, setReleaseReserved] = useState(false);
+  const [expiryDate, setExpiryDate] = useState("");
+  const [lotCode, setLotCode] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -50,6 +54,15 @@ export function StockOperations({
     setError("");
     setMessage("");
     try {
+      if (tab === "count") {
+        if (!reasonCode) {
+          throw new Error("חובה לבחור סיבה לתיקון המלאי");
+        }
+        if (counted === "" || Number.isNaN(Number(counted))) {
+          throw new Error("הזינו את הכמות הנכונה במלאי");
+        }
+      }
+
       let url = "";
       let body: Record<string, unknown> = {};
 
@@ -60,6 +73,8 @@ export function StockOperations({
           quantity: Number(quantity),
           reason: reason || "קבלת סחורה",
           locationId,
+          ...(lotCode ? { lotCode } : {}),
+          ...(expiryDate ? { expiryDate } : {}),
         };
       } else if (tab === "outbound") {
         url = "/api/stock/outbound";
@@ -67,6 +82,7 @@ export function StockOperations({
           variantId,
           quantity: Number(quantity),
           reason: reason || "ליקוט / מכירה",
+          reasonCode: reasonCode || "SALE",
           releaseReserved,
         };
       } else if (tab === "transfer") {
@@ -77,12 +93,16 @@ export function StockOperations({
           reason: reason || "העברת מיקום",
         };
       } else if (tab === "count") {
+        const reasonLabel =
+          ADJUSTMENT_REASONS.find((r) => r.code === reasonCode)?.label ||
+          reasonCode;
         url = "/api/stock/adjust";
         body = {
           variantId,
           mode: "count",
           countedQuantity: Number(counted),
-          reason: reason || "ספירה תקופתית",
+          reason: reason.trim() || reasonLabel,
+          reasonCode,
         };
       } else {
         url = "/api/stock/reserve";
@@ -101,6 +121,9 @@ export function StockOperations({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setMessage("הפעולה בוצעה בהצלחה");
+      setCounted("");
+      setReason("");
+      if (tab === "count") setReasonCode("");
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "שגיאה");
@@ -113,8 +136,11 @@ export function StockOperations({
     return (
       <Card>
         <p className="text-sm text-[var(--muted)]">
-          אין אפשרויות מוצר במלאי. הוסיפו מוצרים ב{" "}
-          <a href="/products/new" className="font-medium text-[var(--accent)] underline">
+          אין פריטים במלאי. הוסיפו מוצרים ב{" "}
+          <a
+            href="/products/new"
+            className="font-medium text-[var(--accent)] underline"
+          >
             קטלוג
           </a>
           .
@@ -134,6 +160,9 @@ export function StockOperations({
               setTab(t.id);
               setMessage("");
               setError("");
+              setReasonCode(
+                t.id === "count" ? "" : t.id === "outbound" ? "SALE" : ""
+              );
             }}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
               tab === t.id
@@ -148,19 +177,23 @@ export function StockOperations({
 
       <Card className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <Label>אפשרות מוצר / SKU</Label>
-          <Select value={variantId} onChange={(e) => setVariantId(e.target.value)}>
+          <Label>בחירת פריט</Label>
+          <Select
+            value={variantId}
+            onChange={(e) => setVariantId(e.target.value)}
+          >
             {variants.map((v) => (
               <option key={v.id} value={v.id}>
-                {v.sku} — {v.product.title} ({attributesLabel(v.attributes)}) · מלאי{" "}
-                {v.quantityOnHand}
+                {v.product.title} · {v.sku} ({attributesLabel(v.attributes)}) ·
+                מלאי {v.quantityOnHand}
               </option>
             ))}
           </Select>
           {selected && (
             <p className="mt-2 text-xs text-[var(--muted)]">
-              ברקוד: {selected.barcode} · מיקום: {selected.location?.code ?? "—"} ·
-              שמור: {selected.quantityReserved}
+              ברקוד: {selected.barcode} · מדף:{" "}
+              {selected.location?.code ?? "—"} · שמור:{" "}
+              {selected.quantityReserved}
             </p>
           )}
         </div>
@@ -179,21 +212,27 @@ export function StockOperations({
 
         {tab === "count" && (
           <div>
-            <Label>כמות שנספרה</Label>
+            <Label>כמות נכונה במלאי *</Label>
             <Input
               type="number"
               min="0"
               value={counted}
               onChange={(e) => setCounted(e.target.value)}
-              placeholder={selected ? `נוכחי: ${selected.quantityOnHand}` : ""}
+              placeholder={
+                selected ? `נוכחי במערכת: ${selected.quantityOnHand}` : ""
+              }
+              required
             />
           </div>
         )}
 
         {(tab === "inbound" || tab === "transfer") && (
           <div>
-            <Label>{tab === "transfer" ? "מיקום יעד" : "מיקום מדף"}</Label>
-            <Select value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+            <Label>{tab === "transfer" ? "מדף יעד" : "מדף"}</Label>
+            <Select
+              value={locationId}
+              onChange={(e) => setLocationId(e.target.value)}
+            >
               {locations.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.code}
@@ -203,21 +242,77 @@ export function StockOperations({
           </div>
         )}
 
-        {tab === "outbound" && (
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={releaseReserved}
-                onChange={(e) => setReleaseReserved(e.target.checked)}
+        {tab === "inbound" && (
+          <>
+            <div>
+              <Label>קוד אצווה (אופציונלי)</Label>
+              <Input
+                value={lotCode}
+                onChange={(e) => setLotCode(e.target.value)}
+                placeholder="למשל LOT-2410"
               />
-              שחרר גם מכמות שמורה
-            </label>
+            </div>
+            <div>
+              <Label>תאריך תוקף (אופציונלי)</Label>
+              <Input
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+              />
+            </div>
+          </>
+        )}
+
+        {tab === "outbound" && (
+          <>
+            <div>
+              <Label>סיבת ניפוק</Label>
+              <Select
+                value={reasonCode || "SALE"}
+                onChange={(e) => setReasonCode(e.target.value)}
+              >
+                {OUTBOUND_REASONS.map((r) => (
+                  <option key={r.code} value={r.code}>
+                    {r.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={releaseReserved}
+                  onChange={(e) => setReleaseReserved(e.target.checked)}
+                />
+                שחרר גם מכמות שמורה
+              </label>
+            </div>
+          </>
+        )}
+
+        {tab === "count" && (
+          <div>
+            <Label>סיבה לתיקון *</Label>
+            <Select
+              value={reasonCode}
+              onChange={(e) => setReasonCode(e.target.value)}
+              required
+            >
+              <option value="">בחרו סיבה…</option>
+              {ADJUSTMENT_REASONS.map((r) => (
+                <option key={r.code} value={r.code}>
+                  {r.label}
+                </option>
+              ))}
+            </Select>
           </div>
         )}
 
-        <div className={tab === "count" || tab === "outbound" ? "" : "sm:col-span-2"}>
-          <Label>סיבה</Label>
+        <div className="sm:col-span-2">
+          <Label>
+            {tab === "count" ? "הערה נוספת (אופציונלי)" : "הערה"}
+          </Label>
           <Input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
@@ -227,7 +322,7 @@ export function StockOperations({
                 : tab === "outbound"
                   ? "ליקוט הזמנה / מכירה"
                   : tab === "count"
-                    ? "ספירה תקופתית / פחת"
+                    ? "פירוט נוסף לתיקון"
                     : "סיבת הפעולה"
             }
           />

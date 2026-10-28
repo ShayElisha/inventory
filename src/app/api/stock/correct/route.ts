@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
     if (!canAdmin(session.role) && !body.confirm) {
       return NextResponse.json(
-        { error: "נדרש אישור מנהל או confirm=true" },
+        { error: "נדרש אישור מנהל או סימון אישור מפורש" },
         { status: 403 }
       );
     }

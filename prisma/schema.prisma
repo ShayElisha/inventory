@@ -139,6 +139,7 @@ model Product {
   trackSerials   Boolean  @default(false) @map("track_serials")
   isKit          Boolean  @default(false) @map("is_kit")
   customData     String   @default("{}") @map("custom_data") // JSON: { [fieldKey]: value }
+  imageUrl       String?  @map("image_url") // כתובת תמונה או data-URL קטן
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 

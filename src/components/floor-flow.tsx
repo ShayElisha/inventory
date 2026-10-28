@@ -134,7 +134,7 @@ export function FloorReceive({
       <div>
         <h1 className="text-2xl font-bold tracking-tight">קליטה</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          סרקו ברקוד → הזינו כמות → בחרו מדף
+          חפשו מוצר לפי שם או קוד → כמות → מדף
         </p>
       </div>
 
@@ -145,13 +145,12 @@ export function FloorReceive({
         }}
         className="space-y-2"
       >
-        <Label>סריקה / חיפוש</Label>
+        <Label>חיפוש מוצר</Label>
         <Input
           ref={scanRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="ברקוד או מק״ט"
-          inputMode="none"
+          placeholder="הקלידו שם, קוד דגם או ברקוד"
           autoComplete="off"
           className="h-14 text-lg"
           disabled={busy}
@@ -254,7 +253,7 @@ export function FloorShelf() {
         setVariant(v);
         setStep("shelf");
         setCode("");
-        setDone("סרקו עכשיו את קוד המדף");
+        setDone("עכשיו הזינו את קוד המדף");
       } else {
         if (!variant) throw new Error("בחרו מוצר קודם");
         const res = await fetch("/api/stock/transfer", {
@@ -286,8 +285,8 @@ export function FloorShelf() {
         <h1 className="text-2xl font-bold tracking-tight">העברה למדף</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
           {step === "product"
-            ? "שלב 1: סרקו את המוצר"
-            : "שלב 2: סרקו את קוד המדף"}
+            ? "שלב 1: חפשו או בחרו מוצר"
+            : "שלב 2: הזינו קוד מדף"}
         </p>
       </div>
 
@@ -321,13 +320,14 @@ export function FloorShelf() {
         }}
         className="space-y-2"
       >
-        <Label>{step === "product" ? "ברקוד מוצר" : "קוד מדף"}</Label>
+        <Label>{step === "product" ? "חיפוש מוצר" : "קוד מדף"}</Label>
         <Input
           ref={scanRef}
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder={step === "product" ? "סרקו מוצר" : "סרקו מדף"}
-          inputMode="none"
+          placeholder={
+            step === "product" ? "שם / קוד / ברקוד" : "למשל A-01"
+          }
           autoComplete="off"
           className="h-14 text-lg"
           disabled={busy}
@@ -443,7 +443,7 @@ export function FloorPick() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">ניפוק</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          סרקו → כמות → אשר יציאה
+          חפשו מוצר → כמות → אשר יציאה
         </p>
       </div>
 
@@ -454,13 +454,12 @@ export function FloorPick() {
         }}
         className="space-y-2"
       >
-        <Label>סריקה / חיפוש</Label>
+        <Label>חיפוש מוצר</Label>
         <Input
           ref={scanRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="ברקוד או מק״ט"
-          inputMode="none"
+          placeholder="הקלידו שם, קוד דגם או ברקוד"
           autoComplete="off"
           className="h-14 text-lg"
           disabled={busy}
