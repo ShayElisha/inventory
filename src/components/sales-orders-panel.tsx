@@ -186,6 +186,9 @@ export function SalesOrdersPanel({
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setToast(`נוצר מסמך ${data.number} · סה״כ ₪${data.total}`);
       router.refresh();
+      if (data.id) {
+        router.push(`/documents/${data.id}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
     } finally {

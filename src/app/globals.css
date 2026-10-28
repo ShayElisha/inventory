@@ -280,3 +280,26 @@ body {
 .adv-active-card {
   animation: count-glow 2.4s ease-in-out infinite;
 }
+
+@media print {
+  body {
+    background: white !important;
+    background-image: none !important;
+    color: #111 !important;
+  }
+
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .document-print {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: none !important;
+    padding: 0 !important;
+    color: #111 !important;
+    background: white !important;
+  }
+}

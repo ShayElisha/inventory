@@ -123,6 +123,7 @@ export async function middleware(req: NextRequest) {
       "/api/team",
       "/api/purchase-orders",
       "/api/sales-orders",
+      "/api/documents",
       "/api/customers",
       "/api/price-lists",
       "/api/returns",
