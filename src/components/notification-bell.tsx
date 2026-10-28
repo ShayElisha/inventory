@@ -43,8 +43,15 @@ export function NotificationBell() {
     function onDoc(e: MouseEvent) {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
   }, []);
 
   async function markAll() {
@@ -75,6 +82,7 @@ export function NotificationBell() {
         }}
         className="relative rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 hover:bg-[var(--surface-2)]"
         aria-label="התראות"
+        aria-expanded={open}
       >
         <Bell className="h-5 w-5 text-[var(--foreground)]" />
         {unread > 0 && (
@@ -85,18 +93,24 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute left-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xl sm:w-96">
-          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-            <span className="font-semibold text-[var(--foreground)]">התראות</span>
+        <div
+          className="fixed inset-x-3 top-16 z-[60] max-h-[min(24rem,calc(100dvh-5rem))] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-xl sm:absolute sm:inset-x-auto sm:end-0 sm:top-auto sm:mt-2 sm:w-96 sm:max-h-96"
+          role="dialog"
+          aria-label="התראות"
+        >
+          <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
+            <span className="font-semibold text-[var(--foreground)]">
+              התראות
+            </span>
             <button
               type="button"
               onClick={markAll}
-              className="text-xs text-[var(--accent)] hover:underline"
+              className="shrink-0 text-xs text-[var(--accent)] hover:underline"
             >
               סמן הכל כנקרא
             </button>
           </div>
-          <ul className="max-h-96 overflow-y-auto">
+          <ul className="max-h-[min(20rem,calc(100dvh-8rem))] overflow-y-auto overscroll-contain sm:max-h-80">
             {items.length === 0 && (
               <li className="px-4 py-8 text-center text-sm text-[var(--muted)]">
                 אין התראות כרגע
@@ -118,8 +132,12 @@ export function NotificationBell() {
                     }}
                     className="block"
                   >
-                    <div className="text-sm font-medium text-[var(--foreground)]">{n.title}</div>
-                    <div className="mt-0.5 text-xs text-[var(--muted)]">{n.body}</div>
+                    <div className="text-sm font-medium text-[var(--foreground)]">
+                      {n.title}
+                    </div>
+                    <div className="mt-0.5 break-words text-xs text-[var(--muted)]">
+                      {n.body}
+                    </div>
                     <div className="mt-1 text-[10px] text-[var(--muted)]">
                       {formatDateTime(n.createdAt)}
                     </div>
@@ -130,8 +148,12 @@ export function NotificationBell() {
                     className="w-full text-right"
                     onClick={() => markOne(n.id)}
                   >
-                    <div className="text-sm font-medium text-[var(--foreground)]">{n.title}</div>
-                    <div className="mt-0.5 text-xs text-[var(--muted)]">{n.body}</div>
+                    <div className="text-sm font-medium text-[var(--foreground)]">
+                      {n.title}
+                    </div>
+                    <div className="mt-0.5 break-words text-xs text-[var(--muted)]">
+                      {n.body}
+                    </div>
                   </button>
                 )}
               </li>
