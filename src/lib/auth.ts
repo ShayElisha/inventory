@@ -172,6 +172,18 @@ export function sessionFromUser(user: {
 }
 
 export async function ensureSuperAdmin() {
+  const emailFromEnv = process.env.SUPER_ADMIN_EMAIL?.trim();
+  const passwordFromEnv = process.env.SUPER_ADMIN_PASSWORD;
+  const email = emailFromEnv
+    ? normalizeEmail(emailFromEnv)
+    : allowDemoSeed()
+      ? "super@malaim.local"
+      : "";
+  const password =
+    passwordFromEnv ||
+    (allowDemoSeed() && !emailFromEnv ? "super123" : "");
+  if (!email || !password) return;
+
   let platform = await prisma.company.findUnique({ where: { slug: "platform" } });
   if (!platform) {
     platform = await prisma.company.create({
@@ -190,31 +202,47 @@ export async function ensureSuperAdmin() {
     });
   }
 
-  const email = "super@malaim.local";
-  const existing = await prisma.user.findUnique({ where: { email } });
+  let existing = await prisma.user.findUnique({ where: { email } });
+  if (!existing) {
+    existing = await prisma.user.findFirst({
+      where: { role: ROLES.SUPER_ADMIN },
+    });
+  }
+
   if (!existing) {
     await prisma.user.create({
       data: {
         name: "סופר אדמין",
         email,
         phone: "972500000000",
-        passwordHash: await hashPassword("super123"),
+        passwordHash: await hashPassword(password),
         role: ROLES.SUPER_ADMIN,
         companyId: platform.id,
         active: true,
+        mustChangePassword: false,
       },
     });
-  } else if (existing.role !== ROLES.SUPER_ADMIN) {
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: { role: ROLES.SUPER_ADMIN, companyId: platform.id, active: true },
-    });
+    return;
   }
+
+  const passwordMatches = await verifyPassword(password, existing.passwordHash);
+  await prisma.user.update({
+    where: { id: existing.id },
+    data: {
+      name: existing.name || "סופר אדמין",
+      email,
+      role: ROLES.SUPER_ADMIN,
+      companyId: platform.id,
+      active: true,
+      mustChangePassword: false,
+      ...(passwordMatches ? {} : { passwordHash: await hashPassword(password) }),
+    },
+  });
 }
 
 export async function ensureDefaultUsers() {
-  if (!allowDemoSeed()) return;
   await ensureSuperAdmin();
+  if (!allowDemoSeed()) return;
 
   let company = await prisma.company.findUnique({ where: { slug: "demo" } });
   if (!company) {
