@@ -175,13 +175,61 @@ export default async function DashboardPage({
   const operate = canWrite(session.role);
   const admin = canAdmin(session.role);
 
+  // מקובץ ל־2 מנות במקום 12 במקביל — מפחית עומס חיבורים ב־serverless
+  const [variants, lowCandidates, zeroCount, periodTxns, recentTxns, openPicks] =
+    await Promise.all([
+      prisma.productVariant.findMany({
+        where: companyFilter,
+        select: {
+          id: true,
+          quantityOnHand: true,
+          quantityReserved: true,
+          minAlertLevel: true,
+          product: { select: { costPrice: true, sellingPrice: true } },
+        },
+      }),
+      prisma.productVariant.findMany({
+        where: companyFilter,
+        include: { product: true, location: true },
+        orderBy: { quantityOnHand: "asc" },
+        take: 80,
+      }),
+      prisma.productVariant.count({
+        where: { ...companyFilter, quantityOnHand: 0 },
+      }),
+      prisma.stockTransaction.findMany({
+        where: { timestamp: { gte: from }, variant: companyFilter },
+        select: {
+          id: true,
+          type: true,
+          quantityChanged: true,
+          variantId: true,
+          variant: {
+            select: {
+              sku: true,
+              product: { select: { title: true } },
+            },
+          },
+        },
+      }),
+      prisma.stockTransaction.findMany({
+        where: { variant: companyFilter },
+        take: 12,
+        orderBy: { timestamp: "desc" },
+        include: { variant: { include: { product: true } } },
+      }),
+      prisma.pickList.findMany({
+        where: {
+          companyId,
+          status: { in: ["OPEN", "IN_PROGRESS"] },
+        },
+        include: { items: true },
+        orderBy: { updatedAt: "desc" },
+        take: 6,
+      }),
+    ]);
+
   const [
-    variants,
-    lowCandidates,
-    zeroCount,
-    periodTxns,
-    recentTxns,
-    openPicks,
     openCounts,
     unreadNotifs,
     productsCount,
@@ -189,55 +237,6 @@ export default async function DashboardPage({
     categories,
     recentOutboundIds,
   ] = await Promise.all([
-    prisma.productVariant.findMany({
-      where: companyFilter,
-      select: {
-        id: true,
-        quantityOnHand: true,
-        quantityReserved: true,
-        minAlertLevel: true,
-        product: { select: { costPrice: true, sellingPrice: true } },
-      },
-    }),
-    prisma.productVariant.findMany({
-      where: companyFilter,
-      include: { product: true, location: true },
-      orderBy: { quantityOnHand: "asc" },
-      take: 80,
-    }),
-    prisma.productVariant.count({
-      where: { ...companyFilter, quantityOnHand: 0 },
-    }),
-    prisma.stockTransaction.findMany({
-      where: { timestamp: { gte: from }, variant: companyFilter },
-      select: {
-        id: true,
-        type: true,
-        quantityChanged: true,
-        variantId: true,
-        variant: {
-          select: {
-            sku: true,
-            product: { select: { title: true } },
-          },
-        },
-      },
-    }),
-    prisma.stockTransaction.findMany({
-      where: { variant: companyFilter },
-      take: 12,
-      orderBy: { timestamp: "desc" },
-      include: { variant: { include: { product: true } } },
-    }),
-    prisma.pickList.findMany({
-      where: {
-        companyId,
-        status: { in: ["OPEN", "IN_PROGRESS"] },
-      },
-      include: { items: true },
-      orderBy: { updatedAt: "desc" },
-      take: 6,
-    }),
     prisma.stockCountSession.findMany({
       where: { companyId, status: "OPEN" },
       include: { lines: true },
