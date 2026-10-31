@@ -771,7 +771,7 @@ export default async function DashboardPage({
             <>
               {modules.sales && (
                 <ActionTile
-                  href="/pick"
+                  href="/outbound"
                   label="ניפוק"
                   desc="הוצאה מהירה מהמלאי"
                   icon={PackageMinus}

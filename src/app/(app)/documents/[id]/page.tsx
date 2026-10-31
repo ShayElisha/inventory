@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { DocumentView } from "@/components/document-view";
 import { DocumentPrintButton } from "@/components/document-print-button";
-import { requireModule } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 import { documentTypeLabel } from "@/lib/documents";
 
 export default async function DocumentDetailPage({
@@ -16,7 +16,7 @@ export default async function DocumentDetailPage({
   searchParams: Promise<{ print?: string }>;
 }) {
   noStore();
-  const { session } = await requireModule("sales");
+  const session = await requireTenant();
   const { id } = await params;
   const { print } = await searchParams;
 

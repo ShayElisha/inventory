@@ -3,11 +3,11 @@ import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { SalesOrdersPanel } from "@/components/sales-orders-panel";
 import { SectionTabs } from "@/components/section-tabs";
-import { requireModule } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 export default async function OrdersPage() {
   noStore();
-  const { session } = await requireModule("sales");
+  const session = await requireTenant();
   const [orders, variants] = await Promise.all([
     prisma.salesOrder.findMany({
       where: {

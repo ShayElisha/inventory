@@ -122,7 +122,7 @@ const groups: NavGroup[] = [
     label: "ניפוק ומשלוח",
     icon: Truck,
     items: [
-      { href: "/pick", label: "ניפוק", icon: PackageMinus },
+      { href: "/outbound", label: "ניפוק", icon: PackageMinus },
       { href: "/picks", label: "ליקוט", icon: ClipboardList },
       { href: "/shipments", label: "משלוחים", icon: Truck },
       { href: "/documents", label: "מסמכים", icon: FileText },
@@ -160,7 +160,6 @@ const groups: NavGroup[] = [
 function isActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
   if (pathname === href) return true;
-  // /pick לא יסומן כפעיל ב־/picks (ולהפך)
   return pathname.startsWith(`${href}/`);
 }
 

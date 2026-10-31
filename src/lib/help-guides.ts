@@ -98,7 +98,7 @@ export const HELP_GUIDES: HelpGuide[] = [
     category: "ניפוק ומשלוח",
     audience: ["ADMIN", "WAREHOUSE"],
     minutes: 4,
-    relatedHref: "/pick",
+    relatedHref: "/outbound",
     relatedLabel: "לניפוק",
     steps: [
       {

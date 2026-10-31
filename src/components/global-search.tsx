@@ -85,7 +85,7 @@ export function GlobalSearch() {
           {data?.variants.map((v) => (
             <Link
               key={v.id}
-              href="/pick"
+              href="/outbound"
               onClick={() => setOpen(false)}
               className="block px-4 py-2 hover:bg-[var(--surface-2)]"
             >

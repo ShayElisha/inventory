@@ -3,11 +3,11 @@ import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { DocumentsPanel } from "@/components/documents-panel";
 import { SectionTabs } from "@/components/section-tabs";
-import { requireModule } from "@/lib/tenant";
+import { requireTenant } from "@/lib/tenant";
 
 export default async function DocumentsPage() {
   noStore();
-  const { session } = await requireModule("sales");
+  const session = await requireTenant();
   const documents = await prisma.stockDocument.findMany({
     where: { companyId: session.companyId },
     include: {

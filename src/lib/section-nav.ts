@@ -36,7 +36,7 @@ export const SALES_TABS: SectionTab[] = [
 
 /** ניפוק, ליקוט, משלוח ומסמכים — טאבי ליבה תמיד מוצגים; משלוחים לפי מודול */
 export const FULFILLMENT_TABS: SectionTab[] = [
-  { href: "/pick", label: "ניפוק" },
+  { href: "/outbound", label: "ניפוק" },
   { href: "/picks", label: "ליקוט" },
   { href: "/shipments", label: "משלוחים", module: "shipments" },
   { href: "/documents", label: "מסמכים" },

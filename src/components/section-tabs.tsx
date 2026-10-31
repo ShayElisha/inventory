@@ -15,7 +15,6 @@ import {
   SectionTab,
 } from "@/lib/section-nav";
 
-/** התאמה מדויקת — מונע ש־/pick ייתפס כפעיל גם ב־/picks */
 function isTabActive(pathname: string, href: string) {
   if (pathname === href) return true;
   return pathname.startsWith(`${href}/`);

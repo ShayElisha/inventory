@@ -17,14 +17,14 @@ export const SELLABLE_MODULES = [
     description: "ניפוק מהיר ותבניות ניפוק",
     flag: "modSales" as const,
     defaultOn: true,
-    navHrefs: ["/pick", "/orders", "/documents"],
+    navHrefs: ["/outbound", "/orders", "/documents"],
     apiPrefixes: [
       "/api/stock/outbound",
       "/api/outbound-templates",
       "/api/sales-orders",
       "/api/documents",
     ],
-    pagePrefixes: ["/pick", "/orders", "/documents"],
+    pagePrefixes: ["/outbound", "/orders", "/documents"],
   },
   {
     id: "pick" as const,
