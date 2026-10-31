@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { canWrite } from "@/lib/auth";
+import { canWrite, getSession } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { applyStockChange, StockError } from "@/lib/stock";
 import { OUTBOUND_REASONS } from "@/lib/constants";
-import { assertModuleApi } from "@/lib/tenant";
 
 async function getOwned(id: string, companyId: string) {
   return prisma.outboundTemplate.findFirst({
@@ -21,9 +20,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const gate = await assertModuleApi("sales");
-  if (gate.error) return gate.error;
-  const session = gate.session!;
+  const session = await getSession();
   if (!session?.companyId || !canWrite(session.role)) {
     return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
   }
@@ -53,9 +50,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const gate = await assertModuleApi("sales");
-  if (gate.error) return gate.error;
-  const session = gate.session!;
+  const session = await getSession();
   if (!session?.companyId || !canWrite(session.role)) {
     return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
   }

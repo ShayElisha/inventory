@@ -6,7 +6,6 @@ import {
 } from "@/lib/stock";
 import { OUTBOUND_REASONS } from "@/lib/constants";
 import { writeAudit } from "@/lib/audit";
-import { assertModuleApi } from "@/lib/tenant";
 import {
   assertVariantsOwned,
   requireWriteSession,
@@ -24,9 +23,6 @@ type OutboundLine = {
  */
 export async function POST(req: NextRequest) {
   try {
-    const mod = await assertModuleApi("sales");
-    if (mod.error) return mod.error;
-
     const gate = await requireWriteSession();
     if (gate.error) return gate.error;
     const session = gate.session;

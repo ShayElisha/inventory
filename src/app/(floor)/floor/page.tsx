@@ -20,7 +20,7 @@ const steps = [
   {
     href: "/floor/pick",
     title: "3 · ניפוק",
-    desc: "יציאה / מכירה",
+    desc: "יציאת מלאי מהמחסן",
     icon: PackageMinus,
     tone: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300",
   },

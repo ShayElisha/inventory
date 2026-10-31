@@ -14,17 +14,13 @@ export const SELLABLE_MODULES = [
   {
     id: "sales" as const,
     label: "מכירה",
-    description: "ניפוק מהיר ותבניות ניפוק",
+    description: "הזמנות לקוח ומסמכי מכירה (חשבוניות / תעודות משלוח)",
     flag: "modSales" as const,
     defaultOn: true,
-    navHrefs: ["/outbound", "/orders", "/documents"],
-    apiPrefixes: [
-      "/api/stock/outbound",
-      "/api/outbound-templates",
-      "/api/sales-orders",
-      "/api/documents",
-    ],
-    pagePrefixes: ["/outbound", "/orders", "/documents"],
+    // ניפוק אינו חלק ממכירה — יציאת מלאי זמינה תמיד (גם פחת/נזק/העברה)
+    navHrefs: ["/orders", "/documents"],
+    apiPrefixes: ["/api/sales-orders", "/api/documents"],
+    pagePrefixes: ["/orders", "/documents"],
   },
   {
     id: "pick" as const,

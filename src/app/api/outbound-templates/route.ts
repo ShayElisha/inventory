@@ -3,12 +3,9 @@ import { prisma } from "@/lib/db";
 import { getSession, canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { OUTBOUND_REASONS } from "@/lib/constants";
-import { assertModuleApi } from "@/lib/tenant";
 
 export async function GET() {
-  const gate = await assertModuleApi("sales");
-  if (gate.error) return gate.error;
-  const session = gate.session!;
+  const session = await getSession();
   if (!session?.companyId) {
     return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
   }
@@ -25,9 +22,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const gate = await assertModuleApi("sales");
-  if (gate.error) return gate.error;
-  const session = gate.session!;
+  const session = await getSession();
   if (!session?.companyId || !canWrite(session.role)) {
     return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
   }

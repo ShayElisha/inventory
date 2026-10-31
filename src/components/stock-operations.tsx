@@ -81,7 +81,7 @@ export function StockOperations({
         body = {
           variantId,
           quantity: Number(quantity),
-          reason: reason || "ליקוט / מכירה",
+          reason: reason || "ניפוק מלאי",
           reasonCode: reasonCode || "SALE",
           releaseReserved,
         };
@@ -320,7 +320,7 @@ export function StockOperations({
               tab === "inbound"
                 ? "קבלת מכולה / הזמנת רכש"
                 : tab === "outbound"
-                  ? "ליקוט הזמנה / מכירה"
+                  ? "סיבת הניפוק (מכירה / פחת / נזק…)"
                   : tab === "count"
                     ? "פירוט נוסף לתיקון"
                     : "סיבת הפעולה"
