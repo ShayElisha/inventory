@@ -10,7 +10,14 @@ import {
   Label,
   Select,
 } from "@/components/ui";
-import { CheckSquare, Layers, Plus, Trash2 } from "lucide-react";
+import {
+  CheckSquare,
+  ChevronDown,
+  ChevronUp,
+  Layers,
+  Plus,
+  Trash2,
+} from "lucide-react";
 
 type Variant = {
   id: string;
@@ -35,6 +42,7 @@ export function PickTemplatesPanel({
   variants: Variant[];
 }) {
   const router = useRouter();
+  const [collapsed, setCollapsed] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
@@ -145,29 +153,48 @@ export function PickTemplatesPanel({
   return (
     <div className="space-y-4">
       <Card>
-        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
-              <Layers className="h-5 w-5 text-[var(--accent)]" />
-              תבניות ליקוט קבועות
-            </h2>
-            <p className="mt-1 text-sm text-[var(--muted)]">
-              בחרו כמה תבניות והפעילו ליקוט במקביל — כל תבנית הופכת לרשימה
-              נפרדת. תוך כדי ליקוט אפשר להוסיף או להסיר פריטים ספציפיים.
-            </p>
-          </div>
-          <Button
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <button
             type="button"
-            variant="secondary"
-            onClick={() => setShowCreate((v) => !v)}
+            className="min-w-0 flex-1 text-right"
+            onClick={() => setCollapsed((v) => !v)}
+            aria-expanded={!collapsed}
           >
-            <Plus className="h-4 w-4" />
-            {showCreate ? "סגור" : "תבנית חדשה"}
-          </Button>
+            <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+              <Layers className="h-5 w-5 shrink-0 text-[var(--accent)]" />
+              תבניות ליקוט קבועות
+              <span className="text-sm font-normal text-[var(--muted)]">
+                ({templates.length})
+              </span>
+              {collapsed ? (
+                <ChevronDown className="ms-auto h-5 w-5 shrink-0 text-[var(--muted)]" />
+              ) : (
+                <ChevronUp className="ms-auto h-5 w-5 shrink-0 text-[var(--muted)]" />
+              )}
+            </h2>
+            {!collapsed && (
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                בחרו כמה תבניות והפעילו ליקוט במקביל — כל תבנית הופכת לרשימה
+                נפרדת. תוך כדי ליקוט אפשר להוסיף או להסיר פריטים ספציפיים.
+              </p>
+            )}
+          </button>
+          {!collapsed && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowCreate((v) => !v)}
+            >
+              <Plus className="h-4 w-4" />
+              {showCreate ? "סגור" : "תבנית חדשה"}
+            </Button>
+          )}
         </div>
 
+        {!collapsed && (
+          <div className="mt-4 space-y-4">
         {error && (
-          <div className="mb-3 rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-sm text-[var(--danger)]">
+          <div className="rounded-lg border border-[var(--danger)] bg-[var(--danger-soft)] px-3 py-2 text-sm text-[var(--danger)]">
             {error}
           </div>
         )}
@@ -175,7 +202,7 @@ export function PickTemplatesPanel({
         {showCreate && (
           <form
             onSubmit={createTemplate}
-            className="mb-5 space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4"
+            className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4"
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -334,6 +361,8 @@ export function PickTemplatesPanel({
               </Button>
             </div>
           </>
+        )}
+          </div>
         )}
       </Card>
     </div>
