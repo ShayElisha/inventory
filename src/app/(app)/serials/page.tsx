@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { SerialsPanel } from "@/components/serials-panel";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function SerialsPage({
@@ -40,6 +41,7 @@ export default async function SerialsPage({
       <PageHeader
         title="סריאליים"
         description="מעקב מספרים סידוריים לפי סטטוס ומיקום"
+        tabs={<SectionTabs section="inventory" />}
       />
       <SerialsPanel serials={JSON.parse(JSON.stringify(serials))} />
     </div>

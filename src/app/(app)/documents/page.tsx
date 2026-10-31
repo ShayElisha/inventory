@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { DocumentsPanel } from "@/components/documents-panel";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function DocumentsPage() {
@@ -24,6 +25,7 @@ export default async function DocumentsPage() {
       <PageHeader
         title="חשבוניות ותעודות משלוח"
         description="כל המסמכים שנוצרו מהזמנות לקוח — צפייה והדפסה"
+        tabs={<SectionTabs section="fulfillment" />}
       />
       <DocumentsPanel documents={JSON.parse(JSON.stringify(documents))} />
     </div>

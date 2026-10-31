@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { InboundWorkspace } from "@/components/inbound-workspace";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function InboundPage() {
@@ -58,6 +59,7 @@ export default async function InboundPage() {
       <PageHeader
         title="קליטה"
         description="קליטה מרובת שורות, מול הזמנת רכש, קליטה מהירה והיסטוריה — עם חשבונית, מיקומים, אצוות ותוקף"
+        tabs={<SectionTabs section="purchase" />}
       />
       <InboundWorkspace
         variants={JSON.parse(JSON.stringify(variants))}

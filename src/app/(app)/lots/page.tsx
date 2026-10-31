@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { LotsPanel } from "@/components/lots-panel";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function LotsPage({
@@ -36,6 +37,7 @@ export default async function LotsPage({
       <PageHeader
         title="אצוות ותוקף"
         description="מעקב תוקף ואצוות · ניפוק לפי תוקף קרוב קודם · התראות ל־30 יום"
+        tabs={<SectionTabs section="inventory" />}
         actions={
           <a
             href={expiring === "1" ? "/lots" : "/lots?expiring=1"}

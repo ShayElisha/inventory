@@ -148,22 +148,27 @@ export function PageHeader({
   title,
   description,
   actions,
+  tabs,
 }: {
   title: string;
   description?: string;
   actions?: React.ReactNode;
+  tabs?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
-          {title}
-        </h1>
-        {description && (
-          <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
-        )}
+    <div className="mb-6 space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-[var(--foreground)] sm:text-3xl">
+            {title}
+          </h1>
+          {description && (
+            <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
+          )}
+        </div>
+        {actions}
       </div>
-      {actions}
+      {tabs}
     </div>
   );
 }

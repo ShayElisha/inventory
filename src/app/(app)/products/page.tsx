@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { ProductsCatalog } from "@/components/products-catalog";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireTenant } from "@/lib/tenant";
 
 export default async function ProductsPage({
@@ -49,6 +50,7 @@ export default async function ProductsPage({
       <PageHeader
         title="קטלוג מוצרים"
         description="דגמים, מידות וכמויות — אפשר להוסיף תמונה ותאריך תוקף"
+        tabs={<SectionTabs section="inventory" />}
         actions={
           <Link
             href="/products/new"

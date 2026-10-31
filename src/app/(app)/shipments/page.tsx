@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { ShipmentsPanel } from "@/components/shipments-panel";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function ShipmentsPage() {
@@ -38,6 +39,7 @@ export default async function ShipmentsPage() {
       <PageHeader
         title="משלוחים ואריזה"
         description="חבילות, מוביל ומספר מעקב מול הזמנת לקוח"
+        tabs={<SectionTabs section="fulfillment" />}
       />
       <ShipmentsPanel
         shipments={JSON.parse(JSON.stringify(shipments))}

@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { KitsPanel } from "@/components/kits-panel";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function KitsPage() {
@@ -33,6 +34,7 @@ export default async function KitsPage() {
       <PageHeader
         title="קיטים והרכבה"
         description="הרכבה מורידה רכיבים ומעלה קיט · פירוק הפוך"
+        tabs={<SectionTabs section="inventory" />}
       />
       <KitsPanel
         kits={JSON.parse(JSON.stringify(kits))}

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/utils";
 import { CountCreate } from "@/components/count-create";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireTenant } from "@/lib/tenant";
 
 export default async function CountsPage() {
@@ -28,6 +29,7 @@ export default async function CountsPage() {
       <PageHeader
         title="ספירת מלאי"
         description="ספירה לפי אזור / מדף, השוואה למערכת ותיקון"
+        tabs={<SectionTabs section="inventory" />}
       />
       <CountCreate zones={zones} shelves={shelves} />
       <div className="space-y-2">

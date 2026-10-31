@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { SalesOrdersPanel } from "@/components/sales-orders-panel";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function OrdersPage() {
@@ -31,6 +32,7 @@ export default async function OrdersPage() {
       <PageHeader
         title="הזמנות לקוח"
         description="תור ניפוק לפי עדיפות ו־SLA · ניפוק חלקי · מסמכים ושליחויות"
+        tabs={<SectionTabs section="sales" />}
       />
       <SalesOrdersPanel
         orders={JSON.parse(JSON.stringify(orders))}

@@ -25,8 +25,6 @@ import {
   KeyRound,
   CircleHelp,
   ChevronDown,
-  Boxes,
-  ClipboardCheck,
   LineChart,
   SlidersHorizontal,
   ShoppingCart,
@@ -77,47 +75,64 @@ const topLink: NavItem = {
 
 const groups: NavGroup[] = [
   {
-    id: "ops",
-    label: "מלאי יומי",
-    icon: Boxes,
-    items: [
-      { href: "/floor", label: "רצפת מחסן", icon: ScanBarcode },
-      { href: "/pick", label: "ניפוק", icon: PackageMinus },
-      { href: "/orders", label: "הזמנות לקוח", icon: ShoppingCart },
-      { href: "/documents", label: "חשבוניות ומשלוח", icon: FileText },
-      { href: "/customers", label: "לקוחות", icon: Contact },
-      { href: "/price-lists", label: "מחירונים", icon: Tags },
-      { href: "/returns", label: "החזרות", icon: Undo2 },
-      { href: "/shipments", label: "משלוחים", icon: Truck },
-      { href: "/inbound", label: "קליטה מלאה", icon: PackagePlus },
-      { href: "/purchases", label: "רכש / PO", icon: FileSpreadsheet },
-      { href: "/transfers", label: "העברות", icon: Warehouse },
-      { href: "/scan", label: "חיפוש מהיר", icon: ScanBarcode },
-      { href: "/stock", label: "תנועות", icon: ArrowLeftRight },
-    ],
-  },
-  {
-    id: "fulfill",
-    label: "ליקוט וספירה",
-    icon: ClipboardCheck,
-    items: [
-      { href: "/picks", label: "ליקוט ותבניות", icon: ClipboardList },
-      { href: "/counts", label: "ספירה", icon: Calculator },
-      { href: "/kits", label: "קיטים", icon: Combine },
-    ],
-  },
-  {
-    id: "catalog",
-    label: "קטלוג",
+    id: "inventory",
+    label: "מלאי",
     icon: Package,
     items: [
       { href: "/products", label: "מוצרים", icon: Package },
       { href: "/locations", label: "מיקומים", icon: MapPin },
+      { href: "/stock", label: "תנועות", icon: ArrowLeftRight },
       { href: "/lots", label: "אצוות", icon: CalendarClock },
       { href: "/serials", label: "סריאליים", icon: Hash },
-      { href: "/reorder", label: "הזמנות חוזרות", icon: RefreshCw },
+      { href: "/counts", label: "ספירה", icon: Calculator },
+      { href: "/scan", label: "סריקה", icon: ScanBarcode },
+      { href: "/kits", label: "קיטים", icon: Combine },
       { href: "/tools", label: "ייבוא", icon: Wrench },
     ],
+  },
+  {
+    id: "purchase",
+    label: "רכש",
+    icon: FileSpreadsheet,
+    items: [
+      { href: "/purchases", label: "הזמנות רכש", icon: FileSpreadsheet },
+      { href: "/inbound", label: "קליטה", icon: PackagePlus },
+      { href: "/reorder", label: "הצעות רכש", icon: RefreshCw },
+    ],
+  },
+  {
+    id: "sales",
+    label: "מכירות",
+    icon: ShoppingCart,
+    items: [
+      { href: "/orders", label: "הזמנות לקוח", icon: ShoppingCart },
+      { href: "/customers", label: "לקוחות", icon: Contact },
+      { href: "/price-lists", label: "מחירונים", icon: Tags },
+      { href: "/returns", label: "החזרות", icon: Undo2 },
+    ],
+  },
+  {
+    id: "transfers",
+    label: "העברות",
+    icon: Warehouse,
+    items: [{ href: "/transfers", label: "העברות מחסנים", icon: Warehouse }],
+  },
+  {
+    id: "fulfillment",
+    label: "ניפוק ומשלוח",
+    icon: Truck,
+    items: [
+      { href: "/pick", label: "ניפוק", icon: PackageMinus },
+      { href: "/picks", label: "ליקוט", icon: ClipboardList },
+      { href: "/shipments", label: "משלוחים", icon: Truck },
+      { href: "/documents", label: "מסמכים", icon: FileText },
+    ],
+  },
+  {
+    id: "floor",
+    label: "רצפת מחסן",
+    icon: ScanBarcode,
+    items: [{ href: "/floor", label: "רצפת מחסן", icon: ScanBarcode }],
   },
   {
     id: "insights",
@@ -149,6 +164,26 @@ function isActive(pathname: string, href: string) {
 
 function groupIsActive(pathname: string, items: NavItem[]) {
   return items.some((i) => isActive(pathname, i.href));
+}
+
+function DesktopNavLink({ item }: { item: NavItem }) {
+  const pathname = usePathname();
+  const on = isActive(pathname, item.href);
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition",
+        on
+          ? "bg-[var(--accent)] text-[var(--accent-fg)]"
+          : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {item.label}
+    </Link>
+  );
 }
 
 function DesktopDropdown({
@@ -184,6 +219,14 @@ function DesktopDropdown({
   }, []);
 
   if (items.length === 0) return null;
+
+  if (items.length === 1) {
+    return (
+      <DesktopNavLink
+        item={{ ...items[0], label: group.label, icon: group.icon }}
+      />
+    );
+  }
 
   return (
     <div className="relative" ref={ref}>
@@ -250,6 +293,26 @@ function MobileSection({
   }, [active, pathname]);
 
   if (items.length === 0) return null;
+
+  if (items.length === 1) {
+    const item = items[0];
+    const on = isActive(pathname, item.href);
+    return (
+      <Link
+        href={item.href}
+        onClick={onNavigate}
+        className={cn(
+          "mb-1 flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold",
+          on
+            ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+            : "text-[var(--foreground)]"
+        )}
+      >
+        <GroupIcon className="h-4 w-4" />
+        {group.label}
+      </Link>
+    );
+  }
 
   return (
     <div className="mb-1">

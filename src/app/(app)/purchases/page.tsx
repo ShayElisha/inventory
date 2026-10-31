@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { PurchaseOrdersPanel } from "@/components/purchase-orders-panel";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function PurchasesPage() {
@@ -35,8 +36,9 @@ export default async function PurchasesPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="רכש וקליטה מול PO"
+        title="הזמנות רכש"
         description="הזמנות רכש, קליטה חלקית, חשבונית ספק, אצוות ותוקף"
+        tabs={<SectionTabs section="purchase" />}
       />
       <PurchaseOrdersPanel
         orders={JSON.parse(JSON.stringify(orders))}

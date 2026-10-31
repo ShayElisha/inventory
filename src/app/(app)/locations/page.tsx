@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { LocationsManager } from "@/components/locations-manager";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireTenant } from "@/lib/tenant";
 
 export default async function LocationsPage() {
@@ -18,6 +19,7 @@ export default async function LocationsPage() {
       <PageHeader
         title="מיקומי מחסן"
         description="אזור · מעבר · מדף · תא — קוד לסריקה במסופון"
+        tabs={<SectionTabs section="inventory" />}
       />
       <LocationsManager locations={locations} />
     </div>

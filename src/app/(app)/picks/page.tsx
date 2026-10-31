@@ -5,6 +5,7 @@ import { Badge, Card, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/utils";
 import { PickListCreate } from "@/components/pick-list-create";
 import { PickTemplatesPanel } from "@/components/pick-templates-panel";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function PicksPage() {
@@ -62,6 +63,7 @@ export default async function PicksPage() {
       <PageHeader
         title="רשימות ליקוט"
         description="תבניות קבועות, ליקוט מקבילי, והוספה/הסרה של פריטים תוך כדי ביצוע"
+        tabs={<SectionTabs section="fulfillment" />}
       />
 
       <PickTemplatesPanel

@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { ReturnsPanel } from "@/components/returns-panel";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function ReturnsPage() {
@@ -46,6 +47,7 @@ export default async function ReturnsPage() {
       <PageHeader
         title="החזרות (RMA)"
         description="החזרת לקוח · קבלה למלאי · זיכוי ומסמך CREDIT_NOTE"
+        tabs={<SectionTabs section="sales" />}
       />
       <ReturnsPanel
         returns={JSON.parse(JSON.stringify(returns))}

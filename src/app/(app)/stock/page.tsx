@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { StockOperations } from "@/components/stock-operations";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireTenant } from "@/lib/tenant";
 
 export default async function StockPage() {
@@ -24,6 +25,7 @@ export default async function StockPage() {
       <PageHeader
         title="תנועות מלאי"
         description="קליטה, ניפוק, העברה וספירת מלאי"
+        tabs={<SectionTabs section="inventory" />}
       />
       <StockOperations variants={variants} locations={locations} />
     </div>

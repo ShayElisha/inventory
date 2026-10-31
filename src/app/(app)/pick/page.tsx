@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { PickWorkspace } from "@/components/pick-workspace";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function PickPage() {
@@ -29,6 +30,7 @@ export default async function PickPage() {
       <PageHeader
         title="ניפוק"
         description="ניפוק מרוכז לרשימה · ניפוק מהיר לפריט בודד · תבניות חוזרות בלחיצה"
+        tabs={<SectionTabs section="fulfillment" />}
       />
       <PickWorkspace
         templates={JSON.parse(JSON.stringify(templates))}

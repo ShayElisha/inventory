@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { PriceListsPanel } from "@/components/price-lists-panel";
+import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function PriceListsPage() {
@@ -28,6 +29,7 @@ export default async function PriceListsPage() {
       <PageHeader
         title="מחירונים"
         description="מחירי מכירה לפי לקוח / כמות — מעל מודול המכירה"
+        tabs={<SectionTabs section="sales" />}
       />
       <PriceListsPanel
         priceLists={JSON.parse(JSON.stringify(priceLists))}
