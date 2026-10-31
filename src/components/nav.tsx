@@ -159,7 +159,9 @@ const groups: NavGroup[] = [
 
 function isActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === "/dashboard";
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (pathname === href) return true;
+  // /pick לא יסומן כפעיל ב־/picks (ולהפך)
+  return pathname.startsWith(`${href}/`);
 }
 
 function groupIsActive(pathname: string, items: NavItem[]) {

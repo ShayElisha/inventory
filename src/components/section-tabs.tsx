@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -15,8 +15,14 @@ import {
   SectionTab,
 } from "@/lib/section-nav";
 
+/** התאמה מדויקת — מונע ש־/pick ייתפס כפעיל גם ב־/picks */
 function isTabActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (pathname === href) return true;
+  // תתי־דפים (למשל /documents/123, /picks/abc) — רק אם זה באמת ילד של אותו נתיב
+  if (!pathname.startsWith(`${href}/`)) return false;
+  // הגנה נוספת: /pick לא יתאים ל־/picks/...
+  const nextChar = pathname.charAt(href.length);
+  return nextChar === "/";
 }
 
 export function SectionTabs({
@@ -29,6 +35,7 @@ export function SectionTabs({
   className?: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [modules, setModules] = useState<CompanyModules>(DEFAULT_MODULES);
 
   useEffect(() => {
@@ -73,6 +80,13 @@ export function SectionTabs({
             href={tab.href}
             role="tab"
             aria-selected={on}
+            prefetch={false}
+            onClick={(e) => {
+              e.preventDefault();
+              if (pathname !== tab.href) {
+                router.push(tab.href);
+              }
+            }}
             className={cn(
               "rounded-lg px-3.5 py-2 text-sm font-medium transition",
               on

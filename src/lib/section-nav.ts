@@ -36,10 +36,10 @@ export const SALES_TABS: SectionTab[] = [
 
 /** ניפוק, ליקוט, משלוח ומסמכים */
 export const FULFILLMENT_TABS: SectionTab[] = [
-  { href: "/pick", label: "ניפוק" },
-  { href: "/picks", label: "ליקוט" },
+  { href: "/pick", label: "ניפוק", module: "sales" },
+  { href: "/picks", label: "ליקוט", module: "pick" },
   { href: "/shipments", label: "משלוחים", module: "shipments" },
-  { href: "/documents", label: "מסמכים" },
+  { href: "/documents", label: "מסמכים", module: "sales" },
 ];
 
 export const SECTION_TAB_SETS = {
