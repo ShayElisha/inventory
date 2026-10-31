@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { ensureSchemaPatches, prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { refreshSystemNotifications } from "@/lib/notifications";
 
@@ -8,7 +8,12 @@ export async function GET() {
   if (!session?.companyId) {
     return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
   }
-  await refreshSystemNotifications(session.companyId);
+  await ensureSchemaPatches();
+  try {
+    await refreshSystemNotifications(session.companyId);
+  } catch (e) {
+    console.error("refreshSystemNotifications", e);
+  }
   const items = await prisma.notification.findMany({
     where: { companyId: session.companyId },
     orderBy: { createdAt: "desc" },

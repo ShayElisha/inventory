@@ -137,6 +137,7 @@ async function refreshOpenCounts(companyId: string) {
 async function refreshOpenPicks(companyId: string) {
   const openPicks = await prisma.pickList.findMany({
     where: { companyId, status: { in: ["OPEN", "IN_PROGRESS"] } },
+    select: { id: true, reference: true },
     take: 10,
   });
   const openIds = new Set(openPicks.map((p) => p.id));

@@ -20,7 +20,7 @@ import {
   Bell,
   CircleHelp,
 } from "lucide-react";
-import { prisma } from "@/lib/db";
+import { ensureSchemaPatches, prisma } from "@/lib/db";
 import { Badge, Card } from "@/components/ui";
 import { DashboardPeriod } from "@/components/dashboard-period";
 import { getCompanyModules, requireTenant } from "@/lib/tenant";
@@ -160,6 +160,7 @@ export default async function DashboardPage({
   if (session.role === ROLES.WAREHOUSE) {
     redirect("/floor");
   }
+  await ensureSchemaPatches();
   const modules = await getCompanyModules(session.companyId);
   const { period = "today" } = await searchParams;
   const now = new Date();
@@ -223,7 +224,13 @@ export default async function DashboardPage({
           companyId,
           status: { in: ["OPEN", "IN_PROGRESS"] },
         },
-        include: { items: true },
+        select: {
+          id: true,
+          reference: true,
+          status: true,
+          updatedAt: true,
+          items: { select: { id: true, quantity: true, pickedQty: true, status: true } },
+        },
         orderBy: { updatedAt: "desc" },
         take: 6,
       }),
