@@ -10,7 +10,7 @@ export type SectionTab = {
 /** מלאי — קטלוג, מיקומים, תנועות ומעקב */
 export const INVENTORY_TABS: SectionTab[] = [
   { href: "/products", label: "מוצרים" },
-  { href: "/locations", label: "מיקומים" },
+  { href: "/locations", label: "מחסנים" },
   { href: "/stock", label: "תנועות" },
   { href: "/lots", label: "אצוות", module: "lots" },
   { href: "/serials", label: "סריאליים", module: "serials" },
@@ -31,6 +31,7 @@ export const SALES_TABS: SectionTab[] = [
   { href: "/orders", label: "הזמנות לקוח" },
   { href: "/customers", label: "לקוחות", module: "commerce" },
   { href: "/price-lists", label: "מחירונים", module: "commerce" },
+  { href: "/waitlist", label: "המתנה", module: "commerce" },
   { href: "/returns", label: "החזרות", module: "returns" },
 ];
 

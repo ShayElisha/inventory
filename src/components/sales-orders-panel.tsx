@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Badge, Button, Card, Input, Label, Select } from "@/components/ui";
 import { SO_STATUSES } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
-import { ShoppingCart, Play, FileText, Truck } from "lucide-react";
+import { ShoppingCart, ClipboardList, Zap, FileText, Truck } from "lucide-react";
 
 type Variant = {
   id: string;
@@ -54,7 +54,6 @@ export function SalesOrdersPanel({
   const [toast, setToast] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [fulfillQty, setFulfillQty] = useState<Record<string, number>>({});
   const [sim, setSim] = useState<{
     ok: boolean;
     results: { sku: string; title: string; requested: number; available: number; ok: boolean }[];
@@ -109,7 +108,7 @@ export function SalesOrdersPanel({
       const lines = order.lines
         .map((l) => ({
           lineId: l.id,
-          quantity: fulfillQty[l.id] ?? Math.max(0, l.qtyOrdered - l.qtyFulfilled),
+          quantity: Math.max(0, l.qtyOrdered - l.qtyFulfilled),
         }))
         .filter((l) => l.quantity > 0);
       const res = await fetch(`/api/sales-orders/${order.id}`, {
@@ -127,26 +126,44 @@ export function SalesOrdersPanel({
     }
   }
 
-  async function fulfill(order: SO) {
+  async function createPick(order: SO) {
     setLoading(true);
     setError("");
     setToast("");
     try {
-      const lines = order.lines
-        .map((l) => ({
-          lineId: l.id,
-          quantity: fulfillQty[l.id] ?? Math.max(0, l.qtyOrdered - l.qtyFulfilled),
-        }))
-        .filter((l) => l.quantity > 0);
       const res = await fetch(`/api/sales-orders/${order.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "fulfill", lines }),
+        body: JSON.stringify({ action: "create_pick" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "שגיאה");
-      const fail = data.results?.filter((r: { ok: boolean }) => !r.ok).length || 0;
-      setToast(fail ? `ניפוק חלקי · ${fail} נכשלו (נוספו להמתנה אם חסר מלאי)` : "נופק בהצלחה");
+      setToast("נוצרה רשימת ליקוט");
+      if (data.pick?.id) {
+        router.push(`/picks/${data.pick.id}`);
+        return;
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שגיאה");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function quickFulfill(order: SO) {
+    setLoading(true);
+    setError("");
+    setToast("");
+    try {
+      const res = await fetch(`/api/sales-orders/${order.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "quick_fulfill" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה");
+      setToast("מילוי מהיר הושלם דרך ליקוט");
       setActiveId(null);
       router.refresh();
     } catch (err) {
@@ -387,16 +404,38 @@ export function SalesOrdersPanel({
                     {statusLabel(o.status)}
                   </Badge>
                   {(o.status === "OPEN" || o.status === "PARTIAL") && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setActiveId(activeId === o.id ? null : o.id)}
-                    >
-                      <Play className="h-3.5 w-3.5" />
-                      ניפוק
-                    </Button>
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={loading}
+                        onClick={() => createPick(o)}
+                      >
+                        <ClipboardList className="h-3.5 w-3.5" />
+                        צור ליקוט
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={loading}
+                        onClick={() => quickFulfill(o)}
+                      >
+                        <Zap className="h-3.5 w-3.5" />
+                        מילוי מהיר
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setActiveId(activeId === o.id ? null : o.id)}
+                      >
+                        פרטים
+                      </Button>
+                    </>
                   )}
-                  {(o.status === "FULFILLED" || o.status === "PACKED") && (
+                  {(o.status === "FULFILLED" || o.status === "PACKED" || o.status === "PARTIAL") &&
+                    o.lines.some((l) => l.qtyFulfilled > 0) && (
                     <>
                       <Button type="button" size="sm" variant="secondary" onClick={() => setStatus(o, "PACKED")}>
                         ארוז
@@ -406,13 +445,20 @@ export function SalesOrdersPanel({
                       </Button>
                     </>
                   )}
-                  <Button type="button" size="sm" variant="ghost" onClick={() => makeDoc(o, "DELIVERY_NOTE")}>
-                    <FileText className="h-3.5 w-3.5" />
-                    ת.משלוח
-                  </Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => makeDoc(o, "INVOICE")}>
-                    חשבונית
-                  </Button>
+                  {(o.status === "FULFILLED" ||
+                    o.status === "PACKED" ||
+                    o.status === "SHIPPED" ||
+                    o.lines.some((l) => l.qtyFulfilled > 0)) && (
+                    <>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => makeDoc(o, "DELIVERY_NOTE")}>
+                        <FileText className="h-3.5 w-3.5" />
+                        ת.משלוח
+                      </Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => makeDoc(o, "INVOICE")}>
+                        חשבונית
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -426,34 +472,9 @@ export function SalesOrdersPanel({
 
               {activeId === o.id && (
                 <div className="mt-3 space-y-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
-                  {o.lines.map((l) => {
-                    const rem = l.qtyOrdered - l.qtyFulfilled;
-                    if (rem <= 0) return null;
-                    return (
-                      <div key={l.id} className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="min-w-[140px]">{l.variant.sku} (נותר {rem})</span>
-                        <Input
-                          className="w-24"
-                          type="number"
-                          min={1}
-                          max={rem}
-                          value={fulfillQty[l.id] ?? rem}
-                          onChange={(e) =>
-                            setFulfillQty({
-                              ...fulfillQty,
-                              [l.id]: Number(e.target.value) || 0,
-                            })
-                          }
-                        />
-                      </div>
-                    );
-                  })}
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" variant="secondary" disabled={loading} onClick={() => simulate(o)}>
-                      מה אם אנפק?
-                    </Button>
-                    <Button type="button" disabled={loading} onClick={() => fulfill(o)}>
-                      אשר ניפוק
+                      בדיקת מלאי
                     </Button>
                   </div>
                   {sim && (

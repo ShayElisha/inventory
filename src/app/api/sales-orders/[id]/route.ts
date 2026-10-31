@@ -8,8 +8,8 @@ import {
   calcDocTotals,
   discountPercentForQty,
   parseDiscountTiers,
-  soStatusAfterFulfill,
 } from "@/lib/commerce";
+import { createPickFromSalesOrder } from "@/lib/pick-fulfill";
 
 async function getOwned(id: string, companyId: string) {
   return prisma.salesOrder.findFirst({
@@ -94,8 +94,8 @@ export async function PATCH(
 }
 
 /**
- * action=fulfill | simulate | document | return
- * fulfill: ניפוק חלקי/מלא מול הזמנה
+ * action=create_pick | quick_fulfill | fulfill (alias) | simulate | document | return
+ * create_pick / quick_fulfill: שרשרת ליקוט — מלאי יורד בליקוט בלבד
  */
 export async function POST(
   req: NextRequest,
@@ -112,7 +112,35 @@ export async function POST(
   if (!order) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
 
   const body = await req.json();
-  const action = String(body.action || "fulfill");
+  const action = String(body.action || "create_pick");
+
+  if (action === "create_pick" || action === "quick_fulfill" || action === "fulfill") {
+    try {
+      const pick = await createPickFromSalesOrder({
+        orderId: id,
+        companyId: session.companyId,
+        userId: session.id,
+        autoComplete: action === "quick_fulfill" || action === "fulfill",
+      });
+      await writeAudit({
+        action:
+          action === "create_pick" ? "CREATE_PICK_FROM_SO" : "QUICK_FULFILL_SO",
+        entityType: "PickList",
+        entityId: pick.id,
+        details: { salesOrderId: id, number: order.number },
+      });
+      const fresh = await getOwned(id, session.companyId);
+      return NextResponse.json(
+        { order: fresh, pick },
+        { status: action === "create_pick" ? 201 : 200 }
+      );
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof StockError ? e.message : "שגיאה" },
+        { status: 400 }
+      );
+    }
+  }
 
   if (action === "simulate") {
     const lines = (body.lines as { lineId: string; quantity: number }[]) || [];
@@ -255,123 +283,5 @@ export async function POST(
     return NextResponse.json({ order: fresh, results });
   }
 
-  // fulfill — ניפוק
-  if (order.status === "CANCELLED" || order.status === "SHIPPED") {
-    return NextResponse.json({ error: "לא ניתן לנפק להזמנה זו" }, { status: 400 });
-  }
-
-  const fulfillLines: {
-    lineId: string;
-    quantity: number;
-    lotCode?: string;
-    serial?: string;
-  }[] = Array.isArray(body.lines) ? body.lines : [];
-
-  if (!fulfillLines.length) {
-    return NextResponse.json({ error: "אין שורות לניפוק" }, { status: 400 });
-  }
-
-  if (body.simulateFirst) {
-    const sim = await simulateOutbound(
-      session.companyId,
-      fulfillLines
-        .map((l) => {
-          const line = order.lines.find((x) => x.id === l.lineId);
-          return {
-            variantId: line?.variantId || "",
-            quantity: Number(l.quantity) || 0,
-          };
-        })
-        .filter((l) => l.variantId)
-    );
-    if (!sim.ok) {
-      return NextResponse.json(
-        { error: "אין מספיק מלאי", simulation: sim },
-        { status: 400 }
-      );
-    }
-  }
-
-  const results: { lineId: string; ok: boolean; error?: string }[] = [];
-  for (const r of fulfillLines) {
-    const line = order.lines.find((l) => l.id === r.lineId);
-    if (!line) {
-      results.push({ lineId: r.lineId, ok: false, error: "שורה לא נמצאה" });
-      continue;
-    }
-    const qty = Math.max(0, Number(r.quantity) || 0);
-    const remaining = line.qtyOrdered - line.qtyFulfilled;
-    if (qty <= 0 || qty > remaining) {
-      results.push({
-        lineId: r.lineId,
-        ok: false,
-        error: `נותרו לניפוק ${remaining}`,
-      });
-      continue;
-    }
-    try {
-      await applyStockChange({
-        variantId: line.variantId,
-        type: "OUTBOUND",
-        quantityChanged: qty,
-        reason: `הזמנת לקוח ${order.number}`,
-        reasonCode: "SALE",
-        userId: session.id,
-        companyId: session.companyId,
-        salesOrderId: order.id,
-        lotCode: r.lotCode || null,
-        serial: r.serial || null,
-        preferFefo: !r.lotCode,
-      });
-      await prisma.salesOrderLine.update({
-        where: { id: line.id },
-        data: { qtyFulfilled: line.qtyFulfilled + qty },
-      });
-      line.qtyFulfilled += qty;
-      results.push({ lineId: r.lineId, ok: true });
-    } catch (e) {
-      // רשימת המתנה אוטומטית כשאין מלאי
-      if (e instanceof StockError && e.message.includes("מלאי")) {
-        await prisma.waitlistItem.create({
-          data: {
-            companyId: session.companyId,
-            variantId: line.variantId,
-            quantity: qty,
-            customerName: order.customerName,
-            notes: `מהזמנה ${order.number}`,
-          },
-        });
-      }
-      results.push({
-        lineId: r.lineId,
-        ok: false,
-        error: e instanceof StockError ? e.message : "שגיאה",
-      });
-    }
-  }
-
-  const fresh = await getOwned(id, session.companyId);
-  if (fresh) {
-    const ordered = fresh.lines.reduce((s, l) => s + l.qtyOrdered, 0);
-    const fulfilled = fresh.lines.reduce((s, l) => s + l.qtyFulfilled, 0);
-    let status = soStatusAfterFulfill(ordered, fulfilled);
-    if (fresh.status === "PACKED" || fresh.status === "SHIPPED") {
-      status = fresh.status;
-    }
-    await prisma.salesOrder.update({ where: { id }, data: { status } });
-  }
-
-  await writeAudit({
-    action: "FULFILL_SO",
-    entityType: "SalesOrder",
-    entityId: id,
-    details: {
-      number: order.number,
-      ok: results.filter((r) => r.ok).length,
-      fail: results.filter((r) => !r.ok).length,
-    },
-  });
-
-  const updated = await getOwned(id, session.companyId);
-  return NextResponse.json({ order: updated, results });
+  return NextResponse.json({ error: "פעולה לא מוכרת" }, { status: 400 });
 }

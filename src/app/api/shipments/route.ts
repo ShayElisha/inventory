@@ -49,16 +49,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "הזמנה לא נמצאה" }, { status: 404 });
   }
 
+  const totalFulfilled = order.lines.reduce((s, l) => s + l.qtyFulfilled, 0);
+  if (totalFulfilled <= 0) {
+    return NextResponse.json(
+      { error: "יש ללקט את ההזמנה לפני יצירת משלוח" },
+      { status: 400 }
+    );
+  }
+
   const number =
     String(body.number || "").trim() ||
     `SH-${Date.now().toString(36).toUpperCase()}`;
 
   const packageItems = Array.isArray(body.items)
     ? body.items
-    : order.lines.map((l) => ({
-        variantId: l.variantId,
-        quantity: Math.max(0, l.qtyOrdered - l.qtyFulfilled) || l.qtyOrdered,
-      }));
+    : order.lines
+        .filter((l) => l.qtyFulfilled > 0)
+        .map((l) => ({
+          variantId: l.variantId,
+          quantity: l.qtyFulfilled,
+        }));
 
   const variantIds = packageItems
     .filter((i: { variantId?: string; quantity?: number }) => i.variantId)

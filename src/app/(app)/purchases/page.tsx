@@ -2,13 +2,14 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { PurchaseOrdersPanel } from "@/components/purchase-orders-panel";
+import { GoodsReceiptsPanel } from "@/components/goods-receipts-panel";
 import { SectionTabs } from "@/components/section-tabs";
 import { requireModule } from "@/lib/tenant";
 
 export default async function PurchasesPage() {
   noStore();
   const { session } = await requireModule("inbound");
-  const [orders, variants, locations, suppliers] = await Promise.all([
+  const [orders, variants, locations, suppliers, receipts] = await Promise.all([
     prisma.purchaseOrder.findMany({
       where: { companyId: session.companyId },
       include: {
@@ -31,13 +32,26 @@ export default async function PurchasesPage() {
       where: { companyId: session.companyId },
       orderBy: { name: "asc" },
     }),
+    prisma.goodsReceipt.findMany({
+      where: { companyId: session.companyId },
+      include: {
+        purchaseOrder: { select: { id: true, number: true } },
+        lines: {
+          include: {
+            variant: { include: { product: { select: { title: true } } } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
   ]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="הזמנות רכש"
-        description="הזמנות רכש, קליטה חלקית, חשבונית ספק, אצוות ותוקף"
+        description="הזמנות רכש, תעודות קליטה, פערים ונזק"
         tabs={<SectionTabs section="purchase" />}
       />
       <PurchaseOrdersPanel
@@ -46,6 +60,7 @@ export default async function PurchasesPage() {
         locations={JSON.parse(JSON.stringify(locations))}
         suppliers={JSON.parse(JSON.stringify(suppliers))}
       />
+      <GoodsReceiptsPanel receipts={JSON.parse(JSON.stringify(receipts))} />
     </div>
   );
 }

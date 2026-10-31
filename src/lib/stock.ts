@@ -91,6 +91,7 @@ type ApplyParams = {
   reserveDelta?: number;
   companyId?: string | null;
   lotCode?: string | null;
+  lotId?: string | null;
   expiryDate?: Date | string | null;
   serial?: string | null;
   purchaseOrderId?: string | null;
@@ -113,6 +114,7 @@ async function applyStockChangeInTx(tx: Tx, params: ApplyParams) {
     reserveDelta,
     companyId,
     lotCode,
+    lotId: requestedLotId,
     expiryDate,
     serial,
     purchaseOrderId,
@@ -221,7 +223,11 @@ async function applyStockChangeInTx(tx: Tx, params: ApplyParams) {
     }
   }
 
-  if (cid && (lotCode || preferFefo) && type !== "TRANSFER") {
+  if (
+    cid &&
+    (lotCode || requestedLotId || preferFefo) &&
+    type !== "TRANSFER"
+  ) {
     if (type === "INBOUND" && lotCode) {
       const locKey = locationId || null;
       let lot = await tx.inventoryLot.findFirst({
@@ -254,26 +260,38 @@ async function applyStockChangeInTx(tx: Tx, params: ApplyParams) {
       }
       lotId = lot.id;
     } else if (type === "OUTBOUND") {
-      const lot = lotCode
+      const lot = requestedLotId
         ? await tx.inventoryLot.findFirst({
             where: {
+              id: requestedLotId,
               companyId: cid,
               variantId,
-              lotCode,
               quantity: { gt: 0 },
             },
-            orderBy: { expiryDate: "asc" },
           })
-        : preferFefo
+        : lotCode
           ? await tx.inventoryLot.findFirst({
               where: {
                 companyId: cid,
                 variantId,
+                lotCode,
                 quantity: { gt: 0 },
               },
-              orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
+              orderBy: { expiryDate: "asc" },
             })
-          : null;
+          : preferFefo
+            ? await tx.inventoryLot.findFirst({
+                where: {
+                  companyId: cid,
+                  variantId,
+                  quantity: { gt: 0 },
+                },
+                orderBy: [{ expiryDate: "asc" }, { createdAt: "asc" }],
+              })
+            : null;
+      if (requestedLotId && !lot) {
+        throw new StockError("אצווה לא נמצאה או ללא מלאי");
+      }
       if (lot) {
         if (lot.quantity < absQty) {
           throw new StockError("אין מספיק מלאי באצווה");

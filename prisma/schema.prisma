@@ -432,6 +432,7 @@ model SalesOrder {
   lines                SalesOrderLine[]
   documents            StockDocument[]
   shipments            Shipment[]
+  pickLists            PickList[]
   returnAuthorizations ReturnAuthorization[]
 
   @@unique([companyId, number])
@@ -450,8 +451,9 @@ model SalesOrderLine {
   qtyFulfilled Int    @default(0) @map("qty_fulfilled")
   unitPrice    Float  @default(0) @map("unit_price")
 
-  order   SalesOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variant ProductVariant @relation(fields: [variantId], references: [id])
+  order     SalesOrder      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant   ProductVariant  @relation(fields: [variantId], references: [id])
+  pickItems PickListItem[]
 
   @@unique([orderId, variantId])
   @@index([orderId])
@@ -602,39 +604,45 @@ model PickTemplateItem {
 }
 
 model PickList {
-  id          String   @id @default(cuid())
-  companyId   String   @map("company_id")
-  templateId  String?  @map("template_id")
-  reference   String
-  status      String   @default("OPEN") // OPEN | IN_PROGRESS | DONE | CANCELLED
-  notes       String?
-  createdById String?  @map("created_by_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  companyId    String   @map("company_id")
+  templateId   String?  @map("template_id")
+  salesOrderId String?  @map("sales_order_id")
+  reference    String
+  status       String   @default("OPEN") // OPEN | IN_PROGRESS | DONE | CANCELLED
+  notes        String?
+  createdById  String?  @map("created_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  template  PickTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  createdBy User?          @relation(fields: [createdById], references: [id])
-  items     PickListItem[]
+  company    Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  template   PickTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  salesOrder SalesOrder?    @relation(fields: [salesOrderId], references: [id], onDelete: SetNull)
+  createdBy  User?          @relation(fields: [createdById], references: [id])
+  items      PickListItem[]
 
   @@index([status])
   @@index([companyId])
   @@index([templateId])
+  @@index([salesOrderId])
   @@map("pick_lists")
 }
 
 model PickListItem {
-  id         String @id @default(cuid())
-  pickListId String @map("pick_list_id")
-  variantId  String @map("variant_id")
-  quantity   Int
-  pickedQty  Int    @default(0) @map("picked_qty")
-  status     String @default("PENDING") // PENDING | DONE
+  id              String  @id @default(cuid())
+  pickListId      String  @map("pick_list_id")
+  variantId       String  @map("variant_id")
+  salesOrderLineId String? @map("sales_order_line_id")
+  quantity        Int
+  pickedQty       Int     @default(0) @map("picked_qty")
+  status          String  @default("PENDING") // PENDING | DONE
 
-  pickList PickList       @relation(fields: [pickListId], references: [id], onDelete: Cascade)
-  variant  ProductVariant @relation(fields: [variantId], references: [id])
+  pickList       PickList        @relation(fields: [pickListId], references: [id], onDelete: Cascade)
+  variant        ProductVariant  @relation(fields: [variantId], references: [id])
+  salesOrderLine SalesOrderLine? @relation(fields: [salesOrderLineId], references: [id], onDelete: SetNull)
 
   @@index([pickListId])
+  @@index([salesOrderLineId])
   @@map("pick_list_items")
 }
 

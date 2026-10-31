@@ -35,12 +35,12 @@ export const SELLABLE_MODULES = [
   {
     id: "commerce" as const,
     label: "לקוחות ומחירונים",
-    description: "כרטיסי לקוח, מחירונים ומחירי לקוח",
+    description: "כרטיסי לקוח, מחירונים, מחירי לקוח ורשימת המתנה",
     flag: "modCommerce" as const,
     defaultOn: false,
-    navHrefs: ["/customers", "/price-lists"],
-    apiPrefixes: ["/api/customers", "/api/price-lists"],
-    pagePrefixes: ["/customers", "/price-lists"],
+    navHrefs: ["/customers", "/price-lists", "/waitlist"],
+    apiPrefixes: ["/api/customers", "/api/price-lists", "/api/waitlist"],
+    pagePrefixes: ["/customers", "/price-lists", "/waitlist"],
   },
   {
     id: "returns" as const,

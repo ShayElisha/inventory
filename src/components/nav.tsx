@@ -40,6 +40,7 @@ import {
   RefreshCw,
   Sparkles,
   Warehouse,
+  Bell,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -80,7 +81,7 @@ const groups: NavGroup[] = [
     icon: Package,
     items: [
       { href: "/products", label: "מוצרים", icon: Package },
-      { href: "/locations", label: "מיקומים", icon: MapPin },
+      { href: "/locations", label: "מחסנים ומיקומים", icon: MapPin },
       { href: "/stock", label: "תנועות", icon: ArrowLeftRight },
       { href: "/lots", label: "אצוות", icon: CalendarClock },
       { href: "/serials", label: "סריאליים", icon: Hash },
@@ -108,6 +109,7 @@ const groups: NavGroup[] = [
       { href: "/orders", label: "הזמנות לקוח", icon: ShoppingCart },
       { href: "/customers", label: "לקוחות", icon: Contact },
       { href: "/price-lists", label: "מחירונים", icon: Tags },
+      { href: "/waitlist", label: "המתנה", icon: Bell },
       { href: "/returns", label: "החזרות", icon: Undo2 },
     ],
   },

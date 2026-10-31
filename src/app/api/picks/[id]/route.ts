@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { applyStockChange } from "@/lib/stock";
 import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
+import { executePickItem } from "@/lib/pick-fulfill";
+import { StockError } from "@/lib/stock";
 
 export async function GET(
   _req: NextRequest,
@@ -21,6 +22,7 @@ export async function GET(
       items: {
         include: { variant: { include: { product: true, location: true } } },
       },
+      salesOrder: { select: { id: true, number: true, customerName: true } },
       createdBy: true,
     },
   });
@@ -58,57 +60,36 @@ export async function PATCH(
   }
 
   if (body.action === "pick_item") {
-    const item = await prisma.pickListItem.findUnique({
-      where: { id: body.itemId },
-    });
-    if (!item || item.pickListId !== id) {
-      return NextResponse.json({ error: "פריט לא נמצא" }, { status: 404 });
-    }
-    const qty = Number(body.quantity ?? item.quantity - item.pickedQty);
-    if (qty <= 0) return NextResponse.json({ error: "כמות לא תקינה" }, { status: 400 });
-
-    await applyStockChange({
-      variantId: item.variantId,
-      type: "OUTBOUND",
-      quantityChanged: qty,
-      reason: `ליקוט הזמנה`,
-      reasonCode: "SALE",
-      userId: session.id,
-      companyId: session.companyId,
-    });
-
-    const pickedQty = item.pickedQty + qty;
-    await prisma.pickListItem.update({
-      where: { id: item.id },
-      data: {
-        pickedQty,
-        status: pickedQty >= item.quantity ? "DONE" : "PENDING",
-      },
-    });
-
-    await prisma.pickList.update({
-      where: { id },
-      data: { status: "IN_PROGRESS", updatedAt: new Date() },
-    });
-
-    const remaining = await prisma.pickListItem.count({
-      where: { pickListId: id, status: "PENDING" },
-    });
-    if (remaining === 0) {
-      await prisma.pickList.update({
-        where: { id },
-        data: { status: "DONE", updatedAt: new Date() },
+    try {
+      const result = await executePickItem({
+        pickListId: id,
+        companyId: session.companyId,
+        userId: session.id,
+        input: {
+          itemId: String(body.itemId || ""),
+          quantity:
+            body.quantity != null ? Number(body.quantity) : undefined,
+          lotId: body.lotId ? String(body.lotId) : null,
+          lotCode: body.lotCode ? String(body.lotCode) : null,
+          serials: Array.isArray(body.serials) ? body.serials : null,
+          serial: body.serial ? String(body.serial) : null,
+        },
       });
+
+      await writeAudit({
+        action: "PICK_ITEM",
+        entityType: "PickList",
+        entityId: id,
+        details: { itemId: body.itemId, qty: result.qty },
+      });
+
+      return NextResponse.json(result);
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof StockError ? e.message : "שגיאה" },
+        { status: 400 }
+      );
     }
-
-    await writeAudit({
-      action: "PICK_ITEM",
-      entityType: "PickList",
-      entityId: id,
-      details: { itemId: item.id, qty },
-    });
-
-    return NextResponse.json({ ok: true });
   }
 
   if (body.action === "add_item") {
@@ -149,7 +130,12 @@ export async function PATCH(
     await prisma.pickList.update({
       where: { id },
       data: {
-        status: listMeta.status === "DONE" ? "IN_PROGRESS" : listMeta.status === "OPEN" ? "IN_PROGRESS" : listMeta.status,
+        status:
+          listMeta.status === "DONE"
+            ? "IN_PROGRESS"
+            : listMeta.status === "OPEN"
+              ? "IN_PROGRESS"
+              : listMeta.status,
         updatedAt: new Date(),
       },
     });
