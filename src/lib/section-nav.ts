@@ -34,12 +34,12 @@ export const SALES_TABS: SectionTab[] = [
   { href: "/returns", label: "החזרות", module: "returns" },
 ];
 
-/** ניפוק, ליקוט, משלוח ומסמכים */
+/** ניפוק, ליקוט, משלוח ומסמכים — טאבי ליבה תמיד מוצגים; משלוחים לפי מודול */
 export const FULFILLMENT_TABS: SectionTab[] = [
-  { href: "/pick", label: "ניפוק", module: "sales" },
-  { href: "/picks", label: "ליקוט", module: "pick" },
+  { href: "/pick", label: "ניפוק" },
+  { href: "/picks", label: "ליקוט" },
   { href: "/shipments", label: "משלוחים", module: "shipments" },
-  { href: "/documents", label: "מסמכים", module: "sales" },
+  { href: "/documents", label: "מסמכים" },
 ];
 
 export const SECTION_TAB_SETS = {
