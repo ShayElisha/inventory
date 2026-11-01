@@ -32,9 +32,21 @@ type Employee = {
   phone: string | null;
   phoneDisplay?: string;
   role: string;
+  permissionsJson?: string | null;
   active: boolean;
   createdAt: string;
 };
+
+const PERM_OPTIONS = [
+  { key: "stock.read", label: "צפייה במלאי" },
+  { key: "stock.write", label: "עדכון מלאי" },
+  { key: "sales.write", label: "מכירות" },
+  { key: "purchases.write", label: "רכש" },
+  { key: "shipments.write", label: "משלוחים" },
+  { key: "reports.view", label: "דוחות" },
+  { key: "team.manage", label: "ניהול עובדים" },
+  { key: "integrations.manage", label: "אינטגרציות" },
+];
 
 type CredsShare = {
   name: string;
@@ -171,6 +183,8 @@ export function TeamPanel({
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editRole, setEditRole] = useState("");
+  const [editPerms, setEditPerms] = useState<string[] | null>(null);
+  const [customPerms, setCustomPerms] = useState(false);
 
   async function createEmployee(e: React.FormEvent) {
     e.preventDefault();
@@ -216,6 +230,17 @@ export function TeamPanel({
     setEditEmail(u.email || "");
     setEditPhone(u.phoneDisplay || u.phone || "");
     setEditRole(u.role);
+    let parsed: string[] | null = null;
+    if (u.permissionsJson) {
+      try {
+        const v = JSON.parse(u.permissionsJson);
+        if (Array.isArray(v)) parsed = v;
+      } catch {
+        parsed = null;
+      }
+    }
+    setEditPerms(parsed);
+    setCustomPerms(parsed != null);
   }
 
   async function saveEdit(id: string) {
@@ -234,6 +259,7 @@ export function TeamPanel({
           email: editEmail,
           phone: editPhone,
           role: editRole,
+          permissions: customPerms ? editPerms || [] : null,
         }),
       });
       const data = await res.json();
@@ -400,7 +426,8 @@ export function TeamPanel({
           </thead>
           <tbody>
             {employees.map((u) => (
-              <tr key={u.id} className="border-b border-[var(--border)]">
+              <tbody key={u.id} className="contents">
+              <tr className="border-b border-[var(--border)]">
                 {editId === u.id ? (
                   <>
                     <td className="p-2">
@@ -525,6 +552,55 @@ export function TeamPanel({
                   </>
                 )}
               </tr>
+              {editId === u.id && (
+                <tr key={`${u.id}-perms`} className="border-b border-[var(--border)] bg-[var(--surface-2)]">
+                  <td colSpan={canManage ? 7 : 6} className="p-3">
+                    <label className="mb-2 flex items-center gap-2 text-sm font-medium">
+                      <input
+                        type="checkbox"
+                        checked={customPerms}
+                        onChange={(e) => {
+                          setCustomPerms(e.target.checked);
+                          if (e.target.checked && !editPerms) {
+                            setEditPerms(
+                              editRole === ROLES.VIEWER
+                                ? ["stock.read", "reports.view"]
+                                : ["stock.read", "reports.view"]
+                            );
+                          }
+                        }}
+                      />
+                      הרשאות מותאמות (מעבר לברירת התפקיד)
+                    </label>
+                    {customPerms && (
+                      <div className="flex flex-wrap gap-3">
+                        {PERM_OPTIONS.map((p) => (
+                          <label
+                            key={p.key}
+                            className="flex items-center gap-1.5 text-xs"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={(editPerms || []).includes(p.key)}
+                              onChange={(e) => {
+                                const cur = new Set(editPerms || []);
+                                if (e.target.checked) cur.add(p.key);
+                                else cur.delete(p.key);
+                                setEditPerms([...cur]);
+                              }}
+                            />
+                            {p.label}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      לדוגמה: צופה עם דוחות בלבד — סמנו רק «דוחות» בלי «עדכון מלאי».
+                    </p>
+                  </td>
+                </tr>
+              )}
+              </tbody>
             ))}
             {employees.length === 0 && (
               <tr>

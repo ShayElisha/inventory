@@ -8,7 +8,7 @@ import { requireTenant } from "@/lib/tenant";
 export default async function OrdersPage() {
   noStore();
   const session = await requireTenant();
-  const [orders, variants] = await Promise.all([
+  const [orders, variants, customers] = await Promise.all([
     prisma.salesOrder.findMany({
       where: {
         companyId: session.companyId,
@@ -16,6 +16,7 @@ export default async function OrdersPage() {
       },
       include: {
         lines: { include: { variant: { include: { product: true } } } },
+        customer: { select: { id: true, name: true, creditLimit: true } },
       },
       orderBy: [{ priority: "asc" }, { slaDueAt: "asc" }, { createdAt: "desc" }],
     }),
@@ -25,18 +26,25 @@ export default async function OrdersPage() {
       orderBy: { sku: "asc" },
       take: 500,
     }),
+    prisma.customer.findMany({
+      where: { companyId: session.companyId, active: true },
+      select: { id: true, name: true, phone: true, creditLimit: true },
+      orderBy: { name: "asc" },
+      take: 300,
+    }),
   ]);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="הזמנות לקוח"
-        description="תור ניפוק לפי עדיפות ו־SLA · ניפוק חלקי · מסמכים ושליחויות"
+        description="תור ניפוק לפי עדיפות ו־SLA · אכיפת אשראי · מסמכים ושליחויות"
         tabs={<SectionTabs section="sales" />}
       />
       <SalesOrdersPanel
         orders={JSON.parse(JSON.stringify(orders))}
         variants={JSON.parse(JSON.stringify(variants))}
+        customers={JSON.parse(JSON.stringify(customers))}
       />
     </div>
   );

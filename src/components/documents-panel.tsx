@@ -18,6 +18,8 @@ type Doc = {
   subtotal: number;
   vatAmount: number;
   total: number;
+  paymentStatus?: string;
+  paidAmount?: number;
   payloadJson: string;
   createdAt: string;
   salesOrder?: {
@@ -28,13 +30,36 @@ type Doc = {
   purchaseOrder?: { id: string; number: string } | null;
 };
 
-export function DocumentsPanel({ documents }: { documents: Doc[] }) {
+const PAY_LABEL: Record<string, string> = {
+  UNPAID: "לא שולם",
+  PARTIAL: "חלקי",
+  PAID: "שולם",
+  VOID: "מבוטל",
+};
+
+export function DocumentsPanel({
+  documents,
+  initialPaymentFilter = "",
+}: {
+  documents: Doc[];
+  initialPaymentFilter?: string;
+}) {
   const [typeFilter, setTypeFilter] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState(initialPaymentFilter);
 
   const filtered = useMemo(() => {
-    if (!typeFilter) return documents;
-    return documents.filter((d) => d.type === typeFilter);
-  }, [documents, typeFilter]);
+    return documents.filter((d) => {
+      if (typeFilter && d.type !== typeFilter) return false;
+      if (paymentFilter === "open") {
+        return (
+          d.type === "INVOICE" &&
+          (d.paymentStatus === "UNPAID" || d.paymentStatus === "PARTIAL")
+        );
+      }
+      if (paymentFilter && d.paymentStatus !== paymentFilter) return false;
+      return true;
+    });
+  }, [documents, typeFilter, paymentFilter]);
 
   return (
     <div className="space-y-4">
@@ -51,6 +76,19 @@ export function DocumentsPanel({ documents }: { documents: Doc[] }) {
                 {t.label}
               </option>
             ))}
+          </Select>
+        </div>
+        <div className="min-w-[160px]">
+          <label className="mb-1 block text-sm font-medium">תשלום</label>
+          <Select
+            value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value)}
+          >
+            <option value="">הכל</option>
+            <option value="open">יתרת חוב</option>
+            <option value="UNPAID">לא שולם</option>
+            <option value="PARTIAL">חלקי</option>
+            <option value="PAID">שולם</option>
           </Select>
         </div>
         <p className="pb-2 text-sm text-[var(--muted)]">
@@ -96,6 +134,19 @@ export function DocumentsPanel({ documents }: { documents: Doc[] }) {
                       >
                         {documentTypeLabel(d.type)}
                       </Badge>
+                      {d.type === "INVOICE" && d.paymentStatus && (
+                        <Badge
+                          tone={
+                            d.paymentStatus === "PAID"
+                              ? "ok"
+                              : d.paymentStatus === "PARTIAL"
+                                ? "warn"
+                                : "danger"
+                          }
+                        >
+                          {PAY_LABEL[d.paymentStatus] || d.paymentStatus}
+                        </Badge>
+                      )}
                     </div>
                     <p className="mt-0.5 text-sm text-[var(--muted)]">
                       {customer}

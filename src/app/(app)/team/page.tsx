@@ -23,6 +23,7 @@ export default async function TeamPage() {
       email: true,
       phone: true,
       role: true,
+      permissionsJson: true,
       active: true,
       createdAt: true,
     },
@@ -36,7 +37,7 @@ export default async function TeamPage() {
         title="עובדים"
         description={
           manage
-            ? "הוספה, עריכה והשעיה של משתמשי החברה — התחברות באימייל או בטלפון"
+            ? "תפקידים + הרשאות דקות (למשל צופה עם דוחות בלי מלאי)"
             : "רשימת עובדי החברה"
         }
       />

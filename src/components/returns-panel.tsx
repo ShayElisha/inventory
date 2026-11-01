@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, Input, Label, Select } from "@/components/ui";
+import { AttachmentsPanel } from "@/components/attachments-panel";
 import { RMA_REASONS, RMA_STATUSES } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
 import { Undo2, Check, Banknote } from "lucide-react";
@@ -391,6 +392,12 @@ export function ReturnsPanel({
                 </Button>
               </div>
             )}
+
+            <AttachmentsPanel
+              entityType="RMA"
+              entityId={rma.id}
+              title="צרופות / תמונות נזק"
+            />
           </Card>
         ))}
         {returns.length === 0 && (

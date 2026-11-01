@@ -1,4 +1,10 @@
 {
   "framework": "nextjs",
-  "buildCommand": "prisma generate && prisma migrate deploy && next build"
+  "buildCommand": "prisma generate && prisma migrate deploy && next build",
+  "crons": [
+    {
+      "path": "/api/notifications/digest",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }

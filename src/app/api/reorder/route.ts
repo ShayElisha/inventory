@@ -55,8 +55,25 @@ export async function POST(req: NextRequest) {
   if (!canWrite(session.role)) {
     return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
   }
+  const { assertPermission } = await import("@/lib/require-permission");
+  const perm = await assertPermission(session, "purchases.write");
+  if (!perm.ok) return perm.error;
 
   const body = await req.json();
+
+  if (body.action === "create-po-from-suggestions" || body.action === "auto-po") {
+    const { createPurchaseOrdersFromReorderSuggestions } = await import(
+      "@/lib/reorder-auto"
+    );
+    const result = await createPurchaseOrdersFromReorderSuggestions({
+      companyId: session.companyId,
+      userId: session.id,
+    });
+    if (!result.created.length) {
+      return NextResponse.json({ error: result.message }, { status: 400 });
+    }
+    return NextResponse.json(result, { status: 201 });
+  }
 
   if (body.action === "create-po") {
     const items: { variantId: string; quantity: number; unitCost?: number }[] =

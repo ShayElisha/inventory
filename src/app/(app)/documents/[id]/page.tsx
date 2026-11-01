@@ -1,10 +1,12 @@
 import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { prisma } from "@/lib/db";
+import { ensureSchemaPatches, prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { DocumentView } from "@/components/document-view";
 import { DocumentPrintButton } from "@/components/document-print-button";
+import { DocumentPayment } from "@/components/document-payment";
+import { AttachmentsPanel } from "@/components/attachments-panel";
 import { requireTenant } from "@/lib/tenant";
 import { documentTypeLabel } from "@/lib/documents";
 
@@ -16,6 +18,7 @@ export default async function DocumentDetailPage({
   searchParams: Promise<{ print?: string }>;
 }) {
   noStore();
+  await ensureSchemaPatches();
   const session = await requireTenant();
   const { id } = await params;
   const { print } = await searchParams;
@@ -44,7 +47,7 @@ export default async function DocumentDetailPage({
       <div className="print:hidden">
         <PageHeader
           title={`${documentTypeLabel(doc.type)} ${doc.number}`}
-          description="צפייה והדפסה"
+          description="צפייה, הדפסה וגבייה"
           actions={
             <div className="flex flex-wrap gap-2">
               <Link
@@ -67,10 +70,26 @@ export default async function DocumentDetailPage({
         />
       </div>
 
+      <DocumentPayment
+        docId={doc.id}
+        type={doc.type}
+        total={doc.total}
+        paidAmount={doc.paidAmount ?? 0}
+        paymentStatus={doc.paymentStatus || "UNPAID"}
+      />
+
       <DocumentView
         doc={JSON.parse(JSON.stringify(doc))}
         companyName={session.companyName || "Sfira"}
       />
+
+      <div className="print:hidden">
+        <AttachmentsPanel
+          entityType="STOCK_DOCUMENT"
+          entityId={doc.id}
+          title="צרופות למסמך"
+        />
+      </div>
     </div>
   );
 }

@@ -384,6 +384,98 @@ export const HELP_GUIDES: HelpGuide[] = [
       },
     ],
   },
+  {
+    slug: "floor-camera",
+    title: "רצפת מחסן וסריקת מצלמה",
+    summary: "עבודה בטלפון: קליטה, מדף, ניפוק וסריקה במצלמה.",
+    category: "מלאי",
+    audience: ["WAREHOUSE", "ADMIN"],
+    minutes: 3,
+    relatedHref: "/floor",
+    relatedLabel: "לרצפת מחסן",
+    steps: [
+      {
+        title: "כניסה לרצפה",
+        body: "מחסנאים מופנים אוטומטית ל־/floor. שלושה מסכים גדולים: קליטה, מדף, ניפוק.",
+      },
+      {
+        title: "סריקה במצלמה",
+        body: "לחצו «סריקה במצלמה», אשרו הרשאה, כוונו לברקוד. אפשר גם סורק חיצוני או הקלדה.",
+      },
+      {
+        title: "יחידות וקרטונים",
+        body: "בקליטה אפשר לבחור יח׳ או קרטון — המערכת ממירה ליחידות בסיס לפי unitsPerCarton.",
+      },
+    ],
+  },
+  {
+    slug: "credit-atp-payments",
+    title: "אשראי, ATP וגבייה",
+    summary: "איך נאכף אשראי לקוח, מלאי זמין ותשלומים על חשבוניות.",
+    category: "מכירות",
+    audience: ["ADMIN"],
+    minutes: 4,
+    relatedHref: "/reports/balances",
+    relatedLabel: "לגבייה ויתרות",
+    steps: [
+      {
+        title: "תקרת אשראי",
+        body: "בכרטיס לקוח הגדירו credit limit. יצירת הזמנה עם כרטיס לקוח תיחסם בחריגה.",
+      },
+      {
+        title: "ATP",
+        body: "לפני יצירת הזמנה נבדק זמין = במלאי − שמור. אפשר לאשר בכל זאת אחרי אזהרה.",
+      },
+      {
+        title: "גבייה",
+        body: "במסמך חשבונית סמנו שולם/חלקי. בדשבורד וב־/reports/balances תראו יתרות.",
+      },
+    ],
+  },
+  {
+    slug: "integrations-api",
+    title: "אינטגרציות ו־API",
+    summary: "מפתחות API, webhooks וסנכרון Shopify.",
+    category: "צוות והרשאות",
+    audience: ["ADMIN"],
+    minutes: 3,
+    relatedHref: "/integrations",
+    relatedLabel: "לאינטגרציות",
+    steps: [
+      {
+        title: "API Key",
+        body: "צרו מפתח ב־/integrations והשתמשו ב־Authorization: Bearer sfira_… מול /api/v1/stock.",
+      },
+      {
+        title: "Webhooks",
+        body: "הוסיפו URL לקבלת אירועים כמו order.created.",
+      },
+      {
+        title: "Shopify",
+        body: "שמרו חנות וטוקן, ואז «סנכרן מוצרים».",
+      },
+    ],
+  },
+  {
+    slug: "fine-permissions",
+    title: "הרשאות דקות",
+    summary: "מעבר לארבעה תפקידים — התאמה לעובד ספציפי.",
+    category: "צוות והרשאות",
+    audience: ["ADMIN"],
+    minutes: 3,
+    relatedHref: "/team",
+    relatedLabel: "לעובדים",
+    steps: [
+      {
+        title: "ברירת תפקיד",
+        body: "מנהל / מחסנאי / צופה מגדירים הרשאות בסיס.",
+      },
+      {
+        title: "התאמה",
+        body: "בעריכת עובד סמנו «הרשאות מותאמות» — למשל צופה עם דוחות בלי עדכון מלאי.",
+      },
+    ],
+  },
 ];
 
 export function getGuide(slug: string) {

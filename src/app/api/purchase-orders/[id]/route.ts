@@ -5,6 +5,8 @@ import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
 import { applyStockChange, StockError } from "@/lib/stock";
 import { poStatusAfterReceive } from "@/lib/commerce";
+import { suggestPutawayLocation } from "@/lib/putaway";
+import { ensureSchemaPatches } from "@/lib/db";
 
 async function getOwned(id: string, companyId: string) {
   return prisma.purchaseOrder.findFirst({
@@ -90,6 +92,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  await ensureSchemaPatches();
   const gate = await assertModuleApi("inbound");
   if (gate.error) return gate.error;
   const session = gate.session!;
@@ -142,6 +145,9 @@ export async function POST(
     qtyExpected: number;
     qtyReceived: number;
     qtyDamaged: number;
+    locationId: string | null;
+    suggestedLocationId: string | null;
+    putawayStatus: string;
     notes: string | null;
   }[] = [];
 
@@ -214,12 +220,19 @@ export async function POST(
         data: { qtyReceived: line.qtyReceived + againstPo },
       });
       line.qtyReceived += againstPo;
+      const locId = r.locationId || null;
+      const suggested =
+        locId ||
+        (await suggestPutawayLocation(session.companyId, line.variantId));
       grLines.push({
         poLineId: line.id,
         variantId: line.variantId,
         qtyExpected: remaining,
         qtyReceived: qtyGood,
         qtyDamaged,
+        locationId: locId,
+        suggestedLocationId: suggested,
+        putawayStatus: qtyGood > 0 && !locId ? "PENDING" : "DONE",
         notes: r.notes
           ? String(r.notes)
           : qtyDamaged
@@ -267,6 +280,9 @@ export async function POST(
             qtyExpected: l.qtyExpected,
             qtyReceived: l.qtyReceived,
             qtyDamaged: l.qtyDamaged,
+            locationId: l.locationId,
+            suggestedLocationId: l.suggestedLocationId,
+            putawayStatus: l.putawayStatus,
             notes: l.notes,
           })),
         },

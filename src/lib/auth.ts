@@ -118,6 +118,9 @@ export function canAdmin(role: Role) {
   return role === ROLES.ADMIN || role === ROLES.SUPER_ADMIN;
 }
 
+export { hasPermission, effectivePermissions } from "@/lib/permissions";
+export type { PermissionKey } from "@/lib/permissions";
+
 export function slugifyCompany(name: string) {
   const base = name
     .trim()

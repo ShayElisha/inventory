@@ -1,14 +1,46 @@
 import { prisma } from "@/lib/db";
+import { sendEmailIfConfigured } from "@/lib/email";
+import { renderNotifyTemplate } from "@/lib/notification-templates";
 
 const LOW_STOCK_HREF = "/products?lowStock=1";
 /** לא ליצור שוב התראת מלאי נמוך אם כבר הייתה (גם נקראה) בחלון הזה */
 const LOW_STOCK_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+async function notifyAdminsByEmail(
+  companyId: string,
+  templateId: Parameters<typeof renderNotifyTemplate>[0],
+  vars: Record<string, string | number>
+) {
+  const { subject, text } = renderNotifyTemplate(templateId, vars);
+  const admins = await prisma.user.findMany({
+    where: {
+      companyId,
+      role: { in: ["ADMIN", "SUPER_ADMIN"] },
+      email: { not: null },
+    },
+    select: { email: true },
+    take: 10,
+  });
+  for (const a of admins) {
+    if (!a.email) continue;
+    void sendEmailIfConfigured({
+      to: a.email,
+      subject,
+      text,
+      html: text.replace(/\n/g, "<br/>"),
+      companyId,
+    });
+  }
+}
 
 /** מרענן התראות מערכתיות — בלי חזרתיות על אותן הודעות */
 export async function refreshSystemNotifications(companyId: string) {
   await refreshLowStockSummary(companyId);
   await refreshOpenCounts(companyId);
   await refreshOpenPicks(companyId);
+  await refreshReorderNeeded(companyId);
+  await refreshPutawayPending(companyId);
+  await refreshUnpaidInvoices(companyId);
 }
 
 async function refreshLowStockSummary(companyId: string) {
@@ -172,4 +204,138 @@ async function refreshOpenPicks(companyId: string) {
       },
     });
   }
+}
+
+async function refreshReorderNeeded(companyId: string) {
+  const rules = await prisma.reorderRule.findMany({
+    where: { companyId, active: true },
+    include: {
+      variant: { select: { quantityOnHand: true, sku: true } },
+    },
+  });
+  const needed = rules.filter((r) => r.variant.quantityOnHand <= r.minQty);
+  const href = "/reorder";
+
+  if (needed.length === 0) {
+    await prisma.notification.updateMany({
+      where: { companyId, type: "REORDER", read: false },
+      data: { read: true },
+    });
+    return;
+  }
+
+  const body = `${needed.length} פריטים דורשים רכש — צרו PO מהצעות`;
+  const latest = await prisma.notification.findFirst({
+    where: { companyId, type: "REORDER" },
+    orderBy: { createdAt: "desc" },
+  });
+  if (latest && !latest.read) {
+    await prisma.notification.update({
+      where: { id: latest.id },
+      data: { title: "הצעות רכש ממתינות", body, href },
+    });
+    return;
+  }
+  if (latest && Date.now() - latest.createdAt.getTime() < 12 * 60 * 60 * 1000) {
+    return;
+  }
+  await prisma.notification.create({
+    data: {
+      companyId,
+      type: "REORDER",
+      title: "הצעות רכש ממתינות",
+      body,
+      href,
+    },
+  });
+  void notifyAdminsByEmail(companyId, "REORDER", {
+    detail: body,
+    href: href,
+  });
+}
+
+async function refreshPutawayPending(companyId: string) {
+  const count = await prisma.goodsReceiptLine.count({
+    where: {
+      putawayStatus: "PENDING",
+      qtyReceived: { gt: 0 },
+      receipt: { companyId },
+    },
+  });
+  const href = "/putaway";
+  if (count === 0) {
+    await prisma.notification.updateMany({
+      where: { companyId, type: "PUTAWAY", read: false },
+      data: { read: true },
+    });
+    return;
+  }
+  const body = `${count} שורות ממתינות להשמה למדף`;
+  const latest = await prisma.notification.findFirst({
+    where: { companyId, type: "PUTAWAY", href },
+    orderBy: { createdAt: "desc" },
+  });
+  if (latest && !latest.read) {
+    await prisma.notification.update({
+      where: { id: latest.id },
+      data: { title: "השמה למדף", body, href },
+    });
+    return;
+  }
+  if (latest) return;
+  await prisma.notification.create({
+    data: {
+      companyId,
+      type: "PUTAWAY",
+      title: "השמה למדף",
+      body,
+      href,
+    },
+  });
+}
+
+async function refreshUnpaidInvoices(companyId: string) {
+  const unpaid = await prisma.stockDocument.count({
+    where: {
+      companyId,
+      type: "INVOICE",
+      paymentStatus: { in: ["UNPAID", "PARTIAL"] },
+    },
+  });
+  const href = "/documents?payment=open";
+  if (unpaid === 0) {
+    await prisma.notification.updateMany({
+      where: { companyId, type: "PAYMENT_DUE", read: false },
+      data: { read: true },
+    });
+    return;
+  }
+  const body = `${unpaid} חשבוניות עם יתרת חוב`;
+  const latest = await prisma.notification.findFirst({
+    where: { companyId, type: "PAYMENT_DUE" },
+    orderBy: { createdAt: "desc" },
+  });
+  if (latest && !latest.read) {
+    await prisma.notification.update({
+      where: { id: latest.id },
+      data: { title: "גבייה ממתינה", body, href },
+    });
+    return;
+  }
+  if (latest && Date.now() - latest.createdAt.getTime() < 24 * 60 * 60 * 1000) {
+    return;
+  }
+  await prisma.notification.create({
+    data: {
+      companyId,
+      type: "PAYMENT_DUE",
+      title: "גבייה ממתינה",
+      body,
+      href,
+    },
+  });
+  void notifyAdminsByEmail(companyId, "PAYMENT_DUE", {
+    detail: body,
+    href,
+  });
 }

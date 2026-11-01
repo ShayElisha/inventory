@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button, Input, Label, Select } from "@/components/ui";
+import { CameraScanner } from "@/components/camera-scanner";
 import { attributesLabel } from "@/lib/utils";
 import { OUTBOUND_REASONS } from "@/lib/constants";
 import { readJson } from "@/lib/fetch-json";
@@ -14,7 +15,11 @@ type VariantPayload = {
   attributes: string;
   quantityOnHand: number;
   quantityReserved?: number;
-  product: { title: string };
+  product: {
+    title: string;
+    unitOfMeasure?: string;
+    unitsPerCarton?: number;
+  };
   location: { code: string } | null;
 };
 
@@ -71,6 +76,7 @@ export function FloorReceive({
   const [results, setResults] = useState<VariantPayload[]>([]);
   const [variant, setVariant] = useState<VariantPayload | null>(null);
   const [qty, setQty] = useState("1");
+  const [uom, setUom] = useState("UNIT");
   const [locationId, setLocationId] = useState(locations[0]?.id || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -111,15 +117,19 @@ export function FloorReceive({
         body: JSON.stringify({
           variantId: variant.id,
           quantity: Number(qty),
+          uom,
           reason: "קליטה — רצפת מחסן",
           locationId: locationId || null,
         }),
       });
-      const data = await readJson<{ error?: string }>(res);
+      const data = await readJson<{ error?: string; baseQty?: number }>(res);
       if (!res.ok) throw new Error(data.error || "שגיאה");
-      setDone(`נקלטו ${qty} יח׳ · ${variant.product.title}`);
+      setDone(
+        `נקלטו ${qty} ${uom === "CARTON" ? "קרטון" : "יח׳"} · ${variant.product.title}`
+      );
       setVariant(null);
       setQty("1");
+      setUom("UNIT");
       setQuery("");
       setTimeout(() => scanRef.current?.focus(), 50);
     } catch (e) {
@@ -134,9 +144,11 @@ export function FloorReceive({
       <div>
         <h1 className="text-2xl font-bold tracking-tight">קליטה</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          חפשו מוצר לפי שם או קוד → כמות → מדף
+          מצלמה / סורק / חיפוש → כמות → מדף
         </p>
       </div>
+
+      <CameraScanner onScan={(code) => onScan(code)} />
 
       <form
         onSubmit={(e) => {
@@ -183,15 +195,28 @@ export function FloorReceive({
       {variant && (
         <form onSubmit={submit} className="space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
           <VariantCard v={variant} />
-          <div>
-            <Label>כמות</Label>
-            <Input
-              type="number"
-              min={1}
-              value={qty}
-              onChange={(e) => setQty(e.target.value)}
-              className="h-14 text-lg"
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>כמות</Label>
+              <Input
+                type="number"
+                min={1}
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+                className="h-14 text-lg"
+              />
+            </div>
+            <div>
+              <Label>יחידה</Label>
+              <Select
+                value={uom}
+                onChange={(e) => setUom(e.target.value)}
+                className="h-14"
+              >
+                <option value="UNIT">יח׳</option>
+                <option value="CARTON">קרטון</option>
+              </Select>
+            </div>
           </div>
           <div>
             <Label>מדף יעד</Label>
@@ -312,6 +337,8 @@ export function FloorShelf() {
       </div>
 
       {variant && <VariantCard v={variant} />}
+
+      <CameraScanner onScan={(c) => handleScan(c)} />
 
       <form
         onSubmit={(e) => {
@@ -443,9 +470,11 @@ export function FloorPick() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">ניפוק</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          חפשו מוצר → כמות → אשר יציאה
+          מצלמה / סורק → כמות → אשר יציאה
         </p>
       </div>
+
+      <CameraScanner onScan={(code) => onScan(code)} />
 
       <form
         onSubmit={(e) => {

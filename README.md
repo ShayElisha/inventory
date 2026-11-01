@@ -1,8 +1,10 @@
-# מערכת ניהול מלאי, לוגיסטיקה ואפשרויות מוצר
+# Sfira — מערכת מלאי ומחסן (WMS קל)
 
-Next.js + Prisma + PostgreSQL — דשבורד, קטלוג עם מחולל מטריצה, ניפוק מהיר, תנועות מלאי, סריקה וייצוא CSV.
+Next.js 16 · React 19 · Prisma · PostgreSQL (Neon) · Vercel
 
-המערכת מתחילה **ללא נתוני דוגמה**.
+מוצר עברי RTL לניהול מלאי, רכש, מכירות, ליקוט, משלוחים ומודולים נמכרים לפי חברה.
+
+המערכת מתחילה **ללא נתוני דוגמה** (אלא אם מריצים seed).
 
 ## הרצה מקומית
 
@@ -16,38 +18,62 @@ npx prisma migrate deploy
 npm run dev
 ```
 
+בדיקות:
+
+```bash
+npm test
+npm run typecheck
+```
+
 ## פריסה ל-Vercel
 
 1. חברו את הריפו ל-Vercel
-2. הוסיפו Integration של **Neon** (Storage) לפרויקט — נוצר `DATABASE_URL` אוטומטית
-3. Deploy — בבילד רצים `prisma migrate deploy` ואז `next build`
+2. הוסיפו Integration של **Neon**
+3. Deploy — בבילד: `prisma migrate deploy` + `next build`
 
-או מ-CLI:
+אופציונלי בסביבה:
 
-```bash
-vercel link
-vercel integration add neon
-vercel env pull .env.local
-npx prisma migrate deploy
-vercel --prod
-```
+| משתנה | תפקיד |
+|--------|--------|
+| `EMAIL_WEBHOOK_URL` | שליחת אימיילים (התראות / סיכום יומי) |
+| `CRON_SECRET` | להרצת `POST /api/notifications/digest` מ־cron |
+| `SHIPMENT_WEBHOOK_SECRET` | עדכון מעקב משלוחים חיצוני |
+| `AUTH_SECRET` | חתימת JWT (חובה בפרודקשן) |
 
-## סדר עבודה
+## סדר עבודה מומלץ
 
-1. `/setup` — קטגוריות וספקים
-2. `/locations` — מדפי מחסן
-3. `/products/new` — מוצרים / טבלת אפשרויות מוצר
-4. `/pick` — ניפוק לפי שם / מק״ט / ברקוד
+1. סופר־אדמין מאשר חברה ומדליק מודולים
+2. `/setup` — קטגוריות וספקים
+3. `/locations` — מחסנים ומדפים
+4. `/products` — קטלוג / וריאנטים / ברקודים
+5. קליטה (`/inbound` או `/floor/receive`) → ניפוק / הזמנות → ליקוט → משלוח
+6. דשבורד: «מה לעשות עכשיו» (רכש, השמה, גבייה)
 
-## מודולים
+## מודולים עיקריים
 
-| נתיב | תיאור |
+| אזור | נתיבים |
 |------|--------|
-| `/` | דשבורד |
-| `/pick` | ניפוק מהיר |
-| `/products` | קטלוג |
-| `/stock` | תנועות מלאי |
-| `/locations` | מיקומים |
-| `/scan` | סריקה |
-| `/setup` | הגדרות |
-| `/export` | ייצוא CSV |
+| דשבורד | `/dashboard` |
+| מלאי | `/products` `/locations` `/stock` `/lots` `/serials` `/counts` `/scan` `/kits` |
+| רכש | `/purchases` `/inbound` `/putaway` `/reorder` |
+| מכירות | `/orders` `/customers` `/price-lists` `/waitlist` `/returns` |
+| ניפוק | `/outbound` `/picks` `/waves` `/shipments` `/documents` |
+| רצפה | `/floor` (קליטה / מדף / ניפוק + מצלמה) |
+| דוחות | `/reports` `/reports/balances` `/reports-pro` `/export` |
+| ניהול | `/setup` `/team` `/integrations` `/audit` `/help` |
+
+## פיצ׳רים מרכזיים
+
+- מנוע מלאי אטומי + יתרות לפי מיקום + FEFO
+- אכיפת אשראי לקוח ו־ATP בהזמנות
+- תשלומים על חשבוניות + דוח גבייה/יתרות
+- השמה למדף (putaway), גלי ליקוט + QC
+- סריקת מצלמה ברצפה וב־`/scan`
+- המרת קרטון↔יחידות (`unitsPerCarton`)
+- API keys (`/api/v1/stock`), webhooks, סנכרון Shopify
+- הרשאות דקות מעבר ל־4 תפקידים
+
+## עזרה
+
+מרכז העזרה בתוך האפליקציה: `/help`  
+מדריכים מעודכנים לרצפה, אשראי/ATP, אינטגרציות והרשאות.

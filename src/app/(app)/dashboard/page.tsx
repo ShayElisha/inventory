@@ -29,6 +29,9 @@ import { ROLE_LABELS, Role, ROLES } from "@/lib/constants";
 import { redirect } from "next/navigation";
 import { attributesLabel, formatCurrency, formatDateTime, cn } from "@/lib/utils";
 import { startOfDay, startOfWeek, startOfMonth, subDays } from "date-fns";
+import { getActionQueue } from "@/lib/action-queue";
+import { refreshSystemNotifications } from "@/lib/notifications";
+import { DashboardActionQueue } from "@/components/dashboard-action-queue";
 
 const typeLabel: Record<string, string> = {
   INBOUND: "כניסה",
@@ -162,6 +165,7 @@ export default async function DashboardPage({
   }
   await ensureSchemaPatches();
   const modules = await getCompanyModules(session.companyId);
+  void refreshSystemNotifications(session.companyId).catch(() => {});
   const { period = "today" } = await searchParams;
   const now = new Date();
   const from =
@@ -243,6 +247,7 @@ export default async function DashboardPage({
     locationsCount,
     categories,
     recentOutboundIds,
+    actionQueue,
   ] = await Promise.all([
     prisma.stockCountSession.findMany({
       where: { companyId, status: "OPEN" },
@@ -271,6 +276,7 @@ export default async function DashboardPage({
       select: { variantId: true },
       distinct: ["variantId"],
     }),
+    getActionQueue(companyId),
   ]);
 
   const low = lowCandidates.filter(
@@ -438,6 +444,8 @@ export default async function DashboardPage({
           tone={quietStock ? "warn" : "default"}
         />
       </section>
+
+      <DashboardActionQueue items={actionQueue} />
 
       {/* Work queues + alerts */}
       <section className="grid gap-4 lg:grid-cols-2">

@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { BulkAndImport } from "@/components/bulk-and-import";
+import { RichImport } from "@/components/rich-import";
 import { requireTenant } from "@/lib/tenant";
 
 export default async function ToolsPage() {
@@ -18,9 +19,10 @@ export default async function ToolsPage() {
     <div>
       <PageHeader
         title="ייבוא ועדכון כמותי"
-        description="ייבוא מוצרים מאקסל/CSV (עם קטגוריות) ועדכון כמויות בכמות"
+        description="ייבוא מוצרים, לקוחות והזמנות · עדכון כמויות בכמות"
       />
       <BulkAndImport variants={JSON.parse(JSON.stringify(variants))} />
+      <RichImport />
     </div>
   );
 }

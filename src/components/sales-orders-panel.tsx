@@ -14,10 +14,18 @@ type Variant = {
   product: { title: string; sellingPrice: number };
 };
 
+type Customer = {
+  id: string;
+  name: string;
+  phone: string | null;
+  creditLimit: number | null;
+};
+
 type SO = {
   id: string;
   number: string;
   customerName: string;
+  customerId?: string | null;
   status: string;
   priority: number;
   slaDueAt: string | null;
@@ -36,12 +44,15 @@ type SO = {
 export function SalesOrdersPanel({
   orders,
   variants,
+  customers = [],
 }: {
   orders: SO[];
   variants: Variant[];
+  customers?: Customer[];
 }) {
   const router = useRouter();
   const [show, setShow] = useState(false);
+  const [customerId, setCustomerId] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [priority, setPriority] = useState("3");
   const [slaDueAt, setSlaDueAt] = useState("");
@@ -58,6 +69,20 @@ export function SalesOrdersPanel({
     ok: boolean;
     results: { sku: string; title: string; requested: number; available: number; ok: boolean }[];
   } | null>(null);
+  const [atpWarn, setAtpWarn] = useState<{
+    ok: boolean;
+    results: {
+      sku: string;
+      title: string;
+      requested: number;
+      available: number;
+      onHand: number;
+      reserved: number;
+      ok: boolean;
+    }[];
+  } | null>(null);
+
+  const selectedCustomer = customers.find((c) => c.id === customerId);
 
   function parseTiers() {
     return tiers
@@ -71,27 +96,39 @@ export function SalesOrdersPanel({
       .filter((t) => t.minQty && t.percent);
   }
 
-  async function createOrder(e: React.FormEvent) {
+  async function createOrder(e: React.FormEvent, forceAtp = false) {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setAtpWarn(null);
     try {
       const res = await fetch("/api/sales-orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          customerName,
+          customerId: customerId || null,
+          customerName: customerId
+            ? selectedCustomer?.name || customerName
+            : customerName,
           priority: Number(priority),
           slaDueAt: slaDueAt || null,
           vatRate: Number(vatRate),
           discountTiers: parseTiers(),
           items: rows.filter((r) => r.variantId),
+          forceAtp,
         }),
       });
       const data = await res.json();
+      if (res.status === 409 && data.code === "ATP_SHORTFALL") {
+        setAtpWarn(data.atp);
+        setError(data.error || "חסר מלאי זמין");
+        return;
+      }
       if (!res.ok) throw new Error(data.error || "שגיאה");
       setShow(false);
       setCustomerName("");
+      setCustomerId("");
+      setAtpWarn(null);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה");
@@ -272,9 +309,43 @@ export function SalesOrdersPanel({
         {show && (
           <form onSubmit={createOrder} className="mb-4 space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {customers.length > 0 ? (
+                <div>
+                  <Label>לקוח (כרטיס)</Label>
+                  <Select
+                    value={customerId}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setCustomerId(id);
+                      const c = customers.find((x) => x.id === id);
+                      setCustomerName(c?.name || "");
+                    }}
+                  >
+                    <option value="">לקוח חופשי / אורח</option>
+                    {customers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                        {c.creditLimit != null
+                          ? ` · אשראי ₪${c.creditLimit.toLocaleString("he-IL")}`
+                          : ""}
+                      </option>
+                    ))}
+                  </Select>
+                  {selectedCustomer?.creditLimit != null && (
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      תקרת אשראי נאכפת ביצירת הזמנה
+                    </p>
+                  )}
+                </div>
+              ) : null}
               <div>
-                <Label>לקוח</Label>
-                <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
+                <Label>שם לקוח</Label>
+                <Input
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  required={!customerId}
+                  disabled={Boolean(customerId)}
+                />
               </div>
               <div>
                 <Label>עדיפות (1 גבוה)</Label>
@@ -341,6 +412,31 @@ export function SalesOrdersPanel({
                 />
               </div>
             ))}
+            {atpWarn && (
+              <div className="rounded-lg border border-[var(--warn)]/40 bg-[var(--warn-soft,theme(colors.amber.50))] px-3 py-2 text-sm">
+                <p className="font-medium">אזהרת ATP — מלאי זמין לא מספיק</p>
+                <ul className="mt-1 space-y-0.5 text-xs text-[var(--muted)]">
+                  {atpWarn.results
+                    .filter((r) => !r.ok)
+                    .map((r) => (
+                      <li key={r.sku}>
+                        {r.sku} — {r.title}: מבוקש {r.requested}, זמין{" "}
+                        {r.available} (במלאי {r.onHand}, שמור {r.reserved})
+                      </li>
+                    ))}
+                </ul>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="mt-2"
+                  variant="secondary"
+                  disabled={loading}
+                  onClick={(ev) => createOrder(ev, true)}
+                >
+                  צור בכל זאת
+                </Button>
+              </div>
+            )}
             <div className="flex gap-2">
               <Button
                 type="button"

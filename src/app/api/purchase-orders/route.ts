@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
+import { assertPermission } from "@/lib/require-permission";
 
 export async function GET() {
   const gate = await assertModuleApi("inbound");
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
   if (!canWrite(session.role)) {
     return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
   }
+  const perm = await assertPermission(session, "purchases.write");
+  if (!perm.ok) return perm.error;
 
   const body = await req.json();
   const number =

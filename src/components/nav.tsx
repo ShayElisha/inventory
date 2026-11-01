@@ -41,6 +41,9 @@ import {
   Sparkles,
   Warehouse,
   Bell,
+  Layers,
+  Plug,
+  Banknote,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { NotificationBell } from "@/components/notification-bell";
@@ -98,6 +101,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/purchases", label: "הזמנות רכש", icon: FileSpreadsheet },
       { href: "/inbound", label: "קליטה", icon: PackagePlus },
+      { href: "/putaway", label: "השמה למדף", icon: MapPin },
       { href: "/reorder", label: "הצעות רכש", icon: RefreshCw },
     ],
   },
@@ -126,6 +130,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/outbound", label: "ניפוק", icon: PackageMinus },
       { href: "/picks", label: "ליקוט", icon: ClipboardList },
+      { href: "/waves", label: "גלי ליקוט", icon: Layers },
       { href: "/shipments", label: "משלוחים", icon: Truck },
       { href: "/documents", label: "מסמכים", icon: FileText },
     ],
@@ -142,6 +147,7 @@ const groups: NavGroup[] = [
     icon: LineChart,
     items: [
       { href: "/reports", label: "דוחות", icon: BarChart3 },
+      { href: "/reports/balances", label: "גבייה ויתרות", icon: Banknote },
       { href: "/reports-pro", label: "דוחות פרימיום", icon: Sparkles },
       { href: "/export", label: "ייצוא", icon: Download },
     ],
@@ -153,6 +159,12 @@ const groups: NavGroup[] = [
     items: [
       { href: "/setup", label: "הגדרות", icon: Settings2 },
       { href: "/team", label: "עובדים", icon: Users, adminOnly: true },
+      {
+        href: "/integrations",
+        label: "אינטגרציות",
+        icon: Plug,
+        adminOnly: true,
+      },
       { href: "/audit", label: "יומן פעילות", icon: Shield, adminOnly: true },
       { href: "/help", label: "מרכז עזרה", icon: CircleHelp },
     ],

@@ -60,6 +60,45 @@ export function ensureSchemaPatches() {
         await prisma.$executeRawUnsafe(
           `ALTER TABLE "pick_list_items" ADD COLUMN IF NOT EXISTS "sales_order_line_id" TEXT`
         );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "stock_documents" ADD COLUMN IF NOT EXISTS "payment_status" TEXT NOT NULL DEFAULT 'UNPAID'`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "stock_documents" ADD COLUMN IF NOT EXISTS "paid_amount" DOUBLE PRECISION NOT NULL DEFAULT 0`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "stock_documents" ADD COLUMN IF NOT EXISTS "paid_at" TIMESTAMP(3)`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "goods_receipt_lines" ADD COLUMN IF NOT EXISTS "location_id" TEXT`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "goods_receipt_lines" ADD COLUMN IF NOT EXISTS "suggested_location_id" TEXT`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "goods_receipt_lines" ADD COLUMN IF NOT EXISTS "putaway_status" TEXT NOT NULL DEFAULT 'DONE'`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "permissions_json" TEXT`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "pick_lists" ADD COLUMN IF NOT EXISTS "wave_id" TEXT`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "pick_lists" ADD COLUMN IF NOT EXISTS "qc_status" TEXT NOT NULL DEFAULT 'NONE'`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "shipments" ADD COLUMN IF NOT EXISTS "tracking_status" TEXT`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "shipments" ADD COLUMN IF NOT EXISTS "tracking_url" TEXT`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "shipments" ADD COLUMN IF NOT EXISTS "tracking_updated_at" TIMESTAMP(3)`
+        );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "shipments" ADD COLUMN IF NOT EXISTS "tracking_events_json" TEXT NOT NULL DEFAULT '[]'`
+        );
       } catch (e) {
         console.error("ensureSchemaPatches failed", e);
       }

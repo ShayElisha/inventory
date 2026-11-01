@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button, Card, Input, Label } from "@/components/ui";
+import { CameraScanner } from "@/components/camera-scanner";
 import { attributesLabel } from "@/lib/utils";
 import { Minus, Plus, MapPin } from "lucide-react";
 
@@ -151,6 +152,17 @@ export function ScanConsole() {
           העברת מדף
         </button>
       </div>
+
+      <CameraScanner
+        onScan={(code) => {
+          if (mode === "relocate" && variant) {
+            setLocationCode(code);
+            void relocate(code);
+          } else {
+            void lookup(code);
+          }
+        }}
+      />
 
       <Card>
         <form onSubmit={onScanSubmit} className="space-y-3">

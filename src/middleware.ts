@@ -28,6 +28,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // API keys (Bearer) — מאומת בתוך ה־route
+  if (
+    pathname.startsWith("/api/v1/") &&
+    req.headers.get("authorization")?.startsWith("Bearer sfira_")
+  ) {
+    return NextResponse.next();
+  }
+
   const token = req.cookies.get(COOKIE)?.value;
   if (!token) {
     if (pathname.startsWith("/api/")) {

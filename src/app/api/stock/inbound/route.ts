@@ -3,10 +3,13 @@ import { applyStockChange, StockError } from "@/lib/stock";
 import { assertModuleApi } from "@/lib/tenant";
 import { writeAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { toBaseUnits } from "@/lib/uom";
+import { assertPermission } from "@/lib/require-permission";
 
 type InboundLine = {
   variantId: string;
   quantity: number;
+  uom?: string | null;
   locationId?: string | null;
   lotCode?: string | null;
   expiryDate?: string | null;
@@ -15,7 +18,7 @@ type InboundLine = {
 
 /**
  * קליטה בודדת או מרובת שורות (קליטה מלאה)
- * body: { variantId, quantity, reason, locationId, ... }
+ * body: { variantId, quantity, uom?, reason, locationId, ... }
  * או: { lines: InboundLine[], reason?, supplierId?, invoiceNumber?, notes? }
  */
 export async function POST(req: NextRequest) {
@@ -23,6 +26,11 @@ export async function POST(req: NextRequest) {
     const gate = await assertModuleApi("inbound");
     if (gate.error) return gate.error;
     const session = gate.session!;
+    const perm = await assertPermission(session, "purchases.write");
+    if (!perm.ok) {
+      const stockPerm = await assertPermission(session, "stock.write");
+      if (!stockPerm.ok) return stockPerm.error;
+    }
 
     const body = await req.json();
     const supplierId = body.supplierId || null;
@@ -44,6 +52,7 @@ export async function POST(req: NextRequest) {
         (l: InboundLine) => ({
           variantId: String(l.variantId),
           quantity: Number(l.quantity) || 0,
+          uom: l.uom || body.uom || null,
           locationId: l.locationId || null,
           lotCode: l.lotCode || null,
           expiryDate: l.expiryDate || null,
@@ -55,6 +64,7 @@ export async function POST(req: NextRequest) {
         {
           variantId: String(body.variantId),
           quantity: Number(body.quantity) || 0,
+          uom: body.uom || null,
           locationId: body.locationId || null,
           lotCode: body.lotCode || null,
           expiryDate: body.expiryDate || null,
@@ -73,18 +83,32 @@ export async function POST(req: NextRequest) {
     }
 
     const variantIds = [...new Set(lines.map((l) => l.variantId))];
-    const owned = await prisma.productVariant.count({
+    const variants = await prisma.productVariant.findMany({
       where: {
         id: { in: variantIds },
         companyId: session.companyId,
       },
+      include: {
+        product: {
+          select: { unitOfMeasure: true, unitsPerCarton: true },
+        },
+      },
     });
-    if (owned !== variantIds.length) {
+    if (variants.length !== variantIds.length) {
       return NextResponse.json(
         { error: "יש פריטים שאינם שייכים לחברה" },
         { status: 400 }
       );
     }
+    const byId = new Map(variants.map((v) => [v.id, v]));
+    lines = lines.map((l) => {
+      const v = byId.get(l.variantId)!;
+      const base = toBaseUnits(l.quantity, l.uom, {
+        unitOfMeasure: v.product.unitOfMeasure,
+        unitsPerCarton: v.product.unitsPerCarton,
+      });
+      return { ...l, quantity: base };
+    });
 
     const locationIds = [
       ...new Set(

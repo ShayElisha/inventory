@@ -2,32 +2,45 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { toCsv } from "@/lib/export";
 import { getSession } from "@/lib/auth";
+import { reasonLabel } from "@/lib/constants";
 
 export async function GET() {
   const session = await getSession();
   if (!session?.companyId) {
     return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
   }
+  const companyId = session.companyId;
+
+  const locations = await prisma.warehouseLocation.findMany({
+    where: { companyId },
+    select: { id: true, code: true },
+  });
+  const locMap = new Map(locations.map((l) => [l.id, l.code]));
+
   const txns = await prisma.stockTransaction.findMany({
-    where: { variant: { product: { companyId: session.companyId } } },
+    where: { variant: { companyId } },
     include: {
       variant: { include: { product: true } },
     },
     orderBy: { timestamp: "desc" },
+    take: 10000,
   });
 
   const csv = toCsv(
     [
-      "Timestamp",
-      "Type",
+      "תאריך",
+      "סוג",
       "SKU",
-      "Product",
-      "QtyChanged",
-      "PreviousQty",
-      "NewQty",
-      "Reason",
-      "FromLocation",
-      "ToLocation",
+      "מוצר",
+      "שינוי",
+      "קודם",
+      "יתרה",
+      "סיבה",
+      "קוד סיבה",
+      "ממיקום",
+      "למיקום",
+      "הזמנת מכירה",
+      "הזמנת רכש",
     ],
     txns.map((t) => [
       t.timestamp.toISOString(),
@@ -38,8 +51,11 @@ export async function GET() {
       t.previousQuantity,
       t.newQuantity,
       t.reason,
-      t.fromLocationId ?? "",
-      t.toLocationId ?? "",
+      reasonLabel(t.reasonCode),
+      t.fromLocationId ? locMap.get(t.fromLocationId) ?? t.fromLocationId : "",
+      t.toLocationId ? locMap.get(t.toLocationId) ?? t.toLocationId : "",
+      t.salesOrderId ?? "",
+      t.purchaseOrderId ?? "",
     ])
   );
 

@@ -12,6 +12,8 @@ type Shipment = {
   status: string;
   carrier: string | null;
   trackingRef: string | null;
+  trackingStatus?: string | null;
+  trackingUrl?: string | null;
   salesOrder: SO;
   packages: {
     id: string;
@@ -27,6 +29,24 @@ const STATUS: Record<string, string> = {
   DELIVERED: "נמסר",
   CANCELLED: "בוטל",
 };
+
+const TRACK: Record<string, string> = {
+  DRAFT: "טיוטה",
+  PACKED: "ארוז",
+  IN_TRANSIT: "בדרך",
+  OUT_FOR_DELIVERY: "יצא לחלוקה",
+  DELIVERED: "נמסר",
+  EXCEPTION: "חריגה",
+  CANCELLED: "בוטל",
+};
+
+const CARRIER_OPTIONS = [
+  { code: "CHEETAH", label: "צ׳יטה" },
+  { code: "HFD", label: "HFD" },
+  { code: "SOS", label: "SOS" },
+  { code: "ISRAEL_POST", label: "דואר ישראל" },
+  { code: "OTHER", label: "אחר" },
+];
 
 export function ShipmentsPanel({
   shipments,
@@ -83,14 +103,45 @@ export function ShipmentsPanel({
     }
   }
 
+  async function syncTracking() {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/shipments/sync-tracking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "שגיאה");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between gap-3">
-        <p className="text-sm text-[var(--muted)]">אריזה · משלוח · מס׳ מעקב</p>
-        <Button type="button" onClick={() => setShow((v) => !v)} disabled={!salesOrders.length}>
-          <Truck className="h-4 w-4" />
-          משלוח חדש
-        </Button>
+      <div className="flex flex-wrap justify-between gap-3">
+        <p className="text-sm text-[var(--muted)]">
+          אריזה · משלוח · מעקב שליח אוטומטי
+        </p>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={loading}
+            onClick={() => syncTracking()}
+          >
+            רענון מעקב
+          </Button>
+          <Button type="button" onClick={() => setShow((v) => !v)} disabled={!salesOrders.length}>
+            <Truck className="h-4 w-4" />
+            משלוח חדש
+          </Button>
+        </div>
       </div>
       {error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
@@ -108,7 +159,14 @@ export function ShipmentsPanel({
             </div>
             <div>
               <Label>מוביל</Label>
-              <Input value={carrier} onChange={(e) => setCarrier(e.target.value)} />
+              <Select value={carrier} onChange={(e) => setCarrier(e.target.value)}>
+                <option value="">בחרו שליח</option>
+                {CARRIER_OPTIONS.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div>
               <Label>מעקב</Label>
@@ -128,10 +186,28 @@ export function ShipmentsPanel({
               <div>
                 <span className="font-semibold">{s.number}</span>{" "}
                 <Badge>{STATUS[s.status] || s.status}</Badge>
+                {s.trackingStatus && (
+                  <Badge tone="warn">
+                    {TRACK[s.trackingStatus] || s.trackingStatus}
+                  </Badge>
+                )}
                 <p className="text-sm text-[var(--muted)]">
                   הזמנה {s.salesOrder.number} · {s.salesOrder.customerName}
                   {s.carrier ? ` · ${s.carrier}` : ""}
                   {s.trackingRef ? ` · ${s.trackingRef}` : ""}
+                  {s.trackingUrl ? (
+                    <>
+                      {" · "}
+                      <a
+                        href={s.trackingUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[var(--accent)] underline"
+                      >
+                        מעקב
+                      </a>
+                    </>
+                  ) : null}
                 </p>
               </div>
               <div className="flex gap-2">

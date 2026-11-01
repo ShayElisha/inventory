@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge, Card } from "@/components/ui";
+import { AttachmentsPanel } from "@/components/attachments-panel";
 import { formatDateTime } from "@/lib/utils";
 import { ClipboardCheck } from "lucide-react";
 
@@ -76,6 +77,13 @@ export function GoodsReceiptsPanel({ receipts }: { receipts: Receipt[] }) {
                   </li>
                 ))}
               </ul>
+              <div className="mt-3">
+                <AttachmentsPanel
+                  entityType="GOODS_RECEIPT"
+                  entityId={r.id}
+                  title="חשבונית ספק / צרופות"
+                />
+              </div>
             </li>
           );
         })}

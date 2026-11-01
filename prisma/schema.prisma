@@ -58,6 +58,10 @@ model Company {
   priceLists           PriceList[]
   attachments          Attachment[]
   reorderRules         ReorderRule[]
+  pickWaves            PickWave[]
+  apiKeys              ApiKey[]
+  webhookEndpoints     WebhookEndpoint[]
+  integrations         Integration[]
 
   @@map("companies")
 }
@@ -71,6 +75,8 @@ model User {
   passwordHash       String   @map("password_hash")
   mustChangePassword Boolean  @default(false) @map("must_change_password")
   role               String   @default("WAREHOUSE") // SUPER_ADMIN | ADMIN | WAREHOUSE | VIEWER
+  /// JSON array של PermissionKey — null = ברירת תפקיד
+  permissionsJson    String?  @map("permissions_json")
   active             Boolean  @default(true)
   createdAt          DateTime @default(now()) @map("created_at")
 
@@ -84,6 +90,7 @@ model User {
   stockTransfers       StockTransfer[]
   returnAuthorizations ReturnAuthorization[]
   attachments          Attachment[]
+  pickWaves            PickWave[]
 
   @@index([companyId])
   @@index([phone])
@@ -482,17 +489,20 @@ model WaitlistItem {
 }
 
 model StockDocument {
-  id              String   @id @default(cuid())
-  companyId       String   @map("company_id")
+  id              String    @id @default(cuid())
+  companyId       String    @map("company_id")
   type            String // INVOICE | DELIVERY_NOTE | CREDIT_NOTE | RMA
   number          String
-  purchaseOrderId String?  @map("purchase_order_id")
-  salesOrderId    String?  @map("sales_order_id")
-  payloadJson     String   @default("{}") @map("payload_json")
-  subtotal        Float    @default(0)
-  vatAmount       Float    @default(0) @map("vat_amount")
-  total           Float    @default(0)
-  createdAt       DateTime @default(now()) @map("created_at")
+  purchaseOrderId String?   @map("purchase_order_id")
+  salesOrderId    String?   @map("sales_order_id")
+  payloadJson     String    @default("{}") @map("payload_json")
+  subtotal        Float     @default(0)
+  vatAmount       Float     @default(0) @map("vat_amount")
+  total           Float     @default(0)
+  paymentStatus   String    @default("UNPAID") @map("payment_status") // UNPAID | PARTIAL | PAID | VOID
+  paidAmount      Float     @default(0) @map("paid_amount")
+  paidAt          DateTime? @map("paid_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
@@ -500,6 +510,7 @@ model StockDocument {
 
   @@unique([companyId, type, number])
   @@index([companyId, type])
+  @@index([companyId, paymentStatus])
   @@map("stock_documents")
 }
 
@@ -603,13 +614,34 @@ model PickTemplateItem {
   @@map("pick_template_items")
 }
 
+model PickWave {
+  id          String   @id @default(cuid())
+  companyId   String   @map("company_id")
+  number      String
+  status      String   @default("OPEN") // OPEN | IN_PROGRESS | DONE | CANCELLED
+  notes       String?
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?      @relation(fields: [createdById], references: [id])
+  pickLists PickList[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@map("pick_waves")
+}
+
 model PickList {
   id           String   @id @default(cuid())
   companyId    String   @map("company_id")
   templateId   String?  @map("template_id")
   salesOrderId String?  @map("sales_order_id")
+  waveId       String?  @map("wave_id")
   reference    String
   status       String   @default("OPEN") // OPEN | IN_PROGRESS | DONE | CANCELLED
+  qcStatus     String   @default("NONE") @map("qc_status") // NONE | PENDING | PASSED | FAILED
   notes        String?
   createdById  String?  @map("created_by_id")
   createdAt    DateTime @default(now()) @map("created_at")
@@ -618,6 +650,7 @@ model PickList {
   company    Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   template   PickTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
   salesOrder SalesOrder?    @relation(fields: [salesOrderId], references: [id], onDelete: SetNull)
+  wave       PickWave?      @relation(fields: [waveId], references: [id], onDelete: SetNull)
   createdBy  User?          @relation(fields: [createdById], references: [id])
   items      PickListItem[]
 
@@ -625,6 +658,7 @@ model PickList {
   @@index([companyId])
   @@index([templateId])
   @@index([salesOrderId])
+  @@index([waveId])
   @@map("pick_lists")
 }
 
@@ -747,19 +781,23 @@ model InventoryBalance {
 }
 
 model Shipment {
-  id           String    @id @default(cuid())
-  companyId    String    @map("company_id")
-  salesOrderId String    @map("sales_order_id")
-  number       String
-  status       String    @default("DRAFT") // DRAFT | PACKED | SHIPPED | DELIVERED | CANCELLED
-  carrier      String?
-  trackingRef  String?   @map("tracking_ref")
-  shippedAt    DateTime? @map("shipped_at")
-  deliveredAt  DateTime? @map("delivered_at")
-  notes        String?
-  createdById  String?   @map("created_by_id")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id              String    @id @default(cuid())
+  companyId       String    @map("company_id")
+  salesOrderId    String    @map("sales_order_id")
+  number          String
+  status          String    @default("DRAFT") // DRAFT | PACKED | SHIPPED | DELIVERED | CANCELLED
+  carrier         String?
+  trackingRef     String?   @map("tracking_ref")
+  trackingStatus  String?   @map("tracking_status") // DRAFT | PACKED | IN_TRANSIT | OUT_FOR_DELIVERY | DELIVERED | EXCEPTION
+  trackingUrl     String?   @map("tracking_url")
+  trackingUpdatedAt DateTime? @map("tracking_updated_at")
+  trackingEventsJson String  @default("[]") @map("tracking_events_json")
+  shippedAt       DateTime? @map("shipped_at")
+  deliveredAt     DateTime? @map("delivered_at")
+  notes           String?
+  createdById     String?   @map("created_by_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   company    Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   salesOrder SalesOrder        @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
@@ -768,7 +806,56 @@ model Shipment {
   @@unique([companyId, number])
   @@index([companyId, status])
   @@index([salesOrderId])
+  @@index([trackingStatus])
   @@map("shipments")
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  companyId  String    @map("company_id")
+  name       String
+  keyPrefix  String    @map("key_prefix")
+  keyHash    String    @map("key_hash")
+  lastUsedAt DateTime? @map("last_used_at")
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([keyPrefix])
+  @@map("api_keys")
+}
+
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  url       String
+  secret    String?
+  events    String   @default("[\"stock.changed\",\"order.created\",\"shipment.updated\"]")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, active])
+  @@map("webhook_endpoints")
+}
+
+model Integration {
+  id          String   @id @default(cuid())
+  companyId   String   @map("company_id")
+  provider    String // SHOPIFY | CUSTOM
+  configJson  String   @default("{}") @map("config_json")
+  active      Boolean  @default(true)
+  lastSyncAt  DateTime? @map("last_sync_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, provider])
+  @@map("integrations")
 }
 
 model ShipmentPackage {
@@ -826,14 +913,17 @@ model GoodsReceipt {
 }
 
 model GoodsReceiptLine {
-  id          String  @id @default(cuid())
-  receiptId   String  @map("receipt_id")
-  poLineId    String? @map("po_line_id")
-  variantId   String  @map("variant_id")
-  qtyExpected Int     @default(0) @map("qty_expected")
-  qtyReceived Int     @default(0) @map("qty_received")
-  qtyDamaged  Int     @default(0) @map("qty_damaged")
-  notes       String?
+  id                   String  @id @default(cuid())
+  receiptId            String  @map("receipt_id")
+  poLineId             String? @map("po_line_id")
+  variantId            String  @map("variant_id")
+  qtyExpected          Int     @default(0) @map("qty_expected")
+  qtyReceived          Int     @default(0) @map("qty_received")
+  qtyDamaged           Int     @default(0) @map("qty_damaged")
+  locationId           String? @map("location_id")
+  suggestedLocationId  String? @map("suggested_location_id")
+  putawayStatus        String  @default("DONE") @map("putaway_status") // PENDING | DONE | SKIPPED
+  notes                String?
 
   receipt GoodsReceipt       @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   poLine  PurchaseOrderLine? @relation(fields: [poLineId], references: [id], onDelete: SetNull)
@@ -841,6 +931,7 @@ model GoodsReceiptLine {
 
   @@index([receiptId])
   @@index([poLineId])
+  @@index([putawayStatus])
   @@map("goods_receipt_lines")
 }
 

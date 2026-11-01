@@ -10,10 +10,13 @@ import {
   assertVariantsOwned,
   requireWriteSession,
 } from "@/lib/tenant-guard";
+import { prisma } from "@/lib/db";
+import { toBaseUnits } from "@/lib/uom";
 
 type OutboundLine = {
   variantId: string;
   quantity: number;
+  uom?: string | null;
   lotCode?: string | null;
   serial?: string | null;
 };
@@ -71,6 +74,30 @@ export async function POST(req: NextRequest) {
     if (!owned) {
       return NextResponse.json({ error: "פריט לא שייך לחברה" }, { status: 403 });
     }
+
+    const products = await prisma.productVariant.findMany({
+      where: {
+        id: { in: lines.map((l) => l.variantId) },
+        companyId: session.companyId,
+      },
+      include: {
+        product: {
+          select: { unitOfMeasure: true, unitsPerCarton: true },
+        },
+      },
+    });
+    const pmap = new Map(products.map((v) => [v.id, v]));
+    lines = lines.map((l) => {
+      const v = pmap.get(l.variantId);
+      if (!v) return l;
+      return {
+        ...l,
+        quantity: toBaseUnits(l.quantity, l.uom || body.uom, {
+          unitOfMeasure: v.product.unitOfMeasure,
+          unitsPerCarton: v.product.unitsPerCarton,
+        }),
+      };
+    });
 
     // ניפוק בודד — תשובה תואמת לאחור
     if (lines.length === 1 && !Array.isArray(body.lines)) {

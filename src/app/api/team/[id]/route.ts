@@ -46,6 +46,7 @@ export async function PATCH(
       active?: boolean;
       passwordHash?: string;
       mustChangePassword?: boolean;
+      permissionsJson?: string | null;
     } = {};
 
     if (body.name != null) {
@@ -116,6 +117,19 @@ export async function PATCH(
         }
       }
       data.role = body.role;
+    }
+
+    if (body.permissions !== undefined) {
+      if (body.permissions == null) {
+        data.permissionsJson = null;
+      } else if (Array.isArray(body.permissions)) {
+        data.permissionsJson = JSON.stringify(body.permissions);
+      } else {
+        return NextResponse.json(
+          { error: "permissions חייב להיות מערך או null" },
+          { status: 400 }
+        );
+      }
     }
 
     if (body.active !== undefined) {

@@ -3,6 +3,13 @@ import { prisma } from "@/lib/db";
 import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
+import {
+  assertCustomerCredit,
+  CreditError,
+  orderLinesTotal,
+} from "@/lib/credit";
+import { checkAtp } from "@/lib/atp";
+import { assertPermission } from "@/lib/require-permission";
 
 export async function GET(req: NextRequest) {
   const gate = await assertModuleApi("sales");
@@ -19,6 +26,7 @@ export async function GET(req: NextRequest) {
     },
     include: {
       lines: { include: { variant: { include: { product: true } } } },
+      customer: { select: { id: true, name: true, creditLimit: true } },
       _count: { select: { lines: true } },
     },
     orderBy: queue
@@ -35,9 +43,30 @@ export async function POST(req: NextRequest) {
   if (!canWrite(session.role)) {
     return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
   }
+  const perm = await assertPermission(session, "sales.write");
+  if (!perm.ok) return perm.error;
 
   const body = await req.json();
-  const customerName = String(body.customerName || "").trim();
+  let customerId =
+    body.customerId != null && body.customerId !== ""
+      ? String(body.customerId)
+      : null;
+  let customerName = String(body.customerName || "").trim();
+  let customerPhone = body.customerPhone
+    ? String(body.customerPhone).trim()
+    : null;
+
+  if (customerId) {
+    const customer = await prisma.customer.findFirst({
+      where: { id: customerId, companyId: session.companyId },
+    });
+    if (!customer) {
+      return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 400 });
+    }
+    customerName = customer.name;
+    if (!customerPhone) customerPhone = customer.phone;
+  }
+
   if (!customerName) {
     return NextResponse.json({ error: "שם לקוח חובה" }, { status: 400 });
   }
@@ -57,38 +86,71 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "יש פריטים שאינם שייכים לחברה" }, { status: 400 });
   }
 
+  const vatRate = Number(body.vatRate) >= 0 ? Number(body.vatRate) : 17;
+  const lineRows: {
+    variantId: string;
+    qtyOrdered: number;
+    unitPrice: number;
+  }[] = items.map(
+    (it: { variantId: string; quantity: number; unitPrice?: number }) => ({
+      variantId: String(it.variantId),
+      qtyOrdered: Math.max(1, Number(it.quantity) || 1),
+      unitPrice: Number(it.unitPrice) || 0,
+    })
+  );
+
+  if (customerId) {
+    try {
+      await assertCustomerCredit({
+        companyId: session.companyId,
+        customerId,
+        additionalAmount: orderLinesTotal(lineRows, vatRate),
+      });
+    } catch (e) {
+      if (e instanceof CreditError) {
+        return NextResponse.json({ error: e.message }, { status: 400 });
+      }
+      throw e;
+    }
+  }
+
+  const atp = await checkAtp(
+    session.companyId,
+    lineRows.map((l) => ({ variantId: l.variantId, quantity: l.qtyOrdered }))
+  );
+  if (!atp.ok && !body.forceAtp && !body.ignoreAtp) {
+    return NextResponse.json(
+      {
+        error: "אין מספיק מלאי זמין (ATP) לחלק מהפריטים",
+        code: "ATP_SHORTFALL",
+        atp,
+      },
+      { status: 409 }
+    );
+  }
+
   const order = await prisma.salesOrder.create({
     data: {
       companyId: session.companyId,
       number,
+      customerId,
       customerName,
-      customerPhone: body.customerPhone
-        ? String(body.customerPhone).trim()
-        : null,
+      customerPhone,
       priority: Math.min(5, Math.max(1, Number(body.priority) || 3)),
       slaDueAt: body.slaDueAt ? new Date(body.slaDueAt) : null,
-      vatRate: Number(body.vatRate) >= 0 ? Number(body.vatRate) : 17,
+      vatRate,
       discountTiers: body.discountTiers
         ? JSON.stringify(body.discountTiers)
         : "[]",
       notes: body.notes ? String(body.notes).trim() : null,
       createdById: session.id,
       lines: {
-        create: items.map(
-          (it: {
-            variantId: string;
-            quantity: number;
-            unitPrice?: number;
-          }) => ({
-            variantId: String(it.variantId),
-            qtyOrdered: Math.max(1, Number(it.quantity) || 1),
-            unitPrice: Number(it.unitPrice) || 0,
-          })
-        ),
+        create: lineRows,
       },
     },
     include: {
       lines: { include: { variant: { include: { product: true } } } },
+      customer: { select: { id: true, name: true, creditLimit: true } },
     },
   });
 
@@ -96,8 +158,19 @@ export async function POST(req: NextRequest) {
     action: "CREATE_SO",
     entityType: "SalesOrder",
     entityId: order.id,
-    details: { number: order.number, customerName },
+    details: { number: order.number, customerName, customerId },
   });
 
-  return NextResponse.json(order, { status: 201 });
+  void import("@/lib/webhooks-dispatch").then(({ dispatchWebhooks }) =>
+    dispatchWebhooks(session.companyId, "order.created", {
+      id: order.id,
+      number: order.number,
+      customerName: order.customerName,
+    })
+  );
+
+  return NextResponse.json(
+    { ...order, atpWarning: atp.ok ? null : atp },
+    { status: 201 }
+  );
 }

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { canWrite } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { assertModuleApi } from "@/lib/tenant";
+import { trackingUrlFor } from "@/lib/carriers";
 
 export async function POST(
   req: NextRequest,
@@ -25,18 +26,44 @@ export async function POST(
   const body = await req.json();
   const action = String(body.action || "");
 
+  const carrier = body.carrier ?? existing.carrier;
+  const trackingRef = body.trackingRef ?? existing.trackingRef;
+
   const statusMap: Record<string, { status: string; extra?: object }> = {
-    pack: { status: "PACKED" },
+    pack: {
+      status: "PACKED",
+      extra: {
+        trackingStatus: "PACKED",
+        trackingUpdatedAt: new Date(),
+      },
+    },
     ship: {
       status: "SHIPPED",
       extra: {
         shippedAt: new Date(),
-        carrier: body.carrier ?? existing.carrier,
-        trackingRef: body.trackingRef ?? existing.trackingRef,
+        carrier,
+        trackingRef,
+        trackingStatus: "IN_TRANSIT",
+        trackingUrl: trackingUrlFor(carrier, trackingRef),
+        trackingUpdatedAt: new Date(),
+        trackingEventsJson: JSON.stringify([
+          {
+            at: new Date().toISOString(),
+            status: "IN_TRANSIT",
+            source: "ship",
+          },
+        ]),
       },
     },
-    deliver: { status: "DELIVERED", extra: { deliveredAt: new Date() } },
-    cancel: { status: "CANCELLED" },
+    deliver: {
+      status: "DELIVERED",
+      extra: {
+        deliveredAt: new Date(),
+        trackingStatus: "DELIVERED",
+        trackingUpdatedAt: new Date(),
+      },
+    },
+    cancel: { status: "CANCELLED", extra: { trackingStatus: "CANCELLED" } },
   };
 
   const mapped = statusMap[action];

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession, canWrite, SessionUser } from "@/lib/auth";
+import { assertPermission } from "@/lib/require-permission";
+import type { PermissionKey } from "@/lib/permissions";
 
-export async function requireWriteSession(): Promise<
+export async function requireWriteSession(
+  permission: PermissionKey = "stock.write"
+): Promise<
   | { session: SessionUser; error: null }
   | { session: null; error: NextResponse }
 > {
@@ -13,11 +17,20 @@ export async function requireWriteSession(): Promise<
       error: NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 }),
     };
   }
-  if (!canWrite(session.role)) {
-    return {
-      session: null,
-      error: NextResponse.json({ error: "אין הרשאה" }, { status: 403 }),
-    };
+  const fine = await assertPermission(session, permission);
+  if (!fine.ok) {
+    // תאימות: תפקידי כתיבה ישנים בלי override
+    if (!canWrite(session.role)) {
+      return { session: null, error: fine.error };
+    }
+    // WAREHOUSE עם override שמסיר stock.write — נחסם
+    const user = await prisma.user.findFirst({
+      where: { id: session.id },
+      select: { permissionsJson: true },
+    });
+    if (user?.permissionsJson) {
+      return { session: null, error: fine.error };
+    }
   }
   return { session, error: null };
 }

@@ -23,6 +23,7 @@ export const INVENTORY_TABS: SectionTab[] = [
 export const PURCHASE_TABS: SectionTab[] = [
   { href: "/purchases", label: "הזמנות רכש" },
   { href: "/inbound", label: "קליטה" },
+  { href: "/putaway", label: "השמה למדף" },
   { href: "/reorder", label: "הצעות רכש", module: "reorder" },
 ];
 
@@ -39,6 +40,7 @@ export const SALES_TABS: SectionTab[] = [
 export const FULFILLMENT_TABS: SectionTab[] = [
   { href: "/outbound", label: "ניפוק" },
   { href: "/picks", label: "ליקוט" },
+  { href: "/waves", label: "גלי ליקוט", module: "pick" },
   { href: "/shipments", label: "משלוחים", module: "shipments" },
   { href: "/documents", label: "מסמכים" },
 ];
