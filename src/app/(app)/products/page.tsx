@@ -27,7 +27,6 @@ export default async function ProductsPage({
     prisma.product.findMany({
       where: {
         companyId: session.companyId,
-        active: true,
         ...(params.categoryId ? { categoryId: params.categoryId } : {}),
         ...(params.supplierId ? { supplierId: params.supplierId } : {}),
       },
@@ -36,13 +35,14 @@ export default async function ProductsPage({
         supplier: true,
         variants: { include: { location: true }, orderBy: { sku: "asc" } },
       },
-      orderBy: { title: "asc" },
+      orderBy: [{ active: "desc" }, { title: "asc" }],
     }),
   ]);
 
   const filtered =
     params.lowStock === "1"
       ? products.filter((p) =>
+          p.active &&
           p.variants.some((v) => v.quantityOnHand <= v.minAlertLevel)
         )
       : products;

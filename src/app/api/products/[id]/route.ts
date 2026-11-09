@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { ensureSchemaPatches, prisma } from "@/lib/db";
 import { getSession, requireSession } from "@/lib/auth";
 import { logProductChange, writeAudit } from "@/lib/audit";
@@ -388,7 +389,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -398,6 +399,8 @@ export async function DELETE(
       return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
     }
     const { id } = await params;
+    const purge = req.nextUrl.searchParams.get("purge") === "1";
+
     const existing = await prisma.product.findFirst({
       where: { id, companyId: session.companyId },
       select: {
@@ -406,20 +409,40 @@ export async function DELETE(
         baseSku: true,
         active: true,
         variants: {
-          select: { id: true, sku: true, barcode: true, quantityOnHand: true, locationId: true },
+          select: {
+            id: true,
+            sku: true,
+            barcode: true,
+            quantityOnHand: true,
+            locationId: true,
+          },
         },
       },
     });
-    if (!existing || !existing.active) {
+    if (!existing) {
+      return NextResponse.json({ error: "מוצר לא נמצא" }, { status: 404 });
+    }
+    if (!existing.active && !purge) {
       return NextResponse.json({ error: "מוצר לא נמצא" }, { status: 404 });
     }
 
     const variantIds = existing.variants.map((v) => v.id);
+
+    if (purge) {
+      await purgeProductCompletely(id, variantIds, session.companyId, session.id);
+      await writeAudit({
+        action: "PURGE",
+        entityType: "Product",
+        entityId: id,
+        details: { title: existing.title, baseSku: existing.baseSku },
+      });
+      return NextResponse.json({ ok: true, purged: true });
+    }
+
     const hasHistory =
       variantIds.length > 0 && (await productHasCommercialHistory(variantIds));
 
     if (hasHistory) {
-      // ארכוב: מסתיר מהקטלוג, מאפס מלאי, משחרר מק״ט לשימוש חוזר — שומר היסטוריה
       const stamp = Date.now().toString(36);
       await prisma.$transaction(async (tx) => {
         for (const v of existing.variants) {
@@ -447,26 +470,7 @@ export async function DELETE(
             },
           });
         }
-        await tx.pickListItem.deleteMany({
-          where: { variantId: { in: variantIds } },
-        });
-        await tx.pickTemplateItem.deleteMany({
-          where: { variantId: { in: variantIds } },
-        });
-        await tx.outboundTemplateItem.deleteMany({
-          where: { variantId: { in: variantIds } },
-        });
-        await tx.waitlistItem.deleteMany({
-          where: { variantId: { in: variantIds } },
-        });
-        await tx.kitComponent.deleteMany({
-          where: {
-            OR: [
-              { kitProductId: id },
-              { componentVariantId: { in: variantIds } },
-            ],
-          },
-        });
+        await softCleanupVariantLinks(tx, id, variantIds);
         await tx.product.update({
           where: { id },
           data: {
@@ -487,29 +491,15 @@ export async function DELETE(
       return NextResponse.json({
         ok: true,
         archived: true,
-        message: "המוצר הוסתר מהקטלוג (יש היסטוריה — לא נמחק לצמיתות)",
+        message:
+          "המוצר הוסתר. למחיקה סופית מהמערכת לחצו שוב עם מחיקה לצמיתות.",
       });
     }
 
     if (variantIds.length) {
-      await prisma.$transaction([
-        prisma.pickListItem.deleteMany({ where: { variantId: { in: variantIds } } }),
-        prisma.pickTemplateItem.deleteMany({
-          where: { variantId: { in: variantIds } },
-        }),
-        prisma.outboundTemplateItem.deleteMany({
-          where: { variantId: { in: variantIds } },
-        }),
-        prisma.stockCountLine.deleteMany({
-          where: { variantId: { in: variantIds } },
-        }),
-        prisma.waitlistItem.deleteMany({
-          where: { variantId: { in: variantIds } },
-        }),
-        prisma.kitComponent.deleteMany({
-          where: { componentVariantId: { in: variantIds } },
-        }),
-      ]);
+      await prisma.$transaction(async (tx) => {
+        await softCleanupVariantLinks(tx, id, variantIds);
+      });
     }
 
     await prisma.product.delete({ where: { id } });
@@ -532,7 +522,7 @@ export async function DELETE(
       return NextResponse.json(
         {
           error:
-            "לא ניתן למחוק — המוצר מקושר למסמכים היסטוריים. נסו שוב (ארכוב אוטומטי).",
+            "עדיין יש קישור שמונע מחיקה. נסו «מחיקה לצמיתות» (purge).",
         },
         { status: 409 }
       );
@@ -549,6 +539,120 @@ export async function DELETE(
       { status: 500 }
     );
   }
+}
+
+async function softCleanupVariantLinks(
+  tx: Prisma.TransactionClient,
+  productId: string,
+  variantIds: string[]
+) {
+  if (!variantIds.length) return;
+  await tx.pickListItem.deleteMany({ where: { variantId: { in: variantIds } } });
+  await tx.pickTemplateItem.deleteMany({
+    where: { variantId: { in: variantIds } },
+  });
+  await tx.outboundTemplateItem.deleteMany({
+    where: { variantId: { in: variantIds } },
+  });
+  await tx.stockCountLine.deleteMany({
+    where: { variantId: { in: variantIds } },
+  });
+  await tx.waitlistItem.deleteMany({
+    where: { variantId: { in: variantIds } },
+  });
+  await tx.kitComponent.deleteMany({
+    where: {
+      OR: [
+        { kitProductId: productId },
+        { componentVariantId: { in: variantIds } },
+      ],
+    },
+  });
+}
+
+/** מחיקה מלאה כולל שורות הזמנה/תנועות — בלתי הפיך */
+async function purgeProductCompletely(
+  productId: string,
+  variantIds: string[],
+  companyId: string,
+  userId: string
+) {
+  await prisma.$transaction(async (tx) => {
+    if (variantIds.length) {
+      // מאפסים מלאי לפני מחיקת תנועות (אופציונלי — לא חובה לפני purge)
+      const variants = await tx.productVariant.findMany({
+        where: { id: { in: variantIds } },
+        select: { id: true, quantityOnHand: true, locationId: true },
+      });
+      for (const v of variants) {
+        if (v.quantityOnHand !== 0) {
+          await applyStockChange(
+            {
+              variantId: v.id,
+              type: "ADJUSTMENT",
+              quantityChanged: 0,
+              setQuantityTo: 0,
+              reason: "מחיקה סופית של מוצר",
+              reasonCode: "SETUP",
+              userId,
+              companyId,
+              locationId: v.locationId,
+            },
+            tx
+          );
+        }
+      }
+
+      await softCleanupVariantLinks(tx, productId, variantIds);
+
+      await tx.shipmentPackageItem.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+      await tx.returnAuthorizationLine.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+      await tx.stockTransferLine.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+      await tx.goodsReceiptLine.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+      await tx.salesOrderLine.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+      await tx.purchaseOrderLine.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+      await tx.customerPrice.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+      await tx.priceListItem.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+      await tx.reorderRule.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+      await tx.inventoryBalance.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+
+      // תנועות לפני לוטים/סריאליים (FK)
+      await tx.stockTransaction.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+      await tx.serialNumber.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+      await tx.inventoryLot.deleteMany({
+        where: { variantId: { in: variantIds } },
+      });
+    }
+
+    await tx.attachment.deleteMany({
+      where: { companyId, entityType: "PRODUCT", entityId: productId },
+    });
+    await tx.product.delete({ where: { id: productId } });
+  });
 }
 
 async function productHasCommercialHistory(variantIds: string[]) {

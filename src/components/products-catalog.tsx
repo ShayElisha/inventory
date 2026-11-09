@@ -23,6 +23,7 @@ type Product = {
   id: string;
   title: string;
   baseSku: string;
+  active?: boolean;
   costPrice: number;
   sellingPrice: number;
   unitOfMeasure?: string;
@@ -79,7 +80,14 @@ export function ProductsCatalog({
   async function deleteProduct(p: Product) {
     if (
       !confirm(
-        `להסיר את המוצר "${p.title}" מהקטלוג?\nאם יש היסטוריה — יוסתר (ארכוב) והמלאי יאופס; אחרת יימחק לצמיתות.`
+        `למחוק לצמיתות את "${p.title}"?\n\nהמוצר יימחק לגמרי מהמערכת, כולל שורות הזמנה ותנועות מלאי שקשורות אליו.\nלא ניתן לשחזר.`
+      )
+    ) {
+      return;
+    }
+    if (
+      !confirm(
+        `אישור אחרון: למחוק את "${p.title}" לתמיד?`
       )
     ) {
       return;
@@ -87,13 +95,11 @@ export function ProductsCatalog({
     setBusyId(p.id);
     setError("");
     try {
-      const res = await fetch(`/api/products/${p.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/products/${p.id}?purge=1`, {
+        method: "DELETE",
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "שגיאה במחיקה");
-      if (data.archived && data.message) {
-        setError("");
-        alert(data.message);
-      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה במחיקה");
@@ -157,8 +163,12 @@ export function ProductsCatalog({
           const open = openId === p.id;
           const totalQty = p.variants.reduce((s, v) => s + v.quantityOnHand, 0);
           const hasLow = p.variants.some((v) => v.quantityOnHand <= v.minAlertLevel);
+          const archived = p.active === false;
           return (
-            <Card key={p.id} className="p-0 overflow-hidden">
+            <Card
+              key={p.id}
+              className={`p-0 overflow-hidden ${archived ? "opacity-70" : ""}`}
+            >
               <div className="flex items-center gap-2 px-3 py-3 sm:px-5 sm:py-4">
                 <button
                   type="button"
@@ -182,7 +192,8 @@ export function ProductsCatalog({
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-[var(--foreground)]">{p.title}</span>
                       <Badge>{p.category.name}</Badge>
-                      {hasLow && <Badge tone="danger">מלאי נמוך</Badge>}
+                      {archived && <Badge tone="danger">בארכיון</Badge>}
+                      {hasLow && !archived && <Badge tone="danger">מלאי נמוך</Badge>}
                     </div>
                     <div className="mt-1 text-xs text-[var(--muted)]">
                       קוד דגם: {p.baseSku} · {p.variants.length} מידות/גרסאות · סה״כ{" "}
