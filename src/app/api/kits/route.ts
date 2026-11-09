@@ -14,7 +14,7 @@ export async function GET() {
   if (gate.error) return gate.error;
   const session = gate.session!;
   const kits = await prisma.product.findMany({
-    where: { companyId: session.companyId, isKit: true },
+    where: { companyId: session.companyId, isKit: true, active: true },
     include: {
       kitComponents: {
         include: { componentVariant: { include: { product: true } } },

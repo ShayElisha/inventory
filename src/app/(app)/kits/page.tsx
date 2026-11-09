@@ -10,7 +10,7 @@ export default async function KitsPage() {
   const { session } = await requireModule("kits");
   const [kits, variants] = await Promise.all([
     prisma.product.findMany({
-      where: { companyId: session.companyId, isKit: true },
+      where: { companyId: session.companyId, isKit: true, active: true },
       include: {
         kitComponents: {
           include: {
@@ -22,7 +22,7 @@ export default async function KitsPage() {
       orderBy: { title: "asc" },
     }),
     prisma.productVariant.findMany({
-      where: { product: { companyId: session.companyId } },
+      where: { product: { companyId: session.companyId, active: true } },
       include: { product: true },
       orderBy: { sku: "asc" },
       take: 500,

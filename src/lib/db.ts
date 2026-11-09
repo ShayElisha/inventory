@@ -99,6 +99,9 @@ export function ensureSchemaPatches() {
         await prisma.$executeRawUnsafe(
           `ALTER TABLE "shipments" ADD COLUMN IF NOT EXISTS "tracking_events_json" TEXT NOT NULL DEFAULT '[]'`
         );
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "products" ADD COLUMN IF NOT EXISTS "active" BOOLEAN NOT NULL DEFAULT true`
+        );
       } catch (e) {
         console.error("ensureSchemaPatches failed", e);
       }

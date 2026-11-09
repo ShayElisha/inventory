@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   const products = await prisma.product.findMany({
     where: {
       companyId: session.companyId,
+      active: true,
       ...(categoryId ? { categoryId } : {}),
       ...(supplierId ? { supplierId } : {}),
     },

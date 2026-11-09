@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { ensureSchemaPatches, prisma } from "@/lib/db";
 import { getSession, requireSession } from "@/lib/auth";
 import { logProductChange, writeAudit } from "@/lib/audit";
 import { parseJsonArray, stringifyJson } from "@/lib/json";
@@ -392,6 +392,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await ensureSchemaPatches();
     const session = await getSession();
     if (!session?.companyId) {
       return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
@@ -403,21 +404,94 @@ export async function DELETE(
         id: true,
         title: true,
         baseSku: true,
-        variants: { select: { id: true } },
+        active: true,
+        variants: {
+          select: { id: true, sku: true, barcode: true, quantityOnHand: true, locationId: true },
+        },
       },
     });
-    if (!existing) {
+    if (!existing || !existing.active) {
       return NextResponse.json({ error: "מוצר לא נמצא" }, { status: 404 });
     }
 
     const variantIds = existing.variants.map((v) => v.id);
-    if (variantIds.length) {
-      const blockReason = await productDeleteBlockReason(variantIds);
-      if (blockReason) {
-        return NextResponse.json({ error: blockReason }, { status: 409 });
-      }
+    const hasHistory =
+      variantIds.length > 0 && (await productHasCommercialHistory(variantIds));
 
-      // ניקוי קישורים «רכים» (תבניות / פריטי ליקוט / ספירות) כדי לאפשר מחיקה
+    if (hasHistory) {
+      // ארכוב: מסתיר מהקטלוג, מאפס מלאי, משחרר מק״ט לשימוש חוזר — שומר היסטוריה
+      const stamp = Date.now().toString(36);
+      await prisma.$transaction(async (tx) => {
+        for (const v of existing.variants) {
+          if (v.quantityOnHand !== 0) {
+            await applyStockChange(
+              {
+                variantId: v.id,
+                type: "ADJUSTMENT",
+                quantityChanged: 0,
+                setQuantityTo: 0,
+                reason: "ארכוב מוצר",
+                reasonCode: "SETUP",
+                userId: session.id,
+                companyId: session.companyId,
+                locationId: v.locationId,
+              },
+              tx
+            );
+          }
+          await tx.productVariant.update({
+            where: { id: v.id },
+            data: {
+              sku: `${v.sku}__A__${stamp}`.slice(0, 120),
+              barcode: `${v.barcode}__A__${stamp}`.slice(0, 120),
+            },
+          });
+        }
+        await tx.pickListItem.deleteMany({
+          where: { variantId: { in: variantIds } },
+        });
+        await tx.pickTemplateItem.deleteMany({
+          where: { variantId: { in: variantIds } },
+        });
+        await tx.outboundTemplateItem.deleteMany({
+          where: { variantId: { in: variantIds } },
+        });
+        await tx.waitlistItem.deleteMany({
+          where: { variantId: { in: variantIds } },
+        });
+        await tx.kitComponent.deleteMany({
+          where: {
+            OR: [
+              { kitProductId: id },
+              { componentVariantId: { in: variantIds } },
+            ],
+          },
+        });
+        await tx.product.update({
+          where: { id },
+          data: {
+            active: false,
+            baseSku: `${existing.baseSku}__A__${stamp}`.slice(0, 120),
+            title: `[ארכיון] ${existing.title}`.slice(0, 200),
+          },
+        });
+      });
+
+      await writeAudit({
+        action: "ARCHIVE",
+        entityType: "Product",
+        entityId: id,
+        details: { title: existing.title, baseSku: existing.baseSku },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        archived: true,
+        message: "המוצר הוסתר מהקטלוג (יש היסטוריה — לא נמחק לצמיתות)",
+      });
+    }
+
+    if (variantIds.length) {
       await prisma.$transaction([
         prisma.pickListItem.deleteMany({ where: { variantId: { in: variantIds } } }),
         prisma.pickTemplateItem.deleteMany({
@@ -447,7 +521,7 @@ export async function DELETE(
       details: { title: existing.title, baseSku: existing.baseSku },
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, archived: false });
   } catch (e) {
     console.error(e);
     const code =
@@ -458,20 +532,26 @@ export async function DELETE(
       return NextResponse.json(
         {
           error:
-            "לא ניתן למחוק — המוצר מקושר למסמכים היסטוריים (הזמנות / תנועות). הסתירו או השאירו במערכת.",
+            "לא ניתן למחוק — המוצר מקושר למסמכים היסטוריים. נסו שוב (ארכוב אוטומטי).",
         },
         { status: 409 }
       );
     }
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "שגיאה במחיקה" },
+      {
+        error:
+          e instanceof StockError
+            ? e.message
+            : e instanceof Error
+              ? e.message
+              : "שגיאה במחיקה",
+      },
       { status: 500 }
     );
   }
 }
 
-/** חוסם מחיקה כשיש היסטוריית מסחר/תפעול שאי אפשר למחוק בבטחה */
-async function productDeleteBlockReason(variantIds: string[]) {
+async function productHasCommercialHistory(variantIds: string[]) {
   const [
     soLines,
     poLines,
@@ -501,15 +581,14 @@ async function productDeleteBlockReason(variantIds: string[]) {
       where: { variantId: { in: variantIds } },
     }),
   ]);
-
-  const blockers: string[] = [];
-  if (soLines) blockers.push("הזמנות מכירה");
-  if (poLines) blockers.push("הזמנות רכש");
-  if (grLines) blockers.push("קליטות");
-  if (transferLines) blockers.push("העברות");
-  if (rmaLines) blockers.push("החזרות");
-  if (packageItems) blockers.push("משלוחים");
-  if (txns) blockers.push("תנועות מלאי");
-  if (!blockers.length) return null;
-  return `לא ניתן למחוק מוצר עם היסטוריה (${blockers.join(", ")}).`;
+  return (
+    soLines +
+      poLines +
+      grLines +
+      transferLines +
+      rmaLines +
+      packageItems +
+      txns >
+    0
+  );
 }

@@ -79,7 +79,7 @@ export function ProductsCatalog({
   async function deleteProduct(p: Product) {
     if (
       !confirm(
-        `למחוק את המוצר "${p.title}" ואת כל אפשרויות המוצר שלו? פעולה זו בלתי הפיכה.`
+        `להסיר את המוצר "${p.title}" מהקטלוג?\nאם יש היסטוריה — יוסתר (ארכוב) והמלאי יאופס; אחרת יימחק לצמיתות.`
       )
     ) {
       return;
@@ -90,6 +90,10 @@ export function ProductsCatalog({
       const res = await fetch(`/api/products/${p.id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "שגיאה במחיקה");
+      if (data.archived && data.message) {
+        setError("");
+        alert(data.message);
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "שגיאה במחיקה");

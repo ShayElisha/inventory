@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     prisma.product.findMany({
       where: {
         companyId,
+        active: true,
         OR: [
           { title: { contains: q, mode: "insensitive" } },
           { baseSku: { contains: q, mode: "insensitive" } },
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     }),
     prisma.productVariant.findMany({
       where: {
-        product: { companyId },
+        product: { companyId, active: true },
         OR: [
           { sku: { contains: q, mode: "insensitive" } },
           { barcode: { contains: q } },

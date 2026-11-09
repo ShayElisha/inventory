@@ -1,6 +1,6 @@
 import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
-import { prisma } from "@/lib/db";
+import { ensureSchemaPatches, prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { ProductsCatalog } from "@/components/products-catalog";
 import { SectionTabs } from "@/components/section-tabs";
@@ -13,6 +13,7 @@ export default async function ProductsPage({
 }) {
   noStore();
   const session = await requireTenant();
+  await ensureSchemaPatches();
   const params = await searchParams;
   const [categories, suppliers, products] = await Promise.all([
     prisma.category.findMany({
@@ -26,6 +27,7 @@ export default async function ProductsPage({
     prisma.product.findMany({
       where: {
         companyId: session.companyId,
+        active: true,
         ...(params.categoryId ? { categoryId: params.categoryId } : {}),
         ...(params.supplierId ? { supplierId: params.supplierId } : {}),
       },
